@@ -39,12 +39,15 @@ The key support EC asymmetric encryption and digital signature.
 A pod is an encrypted container for a piece of data. A Pod comes with:
 
 - key id, so to identify the related decryption key
+- snowflake id
+- modification time
 - a beloging group 
 - full name, including folders
 - size, for corruption control
 - content type
 - optional thumbail
 - optional compression
+
 
 ---
 
@@ -53,4 +56,10 @@ A safe is encrypted data on storage, which is easily accessible. It includes:
 
 - users, described by their identities
 - groups, collection of users
+- pods, encrypted content
+- keys, use to encrypt data
+
+---
+
+
 
