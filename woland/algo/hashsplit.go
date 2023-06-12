@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/code-to-go/safepool/core"
-
 	"github.com/chmduquesne/rollinghash/buzhash32"
 	"golang.org/x/crypto/blake2b"
+
+	"github.com/code-to-go/woland/core"
 )
 
 const windowSize = 32

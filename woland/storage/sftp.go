@@ -6,15 +6,14 @@ import (
 	"io"
 	"io/fs"
 	"net/url"
-	"time"
-
 	"os"
 	"path"
-
-	"github.com/code-to-go/safepool/core"
+	"time"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/code-to-go/woland/core"
 )
 
 // type SFTPConfig struct {
@@ -114,22 +113,6 @@ func OpenSFTP(connectionUrl string) (Store, error) {
 	return &SFTP{c, base, repr, map[string]time.Time{}}, nil
 }
 
-func (s *SFTP) GetCheckpoint(name string) int64 {
-	stat, err := s.Stat(name)
-	if err != nil {
-		return -1
-	}
-	return stat.ModTime().UnixMicro()
-}
-
-func (s *SFTP) SetCheckpoint(name string) (int64, error) {
-	err := s.Write(name, core.NewBytesReader(nil), 0, nil)
-	if core.IsErr(err, "cannot write checkpoint '%s': %v", name) {
-		return 0, err
-	}
-	return s.GetCheckpoint(name), nil
-}
-
 func (s *SFTP) Read(name string, rang *Range, dest io.Writer, progress chan int64) error {
 	f, err := s.c.Open(path.Join(s.base, name))
 	if os.IsNotExist(err) || core.IsErr(err, "cannot open file on sftp server %v:%v", s) {
@@ -165,7 +148,7 @@ func (s *SFTP) Read(name string, rang *Range, dest io.Writer, progress chan int6
 	return nil
 }
 
-func (s *SFTP) Write(name string, source io.ReadSeeker, size int64, progress chan int64) error {
+func (s *SFTP) Write(name string, source io.ReadSeeker, progress chan int64) error {
 	name = path.Join(s.base, name)
 
 	f, err := s.c.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC)
@@ -183,11 +166,23 @@ func (s *SFTP) Write(name string, source io.ReadSeeker, size int64, progress cha
 	return err
 }
 
-func (s *SFTP) ReadDir(dir string, opts ListOption) ([]fs.FileInfo, error) {
+func (s *SFTP) ReadDir(dir string, f Filter) ([]fs.FileInfo, error) {
 	dir = path.Join(s.base, dir)
-	infos, err := s.c.ReadDir(dir)
+	ls, err := s.c.ReadDir(dir)
 	if err != nil {
 		return nil, err
+	}
+
+	var cnt int64
+	var infos []fs.FileInfo
+	for _, l := range ls {
+		if matchFilter(l, f) {
+			infos = append(infos, l)
+			cnt++
+		}
+		if f.MaxResults > 0 && cnt >= f.MaxResults {
+			break
+		}
 	}
 
 	return infos, nil

@@ -2,18 +2,21 @@ package sql
 
 import (
 	"database/sql"
+	_ "embed"
 	"errors"
-
 	"os"
 	"strings"
 
-	"github.com/code-to-go/safepool/core"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
+
+	"github.com/code-to-go/woland/core"
 )
 
-var db *sql.DB
+//go:embed sqlite.sql
 var InitDDL string
+
+var db *sql.DB
 var DbPath string
 
 func createTables() error {
@@ -62,24 +65,29 @@ func LoadSQLFromFile(name string) error {
 	return nil
 }
 
+var MemoryDB = ":memory:"
+
 func OpenDB(dbPath string) error {
 	if db != nil {
 		return nil
 	}
 
 	DbPath = dbPath
-	_, err := os.Stat(DbPath)
-	if errors.Is(err, os.ErrNotExist) {
-		err := os.WriteFile(dbPath, []byte{}, 0644)
-		if err != nil {
-			logrus.Errorf("cannot create SQLite db in %s: %v", DbPath, err)
-			return err
-		}
+	if DbPath != MemoryDB {
+		_, err := os.Stat(DbPath)
+		if errors.Is(err, os.ErrNotExist) {
+			err := os.WriteFile(dbPath, []byte{}, 0644)
+			if err != nil {
+				logrus.Errorf("cannot create SQLite db in %s: %v", DbPath, err)
+				return err
+			}
 
-	} else if err != nil {
-		logrus.Errorf("cannot access SQLite db file %s: %v", DbPath, err)
+		} else if err != nil {
+			logrus.Errorf("cannot access SQLite db file %s: %v", DbPath, err)
+		}
 	}
 
+	var err error
 	db, err = sql.Open("sqlite3", DbPath)
 	if err != nil {
 		logrus.Errorf("cannot open SQLite db in %s: %v", DbPath, err)

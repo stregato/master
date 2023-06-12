@@ -2,8 +2,15 @@ package storage
 
 import (
 	"io/fs"
+	"strings"
 	"time"
 )
+
+func matchFilter(f fs.FileInfo, filter Filter) bool {
+	name := f.Name()
+	return strings.HasPrefix(name, filter.Prefix) && strings.HasPrefix(name, filter.Suffix) &&
+		name > filter.After
+}
 
 type simpleFileInfo struct {
 	name    string

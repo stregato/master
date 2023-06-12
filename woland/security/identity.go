@@ -9,10 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-
-	"github.com/code-to-go/safepool/core"
+	"time"
 
 	eciesgo "github.com/ecies/go/v2"
+
+	"github.com/code-to-go/woland/core"
 )
 
 var ErrInvalidSignature = errors.New("signature is invalid")
@@ -28,8 +29,9 @@ type Key struct {
 }
 
 type Identity struct {
-	Nick  string `json:"n"`
-	Email string `json:"m"`
+	Nick    string    `json:"n"`
+	Email   string    `json:"m"`
+	ModTime time.Time `json:"modTime"`
 
 	SignatureKey  Key `json:"s"`
 	EncryptionKey Key `json:"e"`
@@ -41,6 +43,7 @@ type Identity struct {
 func NewIdentity(nick string) (Identity, error) {
 	var identity Identity
 
+	identity.ModTime = core.Now()
 	identity.Nick = nick
 	privateCrypt, err := eciesgo.GenerateKey()
 	if core.IsErr(err, "cannot generate secp256k1 key: %v") {
@@ -64,8 +67,9 @@ func NewIdentity(nick string) (Identity, error) {
 
 func (i Identity) Public() Identity {
 	return Identity{
-		Nick:  i.Nick,
-		Email: i.Email,
+		Nick:    i.Nick,
+		Email:   i.Email,
+		ModTime: i.ModTime,
 		EncryptionKey: Key{
 			Public: i.EncryptionKey.Public,
 		},
@@ -134,6 +138,10 @@ func SameIdentity(a, b Identity) bool {
 
 func SetIdentity(i Identity) error {
 	return sqlSetIdentity(i)
+}
+
+func DelIdentity(id string) error {
+	return sqlDelIdentity(id)
 }
 
 func GetIdentity(id string) (identity Identity, ok bool, err error) {

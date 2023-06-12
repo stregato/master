@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/woland/core"
 )
 
 type LocalConfig struct {
@@ -33,22 +33,6 @@ func OpenLocal(connectionUrl string) (Store, error) {
 		base = "/"
 	}
 	return &Local{base, connectionUrl, map[string]time.Time{}}, nil
-}
-
-func (l *Local) GetCheckpoint(name string) int64 {
-	stat, err := l.Stat(name)
-	if err != nil {
-		return -1
-	}
-	return stat.ModTime().UnixMicro()
-}
-
-func (l *Local) SetCheckpoint(name string) (int64, error) {
-	err := l.Write(name, core.NewBytesReader(nil), 0, nil)
-	if core.IsErr(err, "cannot write checkpoint '%s': %v", name) {
-		return 0, err
-	}
-	return l.GetCheckpoint(name), nil
 }
 
 func (l *Local) Read(name string, rang *Range, dest io.Writer, progress chan int64) error {
@@ -87,7 +71,7 @@ func createDir(n string) error {
 	return os.MkdirAll(filepath.Dir(n), 0755)
 }
 
-func (l *Local) Write(name string, source io.ReadSeeker, size int64, progress chan int64) error {
+func (l *Local) Write(name string, source io.ReadSeeker, progress chan int64) error {
 	n := filepath.Join(l.base, name)
 	err := createDir(n)
 	if core.IsErr(err, "cannot create parent of %s: %v", n) {
@@ -105,17 +89,22 @@ func (l *Local) Write(name string, source io.ReadSeeker, size int64, progress ch
 	return err
 }
 
-func (l *Local) ReadDir(dir string, opts ListOption) ([]fs.FileInfo, error) {
+func (l *Local) ReadDir(dir string, filter Filter) ([]fs.FileInfo, error) {
 	result, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
 	var infos []fs.FileInfo
+	var cnt int64
 	for _, item := range result {
 		info, err := item.Info()
-		if err == nil {
+		if err == nil && matchFilter(info, filter) {
 			infos = append(infos, info)
+			cnt++
+		}
+		if filter.MaxResults > 0 && cnt == filter.MaxResults {
+			break
 		}
 	}
 

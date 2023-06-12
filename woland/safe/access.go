@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/woland/core"
 
 	"github.com/code-to-go/woland/security"
 )

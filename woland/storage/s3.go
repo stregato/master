@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,17 +11,15 @@ import (
 	"path"
 	"strings"
 
-	"github.com/code-to-go/safepool/core"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/smithy-go"
-
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-
+	"github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/logging"
 	"github.com/sirupsen/logrus"
+
+	"github.com/code-to-go/woland/core"
 )
 
 type S3 struct {
@@ -105,35 +102,7 @@ func (s *S3) createBucketIfNeeded() error {
 	return s.mapError(err)
 }
 
-func (s *S3) GetCheckpoint(name string) int64 {
-	h, err := s.client.HeadObject(context.TODO(), &s3.HeadObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(name),
-	})
-	if err != nil {
-		return -1
-	}
-	return h.LastModified.UnixMicro()
-}
-
-func (s *S3) SetCheckpoint(name string) (int64, error) {
-	_, err := s.client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: &s.bucket,
-		Key:    &name,
-		Body:   &bytes.Buffer{},
-	})
-	if core.IsErr(err, "cannot set checkpoint '%s'") {
-		return 0, err
-	}
-	return s.GetCheckpoint(name), nil
-}
-
 func (s *S3) Read(name string, rang *Range, dest io.Writer, progress chan int64) error {
-	// var r *string
-	// if rang != nil {
-	// 	r = aws.String(fmt.Sprintf("byte%d-%d", rang.From, rang.To))
-	// }
-
 	rawObject, err := s.client.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: &s.bucket,
 		Key:    &name,
@@ -155,8 +124,13 @@ func (s *S3) Read(name string, rang *Range, dest io.Writer, progress chan int64)
 	return nil
 }
 
-func (s *S3) Write(name string, source io.ReadSeeker, size int64, progress chan int64) error {
-	_, err := s.client.PutObject(context.TODO(), &s3.PutObjectInput{
+func (s *S3) Write(name string, source io.ReadSeeker, progress chan int64) error {
+	size, err := source.Seek(0, io.SeekEnd)
+	if core.IsErr(err, "cannot seek source for '%s': %v", name) {
+		return err
+	}
+
+	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:        &s.bucket,
 		Key:           &name,
 		Body:          source,
@@ -166,13 +140,16 @@ func (s *S3) Write(name string, source io.ReadSeeker, size int64, progress chan 
 	return s.mapError(err)
 }
 
-func (s *S3) ReadDir(dir string, opts ListOption) ([]fs.FileInfo, error) {
+func (s *S3) ReadDir(dir string, f Filter) ([]fs.FileInfo, error) {
 	input := &s3.ListObjectsV2Input{
+		Bucket:     aws.String(s.bucket),
+		Prefix:     aws.String(dir + "/" + f.Prefix),
+		StartAfter: &f.After,
+		Delimiter:  aws.String("/"),
+	}
 
-		Bucket: aws.String(s.bucket),
-		Prefix: aws.String(dir + "/"),
-		//		Prefix:    aws.String("ch.safepool/"),
-		Delimiter: aws.String("/"),
+	if f.Suffix == "" && f.MaxResults != 0 {
+		input.MaxKeys = int32(f.MaxResults)
 	}
 
 	result, err := s.client.ListObjectsV2(context.TODO(), input)
@@ -182,8 +159,12 @@ func (s *S3) ReadDir(dir string, opts ListOption) ([]fs.FileInfo, error) {
 	}
 
 	var infos []fs.FileInfo
+	var cnt int64
 
 	for _, item := range result.CommonPrefixes {
+		if f.MaxResults == 0 && cnt >= f.MaxResults {
+			break
+		}
 		cut := len(path.Clean(dir))
 		name := strings.TrimRight((*item.Prefix)[cut+1:], "/")
 
@@ -191,9 +172,13 @@ func (s *S3) ReadDir(dir string, opts ListOption) ([]fs.FileInfo, error) {
 			name:  name,
 			isDir: true,
 		})
+		cnt++
 	}
 
 	for _, item := range result.Contents {
+		if f.MaxResults == 0 && cnt >= f.MaxResults {
+			break
+		}
 		cut := len(path.Clean(dir))
 		name := (*item.Key)[cut+1:]
 
@@ -203,7 +188,7 @@ func (s *S3) ReadDir(dir string, opts ListOption) ([]fs.FileInfo, error) {
 			isDir:   false,
 			modTime: *item.LastModified,
 		})
-
+		cnt++
 	}
 
 	return infos, nil

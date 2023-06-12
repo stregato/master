@@ -1,8 +1,8 @@
 package security
 
 import (
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/sql"
+	"github.com/code-to-go/woland/core"
+	"github.com/code-to-go/woland/sql"
 )
 
 func sqlSetIdentity(i Identity) error {
@@ -14,6 +14,13 @@ func sqlSetIdentity(i Identity) error {
 	_, err = sql.Exec("SET_IDENTITY", sql.Args{
 		"id":  i.Id(),
 		"i64": i64,
+	})
+	return err
+}
+
+func sqlDelIdentity(id string) error {
+	_, err := sql.Exec("DEL_IDENTITY", sql.Args{
+		"id": id,
 	})
 	return err
 }

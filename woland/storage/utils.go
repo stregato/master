@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"hash"
 	"io"
-
 	"os"
 
-	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/woland/core"
 )
 
 func ReadFile(s Store, name string) ([]byte, error) {
@@ -20,7 +19,7 @@ func ReadFile(s Store, name string) ([]byte, error) {
 func WriteFile(s Store, name string, data []byte) error {
 	b := core.NewBytesReader(data)
 	defer b.Close()
-	return s.Write(name, b, int64(len(data)), nil)
+	return s.Write(name, b, nil)
 }
 
 func ReadJSON(s Store, name string, v any, hash hash.Hash) error {
@@ -41,7 +40,7 @@ func WriteJSON(s Store, name string, v any, hash hash.Hash) error {
 		if hash != nil {
 			hash.Write(b)
 		}
-		err = s.Write(name, core.NewBytesReader(b), int64(len(b)), nil)
+		err = s.Write(name, core.NewBytesReader(b), nil)
 	}
 	return err
 }
@@ -80,7 +79,7 @@ func CopyFile(dest Store, destName string, source Store, sourceName string) erro
 		}()
 	}
 
-	err = dest.Write(destName, r, stat.Size(), nil)
+	err = dest.Write(destName, r, nil)
 	if core.IsErr(err, "cannot write %s/%s: %v", dest, destName) {
 		return err
 	}

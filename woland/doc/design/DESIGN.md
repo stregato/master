@@ -23,7 +23,7 @@ Data is E2E encrypted and easy to move.
 Access is granted only to owners.
 
 ---
-
+![bg right:33%](passport.jpg)
 ## Identity
 An identity uniquely identifies a user
 
@@ -35,6 +35,16 @@ An identity is made of:
 The key support EC asymmetric encryption and digital signature.
 
 ---
+
+## Group
+A group is a set of identities. 
+
+At a specific time identities in a group share an encryption key, which allows to decrypt data on a public storage.
+
+
+
+---
+
 ## Pod
 A pod is an encrypted container for a piece of data. A Pod comes with:
 
@@ -47,6 +57,10 @@ A pod is an encrypted container for a piece of data. A Pod comes with:
 - content type
 - optional thumbail
 - optional compression
+
+---
+## Keys
+
 
 
 ---

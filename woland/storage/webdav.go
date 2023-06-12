@@ -8,8 +8,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/code-to-go/safepool/core"
 	"github.com/studio-b12/gowebdav"
+
+	"github.com/code-to-go/woland/core"
 )
 
 type WebDAV struct {
@@ -90,7 +91,7 @@ func (w *WebDAV) Read(name string, rang *Range, dest io.Writer, progress chan in
 	return nil
 }
 
-func (w *WebDAV) Write(name string, source io.ReadSeeker, size int64, progress chan int64) error {
+func (w *WebDAV) Write(name string, source io.ReadSeeker, progress chan int64) error {
 	p := path.Join(w.p, name)
 
 	err := w.c.WriteStream(p, source, 0)
@@ -101,7 +102,7 @@ func (w *WebDAV) Write(name string, source io.ReadSeeker, size int64, progress c
 	return nil
 }
 
-func (w *WebDAV) ReadDir(dir string, opts ListOption) ([]fs.FileInfo, error) {
+func (w *WebDAV) ReadDir(dir string, f Filter) ([]fs.FileInfo, error) {
 	p := path.Join(w.p, dir)
 
 	ls, err := w.c.ReadDir(p)
@@ -111,7 +112,20 @@ func (w *WebDAV) ReadDir(dir string, opts ListOption) ([]fs.FileInfo, error) {
 	if core.IsErr(err, "cannot read WebDAV folder %s: %v", p) {
 		return nil, err
 	}
-	return ls, err
+
+	var cnt int64
+	var infos []fs.FileInfo
+	for _, l := range ls {
+		if matchFilter(l, f) {
+			infos = append(infos, l)
+			cnt++
+		}
+		if f.MaxResults > 0 && cnt >= f.MaxResults {
+			break
+		}
+	}
+
+	return infos, err
 }
 
 func (w *WebDAV) Stat(name string) (fs.FileInfo, error) {

@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/code-to-go/safepool/api"
-	"github.com/code-to-go/safepool/core"
-	"github.com/code-to-go/safepool/pool"
-	"github.com/code-to-go/safepool/security"
-	"github.com/code-to-go/safepool/services/chat"
+	"github.com/code-to-go/woland/api"
+	"github.com/code-to-go/woland/core"
+	"github.com/code-to-go/woland/pool"
+	"github.com/code-to-go/woland/security"
+	"github.com/code-to-go/woland/services/chat"
 	"github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 )

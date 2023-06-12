@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/code-to-go/safepool/core"
+	"github.com/code-to-go/woland/core"
 )
 
 const SignatureField = "dgst_ed25519_blake2b"
