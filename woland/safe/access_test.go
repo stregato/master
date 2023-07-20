@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/stregato/masterwoland/security"
+	"github.com/stregato/master/woland/security"
 )
 
 func TestNewAccess(t *testing.T) {

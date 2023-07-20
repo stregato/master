@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/security"
-	"github.com/stregato/masterwoland/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/storage"
 )
 
 func TestAclOnStore(t *testing.T) {

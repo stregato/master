@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/master/woland/core"
 )
 
 const SignatureField = "dgst_ed25519_blake2b"

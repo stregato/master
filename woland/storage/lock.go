@@ -6,7 +6,7 @@ import (
 
 	"github.com/godruoyi/go-snowflake"
 
-	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/master/woland/core"
 )
 
 type lockFileContent struct {

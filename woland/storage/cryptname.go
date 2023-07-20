@@ -7,8 +7,8 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/security"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
 )
 
 type encrypted struct {

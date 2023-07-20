@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/sql"
-	"github.com/stregato/masterwoland/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 var ErrInvalidTag = fmt.Errorf("invalid tag. Only alphanumeric characters are allowed")

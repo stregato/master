@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/master/woland/core"
 )
 
 func TestSafePut(t *testing.T) {

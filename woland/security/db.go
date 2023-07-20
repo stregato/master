@@ -1,8 +1,8 @@
 package security
 
 import (
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/sql"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
 )
 
 func sqlSetIdentity(i Identity) error {

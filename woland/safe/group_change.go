@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/stregato/masterwoland/security"
-	"github.com/stregato/masterwoland/storage"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/storage"
 )
 
 // userChange represents a change made by a user.

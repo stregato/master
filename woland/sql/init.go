@@ -11,7 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 
-	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/master/woland/core"
 )
 
 //go:embed sqlite.sql

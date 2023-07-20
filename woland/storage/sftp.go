@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/master/woland/core"
 )
 
 // type SFTPConfig struct {

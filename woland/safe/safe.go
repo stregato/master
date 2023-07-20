@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/stregato/masterwoland/security"
-	"github.com/stregato/masterwoland/storage"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/storage"
 )
 
 var ConfigFolder string

@@ -13,9 +13,9 @@ import (
 	"github.com/disintegration/imaging"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/sql"
-	"github.com/stregato/masterwoland/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 const (

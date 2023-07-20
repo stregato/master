@@ -33,10 +33,10 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/safe"
-	"github.com/stregato/masterwoland/security"
-	"github.com/stregato/masterwoland/sql"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/safe"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/sql"
 )
 
 var ErrSafeNotFound = fmt.Errorf("safe not found")

@@ -3,9 +3,9 @@ package safe
 import (
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/security"
-	"github.com/stregato/masterwoland/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/storage"
 )
 
 // ACL represents the access control list for a zone, which includes a map associating

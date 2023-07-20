@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/stregato/masterwoland/security"
-	"github.com/stregato/masterwoland/sql"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/sql"
 )
 
 func TestOpen(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/master/woland/core"
 )
 
 func gzipStream(input io.ReadSeeker) (io.ReadSeeker, error) {

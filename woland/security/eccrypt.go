@@ -2,7 +2,7 @@ package security
 
 import (
 	eciesgo "github.com/ecies/go/v2"
-	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/master/woland/core"
 )
 
 func EcEncrypt(id string, data []byte) ([]byte, error) {

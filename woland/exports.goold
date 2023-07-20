@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/stregato/masterwoland/api"
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/pool"
-	"github.com/stregato/masterwoland/security"
-	"github.com/stregato/masterwoland/services/chat"
+	"github.com/stregato/master/woland/api"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/pool"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/services/chat"
 	"github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 )

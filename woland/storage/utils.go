@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/master/woland/core"
 )
 
 func ReadFile(s Store, name string) ([]byte, error) {

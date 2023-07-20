@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/stregato/masterwoland/core"
-	"github.com/stregato/masterwoland/sql"
-	"github.com/stregato/masterwoland/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 var ErrFileNotExist = fmt.Errorf("file does not exist") // Returned when a file does not exist
