@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/code-to-go/woland/security"
-	"github.com/code-to-go/woland/sql"
-	"github.com/code-to-go/woland/storage"
+	"github.com/stregato/masterwoland/security"
+	"github.com/stregato/masterwoland/sql"
+	"github.com/stregato/masterwoland/storage"
 )
 
 func TestSyncIdentities(t *testing.T) {
@@ -23,7 +23,7 @@ func TestSyncIdentities(t *testing.T) {
 	s2, err := security.NewIdentity("s2")
 	assert.Nil(t, err)
 
-	ls, err := s.ReadDir(path.Join("test", IdentitiesFolder), storage.Filter{})
+	ls, err := s.ReadDir(path.Join("test", UsersFolder), storage.Filter{})
 	assert.Nil(t, err)
 	assert.Empty(t, ls)
 
@@ -31,23 +31,23 @@ func TestSyncIdentities(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Empty(t, identities)
 
-	err = writeIdentity(s, "test", s1)
+	err = writeIdentity(s, s1)
 	assert.Nil(t, err)
-	err = writeIdentity(s, "test", s2)
+	err = writeIdentity(s, s2)
 	assert.Nil(t, err)
 
 	identities, err = security.Identities()
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(identities))
 
-	err = security.DelIdentity(s1.Id())
+	err = security.DelIdentity(s1.ID())
 	assert.Nil(t, err)
 
 	identities, err = security.Identities()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(identities))
 
-	err = readIdentities(s, "test")
+	_, err = readIdentities(s)
 	assert.Nil(t, err)
 	identities, err = security.Identities()
 	assert.Nil(t, err)

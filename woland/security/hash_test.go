@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,8 +1,8 @@
 package security
 
 import (
-	"github.com/code-to-go/woland/core"
-	"github.com/code-to-go/woland/sql"
+	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/masterwoland/sql"
 )
 
 func sqlSetIdentity(i Identity) error {
@@ -12,7 +12,7 @@ func sqlSetIdentity(i Identity) error {
 	}
 
 	_, err = sql.Exec("SET_IDENTITY", sql.Args{
-		"id":  i.Id(),
+		"id":  i.ID(),
 		"i64": i64,
 	})
 	return err
@@ -76,7 +76,7 @@ func sqlGetIdentities(onlyTrusted bool) ([]Identity, error) {
 
 func sqlSetTrust(i Identity, trusted bool) error {
 	_, err := sql.Exec("SET_TRUSTED", sql.Args{
-		"id":      i.Id(),
+		"id":      i.ID(),
 		"trusted": trusted,
 	})
 	return err
@@ -84,7 +84,7 @@ func sqlSetTrust(i Identity, trusted bool) error {
 
 func sqlSetAlias(i Identity, alias string) error {
 	_, err := sql.Exec("SET_TRUSTED", sql.Args{
-		"id":    i.Id(),
+		"id":    i.ID(),
 		"alias": alias,
 	})
 	return err

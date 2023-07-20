@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 type PublicKey ed25519.PublicKey
@@ -70,7 +70,7 @@ func NewSignedHash(hash []byte, i Identity) (SignedHash, error) {
 
 	return SignedHash{
 		Hash:       hash,
-		Signatures: map[string][]byte{i.Id(): signature},
+		Signatures: map[string][]byte{i.ID(): signature},
 	}, nil
 }
 
@@ -79,7 +79,7 @@ func AppendToSignedHash(s SignedHash, i Identity) error {
 	if core.IsErr(err, "cannot sign with identity %s: %v", base64.StdEncoding.EncodeToString(i.SignatureKey.Public)) {
 		return err
 	}
-	s.Signatures[i.Id()] = signature
+	s.Signatures[i.ID()] = signature
 	return nil
 }
 
@@ -89,7 +89,7 @@ func VerifySignedHash(s SignedHash, trusts []Identity, hash []byte) bool {
 	}
 
 	for _, trust := range trusts {
-		id := trust.Id()
+		id := trust.ID()
 		if signature, ok := s.Signatures[id]; ok {
 			if Verify(id, hash, signature) {
 				return true

@@ -13,7 +13,7 @@ import (
 
 	eciesgo "github.com/ecies/go/v2"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 var ErrInvalidSignature = errors.New("signature is invalid")
@@ -125,7 +125,7 @@ func (i Identity) Base64() (string, error) {
 	return base64.StdEncoding.EncodeToString(data), nil
 }
 
-func (i Identity) Id() string {
+func (i Identity) ID() string {
 	b := append(i.SignatureKey.Public, i.EncryptionKey.Public...)
 	b64 := base64.StdEncoding.EncodeToString(b)
 	return strings.ReplaceAll(b64, "/", "_")

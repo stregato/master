@@ -8,8 +8,11 @@ import (
 
 func matchFilter(f fs.FileInfo, filter Filter) bool {
 	name := f.Name()
-	return strings.HasPrefix(name, filter.Prefix) && strings.HasPrefix(name, filter.Suffix) &&
-		name > filter.After
+	return strings.HasPrefix(name, filter.Prefix) &&
+		strings.HasSuffix(name, filter.Suffix) &&
+		name > filter.After &&
+		(!filter.OnlyFiles || !f.IsDir()) &&
+		(!filter.OnlyFolders || f.IsDir())
 }
 
 type simpleFileInfo struct {

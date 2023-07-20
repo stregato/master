@@ -10,7 +10,7 @@ import (
 
 	"github.com/studio-b12/gowebdav"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 type WebDAV struct {

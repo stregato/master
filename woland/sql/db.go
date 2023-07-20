@@ -1,7 +1,7 @@
 package sql
 
 import (
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 func GetConfig(node string, key string) (s string, i int64, b []byte, ok bool) {

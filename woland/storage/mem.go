@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/fs"
 	"net/url"
@@ -10,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 type _memoryFile struct {
@@ -23,6 +22,8 @@ type Memory struct {
 	data map[string]_memoryFile
 }
 
+var MemoryStores = map[string]*Memory{}
+
 func OpenMemory(connectionUrl string) (Store, error) {
 	u, err := url.Parse(connectionUrl)
 	if core.IsErr(err, "invalid URL: %v") {
@@ -32,8 +33,12 @@ func OpenMemory(connectionUrl string) (Store, error) {
 		return nil, os.ErrInvalid
 	}
 
-	url := fmt.Sprintf("mem://%d", core.Now().UnixMicro())
-	return &Memory{url, map[string]_memoryFile{}}, nil
+	if m, ok := MemoryStores[connectionUrl]; ok {
+		return m, nil
+	}
+	m := &Memory{url: connectionUrl, data: map[string]_memoryFile{}}
+	MemoryStores[connectionUrl] = m
+	return m, nil
 }
 
 func (m *Memory) Read(name string, rang *Range, dest io.Writer, progress chan int64) error {
@@ -86,9 +91,28 @@ func (m *Memory) Write(name string, source io.ReadSeeker, progress chan int64) e
 
 func (m *Memory) ReadDir(dir string, f Filter) ([]fs.FileInfo, error) {
 	var infos []fs.FileInfo
+	subfolders := map[string]bool{}
 	for n, mf := range m.data {
-		if strings.HasPrefix(n, dir+"/") && matchFilter(mf.simpleFileInfo, f) {
-			infos = append(infos, mf.simpleFileInfo)
+		if strings.HasPrefix(n, dir+"/") {
+			n = strings.TrimPrefix(n, dir+"/")
+			parts := strings.Split(n, "/")
+			if len(parts) > 1 && !f.OnlyFiles {
+				subfolders[parts[0]] = true
+			} else if matchFilter(mf.simpleFileInfo, f) {
+				infos = append(infos, mf.simpleFileInfo)
+			}
+		}
+	}
+
+	for subfolder := range subfolders {
+		info := simpleFileInfo{
+			name:    subfolder,
+			size:    0,
+			modTime: core.Now(),
+			isDir:   true,
+		}
+		if matchFilter(info, f) {
+			infos = append(infos, info)
 		}
 	}
 

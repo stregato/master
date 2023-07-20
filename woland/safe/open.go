@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/code-to-go/woland/core"
-	"github.com/code-to-go/woland/security"
-	store "github.com/code-to-go/woland/storage"
+	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/masterwoland/security"
+	"github.com/stregato/masterwoland/storage"
 )
 
 var ErrNoStoreAvailable = fmt.Errorf("no store available")
 
-var DataFolder = "data"
-var IdentitiesFolder = "users"
+var UsersFolder = "users"
+var UserFile = ".user"
+var MaxACLFilesInZone = 4
 
-type OpenSettings struct {
+type OpenOptions struct {
 	//ForceCreate
 	ForceCreate bool
 
@@ -25,75 +26,94 @@ type OpenSettings struct {
 	AdaptiveSync bool
 
 	//Notification is
-	Notification chan bool
-
-	//NoDefaultGroup prevents the creation of a default security group
-	NoDefaultGroup bool
+	Notification chan Header
 }
 
-type Safe struct {
-	Self     security.Identity
-	Name     string
-	store    store.Store
-	storeUrl string
-	groups   []string
-	keys     map[uint64][]byte
-}
-
-func Open(self security.Identity, access string, settings OpenSettings) (*Safe, error) {
-	s := Safe{
-		Self: self,
+func Open(currentUserId string, access string, options OpenOptions) (*Safe, error) {
+	currentUser, ok, err := security.GetIdentity(currentUserId)
+	if core.IsErr(err, "cannot get current user: %v", err) {
+		return nil, err
 	}
-	a, err := unwrapAccess(self, access)
+	if !ok {
+		return nil, fmt.Errorf("cannot find current user '%s'", currentUserId)
+	}
+
+	safeName, key, urls, issuerId, err := unwrapToken(currentUser, access)
 	if core.IsErr(err, "invalid access token 'account'") {
 		return nil, err
 	}
 
-	err = s.connect(a)
-	if core.IsErr(err, "cannot connect to %s: %v", a.Name) {
+	store, url, err := connect(urls)
+	if core.IsErr(err, "cannot connect to %s: %v", safeName) {
 		return nil, err
 	}
+	store = storage.Sub(store, safeName, true)
 
-	err = s.loadGroups()
-	if core.IsErr(err, "cannot read security groups in %s: %v", s) {
+	if key != nil {
+		store = storage.EncryptNames(store, key, key, true)
+	}
+
+	identities, err := readIdentities(store)
+	if core.IsErr(err, "cannot read identities in %s: %v", safeName) {
 		return nil, err
+	}
+	if _, ok := identities[currentUser.ID()]; !ok {
+		err = writeIdentity(store, currentUser)
+		if core.IsErr(err, "cannot write identity to store %s: %v", store) {
+			return nil, err
+		}
+	}
+
+	zones, err := getZonesFromDB(safeName)
+	if core.IsErr(err, "cannot read zones in %s: %v", safeName) {
+		return nil, err
+	}
+	for zoneName, zone := range zones {
+		err = readZone(currentUser, store, safeName, zoneName, &zone)
+		if err == ErrZoneNoAuth {
+			delete(zones, zoneName)
+			continue
+		}
+		if len(zone.Acls) > MaxACLFilesInZone {
+			writeZone(currentUser, store, safeName, zoneName, &zone)
+		}
+
+		core.IsErr(err, "cannot sync zone %s: %v", zoneName, err)
+	}
+
+	s := Safe{
+		CurrentUser: currentUser,
+		Name:        safeName,
+		IssuerId:    issuerId,
+
+		zones:    zones,
+		store:    store,
+		storeUrl: url,
 	}
 
 	return &s, nil
 }
 
-func (s *Safe) connect(a _access) error {
+func connect(urls []string) (store storage.Store, url string, err error) {
 	fastestRoundTrip := time.Hour
 
-	for _, url := range a.Stores {
+	for _, u := range urls {
 		start := core.Now()
-		store, err := store.Open(url)
+		s, err := storage.Open(u)
 		if core.IsWarn(err, "cannot connect to store %s: %v") {
 			continue
 		}
 		elapsed := core.Since(start)
 		if elapsed > fastestRoundTrip {
-			store.Close()
+			s.Close()
 		} else {
 			fastestRoundTrip = elapsed
-			s.store = store
-			s.storeUrl = url
+			store, url = s, u
 		}
 	}
 
-	if s.store == nil {
-		return ErrNoStoreAvailable
+	if store == nil {
+		return nil, "", ErrNoStoreAvailable
 	}
-	return nil
-}
-
-func (s *Safe) loadKeys() error {
-	//	for _, g := range s.groups {
-	// ls, err := s.store.ReadDir(path.Join(s.Name, DataFolder, g), 0)
-	// if core.IsErr(err, "cannot read keys in %s/%s: %v", s.store, s.Name) {
-	// 	return err
-	// }
-
-	// }
-	return nil
+	return store, url, nil
 }

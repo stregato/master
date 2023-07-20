@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 
 	"golang.org/x/crypto/blake2b"
 )

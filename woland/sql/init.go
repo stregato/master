@@ -6,11 +6,12 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 //go:embed sqlite.sql
@@ -66,6 +67,11 @@ func LoadSQLFromFile(name string) error {
 }
 
 var MemoryDB = ":memory:"
+
+func TestDB(t *testing.T) error {
+	t.Cleanup(func() { CloseDB() })
+	return OpenDB(MemoryDB)
+}
 
 func OpenDB(dbPath string) error {
 	if db != nil {

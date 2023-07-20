@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 	"github.com/uhthomas/seekctr"
 
 	"github.com/zenazn/pkcs7pad"

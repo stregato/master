@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/code-to-go/woland/core"
 	"github.com/sirupsen/logrus"
+
+	"github.com/stregato/masterwoland/core"
 )
 
 var queriesCache = map[string]string{}
@@ -78,7 +79,8 @@ func QueryRow(key string, m Args, dest ...any) error {
 }
 
 func Query(key string, m Args) (*sql.Rows, error) {
-	rows, err := getStatement(key).Query(named(m)...)
+	stmt := getStatement(key)
+	rows, err := stmt.Query(named(m)...)
 	trace(key, m, err)
 	return rows, err
 }

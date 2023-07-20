@@ -19,7 +19,7 @@ import (
 	"github.com/aws/smithy-go/logging"
 	"github.com/sirupsen/logrus"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 type S3 struct {
@@ -161,34 +161,44 @@ func (s *S3) ReadDir(dir string, f Filter) ([]fs.FileInfo, error) {
 	var infos []fs.FileInfo
 	var cnt int64
 
-	for _, item := range result.CommonPrefixes {
-		if f.MaxResults == 0 && cnt >= f.MaxResults {
-			break
-		}
-		cut := len(path.Clean(dir))
-		name := strings.TrimRight((*item.Prefix)[cut+1:], "/")
+	if !f.OnlyFiles {
+		for _, item := range result.CommonPrefixes {
+			if f.MaxResults == 0 && cnt >= f.MaxResults {
+				break
+			}
+			cut := len(path.Clean(dir))
+			name := strings.TrimRight((*item.Prefix)[cut+1:], "/")
 
-		infos = append(infos, simpleFileInfo{
-			name:  name,
-			isDir: true,
-		})
-		cnt++
+			info := simpleFileInfo{
+				name:  name,
+				isDir: true,
+			}
+			if matchFilter(info, f) {
+				infos = append(infos, info)
+				cnt++
+			}
+		}
 	}
 
-	for _, item := range result.Contents {
-		if f.MaxResults == 0 && cnt >= f.MaxResults {
-			break
-		}
-		cut := len(path.Clean(dir))
-		name := (*item.Key)[cut+1:]
+	if !f.OnlyFolders {
+		for _, item := range result.Contents {
+			if f.MaxResults == 0 && cnt >= f.MaxResults {
+				break
+			}
+			cut := len(path.Clean(dir))
+			name := (*item.Key)[cut+1:]
 
-		infos = append(infos, simpleFileInfo{
-			name:    name,
-			size:    item.Size,
-			isDir:   false,
-			modTime: *item.LastModified,
-		})
-		cnt++
+			info := simpleFileInfo{
+				name:    name,
+				size:    item.Size,
+				isDir:   false,
+				modTime: *item.LastModified,
+			}
+			if matchFilter(info, f) {
+				infos = append(infos, info)
+				cnt++
+			}
+		}
 	}
 
 	return infos, nil

@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 const SignatureField = "dgst_ed25519_blake2b"
@@ -33,10 +33,10 @@ func Marshal(identity Identity, v any, signatureField string) ([]byte, error) {
 	last := rune(s[len(s)-1])
 	switch last {
 	case '}':
-		s = fmt.Sprintf(`%s,"%s":"%s:%s"}`, s[0:len(s)-1], signatureField, identity.Id(),
+		s = fmt.Sprintf(`%s,"%s":"%s:%s"}`, s[0:len(s)-1], signatureField, identity.ID(),
 			base64.StdEncoding.EncodeToString(signature))
 	case ']':
-		s = fmt.Sprintf(`%s,"%s:%s"]`, s[0:len(s)-1], identity.Id(),
+		s = fmt.Sprintf(`%s,"%s:%s"]`, s[0:len(s)-1], identity.ID(),
 			base64.StdEncoding.EncodeToString(signature))
 	default:
 		return nil, &json.MarshalerError{}

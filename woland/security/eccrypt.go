@@ -1,8 +1,8 @@
 package security
 
 import (
-	"github.com/code-to-go/woland/core"
 	eciesgo "github.com/ecies/go/v2"
+	"github.com/stregato/masterwoland/core"
 )
 
 func EcEncrypt(id string, data []byte) ([]byte, error) {

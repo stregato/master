@@ -4,9 +4,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/code-to-go/woland/core"
-
 	"github.com/godruoyi/go-snowflake"
+
+	"github.com/stregato/masterwoland/core"
 )
 
 type lockFileContent struct {

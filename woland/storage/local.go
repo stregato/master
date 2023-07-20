@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 type LocalConfig struct {

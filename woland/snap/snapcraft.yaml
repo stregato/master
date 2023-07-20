@@ -1,13 +1,13 @@
-name: safepool
+name: woland
 version: 0.1.0
-summary: Basic snap image for safepool
+summary: Basic snap image for woland
 description: Snap image
 confinement: strict
 base: core22
 grade: stable
     
 parts:   
-  safepool:
+  woland:
     source: .
     build-packages:
       - build-essential 
@@ -20,7 +20,7 @@ parts:
       - go
     plugin: go
     override-build: | 
-      go build -buildmode=c-shared -tags linux -o $SNAPCRAFT_PART_INSTALL/usr/lib/libsafepool.so
+      go build -buildmode=c-shared -tags linux -o $SNAPCRAFT_PART_INSTALL/usr/lib/libwoland.so
     stage-packages: 
       - libavcodec-dev
       - libavutil-dev

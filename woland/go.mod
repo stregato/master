@@ -1,4 +1,4 @@
-module github.com/code-to-go/woland
+module github.com/stregato/masterwoland
 
 go 1.20
 
@@ -32,14 +32,18 @@ require (
 	github.com/studio-b12/gowebdav v0.0.0-20230203202212-3282f94193f2 // indirect
 	github.com/uhthomas/seekctr v0.0.0-20211121195710-e18b12545023 // indirect
 	github.com/zenazn/pkcs7pad v0.0.0-20170308005700-253a5b1f0e03 // indirect
+	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
 	golang.org/x/net v0.10.0 // indirect
 )
 
 require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.33.1
 	github.com/beevik/ntp v1.0.0
+	github.com/disintegration/imaging v1.6.2
 	github.com/godruoyi/go-snowflake v0.0.2
 	github.com/grailbio/base v0.0.10
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/sirupsen/logrus v1.9.3
+	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	golang.org/x/sys v0.8.0 // indirect
 )

@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/code-to-go/woland/core"
-	"github.com/code-to-go/woland/pool"
-	"github.com/code-to-go/woland/security"
-	"github.com/code-to-go/woland/services/chat"
-	"github.com/code-to-go/woland/services/invite"
-	"github.com/code-to-go/woland/services/library"
-	"github.com/code-to-go/woland/sql"
+	"github.com/stregato/masterwoland/core"
+	"github.com/stregato/masterwoland/pool"
+	"github.com/stregato/masterwoland/security"
+	"github.com/stregato/masterwoland/services/chat"
+	"github.com/stregato/masterwoland/services/invite"
+	"github.com/stregato/masterwoland/services/library"
+	"github.com/stregato/masterwoland/sql"
 	"github.com/patrickmn/go-cache"
 )
 

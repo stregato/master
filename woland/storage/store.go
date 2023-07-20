@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/code-to-go/woland/core"
+	"github.com/stregato/masterwoland/core"
 )
 
 type Source struct {
@@ -31,16 +31,13 @@ type Range struct {
 }
 
 type Filter struct {
-	//Prefix filters on results starting with prefix
-	Prefix string
-	//Suffix filters on results ending with suffix
-	Suffix string
-
-	//After ignore all results before the provided one and the provided one
-	After string
-
-	//MaxResults is the maximal number of returned items
-	MaxResults int64
+	Prefix      string                 //Prefix filters on results starting with prefix
+	Suffix      string                 //Suffix filters on results ending with suffix
+	After       string                 //After ignore all results before the provided one and the provided one
+	MaxResults  int64                  //MaxResults limits the number of results returned
+	OnlyFiles   bool                   //OnlyFiles returns only files
+	OnlyFolders bool                   //OnlyFolders returns only folders
+	Function    func(fs.FileInfo) bool //Function filters on a custom function
 }
 
 // Store is a low level interface to storage services such as S3 or SFTP
