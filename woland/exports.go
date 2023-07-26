@@ -10,18 +10,27 @@ typedef struct App {
 	void (*feed)(char* name, char* data, int eof);
 } App;
 
-typedef int (*ReadFn)(char* data, int size);
-typedef int (*SeekFn)(int offset, int whence);
-typedef int (*WriteFn)(char* data, int size);
+typedef struct Reader {
+	void* fd;
+	int (*read)(void* fd, void* data, int size);
+	int (*seek)(void* fd, int offset, int whence);
+	int (*write)(void* fd, void* data, int size);
+} Reader;
 
-int callRead(ReadFn fn, char* data, int size) {
-	return fn(data, size);
+int callRead(Reader* r, void* data, int size) {
+	return r->read(r->fd, data, size);
 }
-int callSeek(SeekFn fn, int offset, int whence) {
-	return fn(offset, whence);
+int callSeek(Reader *r, int offset, int whence) {
+	return r->seek(r->fd, offset, whence);
 }
-int callWrite(WriteFn fn, char* data, int size) {
-	return fn(data, size);
+
+typedef struct Writer {
+	void* fd;
+	int (*write)(void* fd, void* data, int size);
+} Writer;
+
+int callWrite(Writer *w, void* data, int size) {
+	return w->write(w->fd, data, size);
 }
 
 #include <stdlib.h>
@@ -29,18 +38,23 @@ int callWrite(WriteFn fn, char* data, int size) {
 //#cgo LDFLAGS: -Wl,--allow-multiple-definition
 import "C"
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"unsafe"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/stregato/master/woland/core"
-	"github.com/stregato/master/woland/safe"
+	"github.com/stregato/master/woland/portal"
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 )
 
-var ErrSafeNotFound = fmt.Errorf("safe not found")
-var safes = map[string]*safe.Safe{}
+var ErrPortalNotFound = fmt.Errorf("portal not found")
+var portals = map[string]*portal.Portal{}
 
 func cResult(v any, err error) C.Result {
 	var res []byte
@@ -74,9 +88,12 @@ func cUnmarshal(i *C.char, v any) error {
 }
 
 //export start
-func start(dbPath *C.char, cachePath *C.char, availableBandwith *C.char) C.Result {
-	p := C.GoString(dbPath)
-	return cResult(nil, Start(p))
+func start(dbPath, appPath *C.char) C.Result {
+	err := Start(C.GoString(dbPath), C.GoString(appPath))
+	if core.IsErr(err, "cannot start: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(nil, nil)
 }
 
 //export stop
@@ -91,26 +108,29 @@ func factoryReset() C.Result {
 	return cResult(nil, err)
 }
 
-type getConfigResult struct {
-	S string
-	I int64
-	B []byte
+type configItem struct {
+	S       string `json:"s,omitempty"`
+	I       int64  `json:"i,omitempty"`
+	B       []byte `json:"b,omitempty"`
+	Missing bool   `json:"missing,omitempty"`
 }
 
 //export getConfig
 func getConfig(node, key *C.char) C.Result {
 	s, i, b, ok := sql.GetConfig(C.GoString(node), C.GoString(key))
-	if ok {
-		return cResult(getConfigResult{S: s, I: i, B: b}, nil)
-	} else {
-		return cResult(nil, fmt.Errorf("cannot get config"))
-	}
+	return cResult(configItem{S: s, I: i, B: b, Missing: !ok}, nil)
 }
 
 //export setConfig
-func setConfig(node, key, s *C.char, i C.int, b *C.char) C.Result {
-	err := sql.SetConfig(C.GoString(node), C.GoString(key),
-		C.GoString(s), int64(i), []byte(C.GoString(b)))
+func setConfig(node, key, value *C.char) C.Result {
+	var item configItem
+	err := cUnmarshal(value, &item)
+	if core.IsErr(err, "cannot unmarshal config: %v") {
+		return cResult(nil, err)
+	}
+
+	err = sql.SetConfig(C.GoString(node), C.GoString(key),
+		item.S, item.I, item.B)
 	return cResult(nil, err)
 }
 
@@ -134,139 +154,284 @@ func setIdentity(identity *C.char) C.Result {
 
 //export getIdentity
 func getIdentity(id *C.char) C.Result {
-	identity, ok, err := security.GetIdentity(C.GoString(id))
-	if ok {
-		return cResult(identity, err)
-	} else {
+	identity, err := security.GetIdentity(C.GoString(id))
+	if core.IsErr(err, "cannot get identity: %v") {
 		return cResult(nil, err)
 	}
+	return cResult(identity, nil)
 }
 
-//export open
-func open(id *C.char, token *C.char, openOptions *C.char) C.Result {
-	var OpenOptions safe.OpenOptions
+//export encodeToken
+func encodeToken(userId *C.char, portalName *C.char, aesKey *C.char, urls *C.char) C.Result {
+	var urls_ []string
+	err := cUnmarshal(urls, &urls_)
+	if core.IsErr(err, "cannot unmarshal urls: %v") {
+		return cResult(nil, err)
+	}
+	token, err := portal.EncodeToken(C.GoString(userId), C.GoString(portalName), []byte(C.GoString(aesKey)), urls_...)
+	if core.IsErr(err, "cannot create token: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(token, nil)
+}
+
+type decodedToken struct {
+	PortalName string   `json:"portalName"`
+	AesKey     []byte   `json:"aesKey"`
+	Urls       []string `json:"urls"`
+}
+
+//export decodeToken
+func decodeToken(identity *C.char, token *C.char) C.Result {
+	var i security.Identity
+	err := cUnmarshal(identity, &i)
+	if core.IsErr(err, "cannot unmarshal identity: %v") {
+		return cResult(nil, err)
+	}
+
+	portalName, aesKey, urls, err := portal.DecodeToken(i, C.GoString(token))
+	if core.IsErr(err, "cannot transfer token: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(decodedToken{
+		PortalName: portalName,
+		AesKey:     aesKey,
+		Urls:       urls,
+	}, nil)
+}
+
+//export openPortal
+func openPortal(identity *C.char, token *C.char, openOptions *C.char) C.Result {
+	var OpenOptions portal.OpenOptions
 	err := cUnmarshal(openOptions, &OpenOptions)
 	if core.IsErr(err, "cannot unmarshal openOptions: %v") {
 		return cResult(nil, err)
 	}
 
-	safe, err := safe.Open(C.GoString(id), C.GoString(token), OpenOptions)
-	if core.IsErr(err, "cannot open safe: %v") {
+	var i security.Identity
+	err = cUnmarshal(identity, &i)
+	if core.IsErr(err, "cannot unmarshal identity: %v") {
 		return cResult(nil, err)
 	}
-	safes[C.GoString(id)] = safe
-	return cResult(safe, err)
+
+	portal, err := portal.Open(i, C.GoString(token), OpenOptions)
+	if core.IsErr(err, "cannot open portal: %v") {
+		return cResult(nil, err)
+	}
+	portals[portal.Name] = portal
+	return cResult(portal, err)
 }
 
-//export close
-func close(safeName *C.char) C.Result {
-	s, ok := safes[C.GoString(safeName)]
+//export closePortal
+func closePortal(portalName *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
 	if !ok {
-		return cResult(nil, ErrSafeNotFound)
+		return cResult(nil, ErrPortalNotFound)
 	}
 	s.Close()
-	delete(safes, C.GoString(safeName))
+	delete(portals, C.GoString(portalName))
 	return cResult(nil, nil)
 }
 
-//export list
-func list(safeName, zoneName *C.char) C.Result {
-	s, ok := safes[C.GoString(safeName)]
+//export listFiles
+func listFiles(portalName, zoneName, listOptions *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
 	if !ok {
-		return cResult(nil, ErrSafeNotFound)
+		return cResult(nil, ErrPortalNotFound)
 	}
-	var listOptions safe.ListOptions
-	err := cUnmarshal(zoneName, &listOptions)
+	var options portal.ListOptions
+	err := cUnmarshal(listOptions, &listOptions)
 	if core.IsErr(err, "cannot unmarshal listOptions: %v") {
 		return cResult(nil, err)
 	}
 
-	headers, err := s.List(C.GoString(zoneName), safe.ListOptions{})
+	headers, err := s.List(C.GoString(zoneName), options)
 	return cResult(headers, err)
 }
 
-type CFile struct {
-	read  C.ReadFn
-	seek  C.SeekFn
-	write C.WriteFn
+type CReader struct {
+	R *C.Reader
 }
 
-func (f CFile) Read(p []byte) (n int, err error) {
-	s := C.callRead(f.read, (*C.char)(unsafe.Pointer(&p[0])), C.int(len(p)))
+func (r CReader) Read(p []byte) (n int, err error) {
+	s := C.callRead(r.R, unsafe.Pointer(&p[0]), C.int(len(p)))
 	if s < 0 {
 		return 0, fmt.Errorf("cannot read")
 	}
 	return int(s), nil
 }
 
-func (f CFile) Seek(offset int64, whence int) (int64, error) {
-	s := C.callSeek(f.seek, C.int(offset), C.int(whence))
+func (r CReader) Seek(offset int64, whence int) (int64, error) {
+	s := C.callSeek(r.R, C.int(offset), C.int(whence))
 	if s < 0 {
 		return 0, fmt.Errorf("cannot seek")
 	}
 	return int64(s), nil
 }
 
-func (f CFile) Write(p []byte) (n int, err error) {
-	s := C.callWrite(f.write, (*C.char)(unsafe.Pointer(&p[0])), C.int(len(p)))
+type CWriter struct {
+	W *C.Writer
+}
+
+func (w CWriter) Write(p []byte) (n int, err error) {
+	s := C.callWrite(w.W, unsafe.Pointer(&p[0]), C.int(len(p)))
 	if s < 0 {
 		return 0, fmt.Errorf("cannot write")
 	}
 	return int(s), nil
 }
 
-//export put
-func put(safeName, zoneName, name *C.char, read C.ReadFn, seek C.SeekFn, putOptions *C.char) C.Result {
-	s, ok := safes[C.GoString(safeName)]
+//export putData
+func putData(portalName, zoneName, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
 	if !ok {
-		return cResult(nil, ErrSafeNotFound)
+		return cResult(nil, ErrPortalNotFound)
 	}
 
-	var options safe.PutOptions
+	var options portal.PutOptions
 	err := cUnmarshal(putOptions, &options)
 	if core.IsErr(err, "cannot unmarshal putOptions: %v") {
 		return cResult(nil, err)
 	}
 
-	f := CFile{read, seek, nil}
-	err = s.Put(C.GoString(zoneName), C.GoString(name), f, options)
+	header, err := s.Put(C.GoString(zoneName), C.GoString(name), CReader{r}, options)
 	if core.IsErr(err, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
 
-	return cResult(nil, nil)
+	return cResult(header, nil)
 }
 
-//export get
-func get(safeName, zoneName, name *C.char, write C.WriteFn, getOptions *C.char) C.Result {
-	s, ok := safes[C.GoString(safeName)]
+//export putCString
+func putCString(portalName, zoneName, name, data *C.char, size C.int,
+	putOptions *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
 	if !ok {
-		return cResult(nil, ErrSafeNotFound)
+		return cResult(nil, ErrPortalNotFound)
 	}
 
-	var options safe.GetOptions
+	var options portal.PutOptions
+	err := cUnmarshal(putOptions, &options)
+	if core.IsErr(err, "cannot unmarshal putOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	bytes, err := base64.StdEncoding.DecodeString(C.GoString(data))
+	if core.IsErr(err, "cannot decode base64: %v") {
+		return cResult(nil, err)
+	}
+
+	r := core.NewBytesReader(bytes)
+
+	header, err := s.Put(C.GoString(zoneName), C.GoString(name), r, options)
+	if core.IsErr(err, "cannot put file: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(header, nil)
+}
+
+//export putFile
+func putFile(portalName, zoneName, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
+	if !ok {
+		return cResult(nil, ErrPortalNotFound)
+	}
+
+	var options portal.PutOptions
+	err := cUnmarshal(putOptions, &options)
+	if core.IsErr(err, "cannot unmarshal putOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	r, err := os.Open(C.GoString(sourceFile))
+	if core.IsErr(err, "cannot open file: %v") {
+		return cResult(nil, err)
+	}
+
+	header, err := s.Put(C.GoString(zoneName), C.GoString(name), r, options)
+	if core.IsErr(err, "cannot put file: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(header, nil)
+}
+
+//export getData
+func getData(portalName, zoneName, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
+	if !ok {
+		return cResult(nil, ErrPortalNotFound)
+	}
+
+	var options portal.GetOptions
 	err := cUnmarshal(getOptions, &options)
 	if core.IsErr(err, "cannot unmarshal getOptions: %v") {
 		return cResult(nil, err)
 	}
 
-	f := CFile{nil, nil, write}
-	err = s.Get(C.GoString(zoneName), C.GoString(name), f, options)
+	header, err := s.Get(C.GoString(zoneName), C.GoString(name), CWriter{w}, options)
 	if core.IsErr(err, "cannot get file: %v") {
 		return cResult(nil, err)
 	}
 
-	return cResult(nil, nil)
+	return cResult(header, nil)
+}
+
+//export getCString
+func getCString(portalName, zoneName, name, getOptions *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
+	if !ok {
+		return cResult(nil, ErrPortalNotFound)
+	}
+
+	var options portal.GetOptions
+	err := cUnmarshal(getOptions, &options)
+	if core.IsErr(err, "cannot unmarshal getOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	buf := bytes.Buffer{}
+	_, err = s.Get(C.GoString(zoneName), C.GoString(name), &buf, options)
+	if core.IsErr(err, "cannot get file: %v") {
+		return cResult(nil, err)
+	}
+
+	r := base64.StdEncoding.EncodeToString(buf.Bytes())
+	return cResult(r, nil)
+}
+
+//export getFile
+func getFile(portalName, zoneName, name, destFile, getOptions *C.char) C.Result {
+	s := portals[C.GoString(portalName)]
+	if s == nil {
+		return cResult(nil, ErrPortalNotFound)
+	}
+
+	var options portal.GetOptions
+	err := cUnmarshal(getOptions, &options)
+	if core.IsErr(err, "cannot unmarshal getOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	w, err := os.Create(C.GoString(destFile))
+	if core.IsErr(err, "cannot create file: %v") {
+		return cResult(nil, err)
+	}
+
+	header, err := s.Get(C.GoString(zoneName), C.GoString(name), w, options)
+	if core.IsErr(err, "cannot get file: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(header, nil)
 }
 
 //export createZone
-func createZone(safeName, zoneName *C.char, users *C.char) C.Result {
-	s, ok := safes[C.GoString(safeName)]
+func createZone(portalName, zoneName *C.char, users *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
 	if !ok {
-		return cResult(nil, ErrSafeNotFound)
+		return cResult(nil, ErrPortalNotFound)
 	}
 
-	var users_ safe.Users
+	var users_ portal.Users
 	err := cUnmarshal(users, &users_)
 	if core.IsErr(err, "cannot unmarshal users: %v") {
 		return cResult(nil, err)
@@ -279,11 +444,11 @@ func createZone(safeName, zoneName *C.char, users *C.char) C.Result {
 	return cResult(nil, nil)
 }
 
-//export zones
-func zones(safeName *C.char) C.Result {
-	s, ok := safes[C.GoString(safeName)]
+//export listZones
+func listZones(portalName *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
 	if !ok {
-		return cResult(nil, ErrSafeNotFound)
+		return cResult(nil, ErrPortalNotFound)
 	}
 
 	zones, err := s.Zones()
@@ -294,13 +459,13 @@ func zones(safeName *C.char) C.Result {
 }
 
 //export setUsers
-func setUsers(safeName, zoneName *C.char, users *C.char) C.Result {
-	s, ok := safes[C.GoString(safeName)]
+func setUsers(portalName, zoneName *C.char, users *C.char) C.Result {
+	s, ok := portals[C.GoString(portalName)]
 	if !ok {
-		return cResult(nil, ErrSafeNotFound)
+		return cResult(nil, ErrPortalNotFound)
 	}
 
-	var users_ safe.Users
+	var users_ portal.Users
 	err := cUnmarshal(users, &users_)
 	if core.IsErr(err, "cannot unmarshal users: %v") {
 		return cResult(nil, err)
@@ -310,5 +475,17 @@ func setUsers(safeName, zoneName *C.char, users *C.char) C.Result {
 	if core.IsErr(err, "cannot set users: %v") {
 		return cResult(nil, err)
 	}
+	return cResult(nil, nil)
+}
+
+//export getLogs
+func getLogs() C.Result {
+	return cResult(core.RecentLog, nil)
+}
+
+//export setLogLevel
+func setLogLevel(level C.int) C.Result {
+	logrus.SetLevel(logrus.Level(level))
+	core.Info("log level set to %d", level)
 	return cResult(nil, nil)
 }

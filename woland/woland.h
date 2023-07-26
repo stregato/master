@@ -30,18 +30,19 @@ typedef struct App {
 	void (*feed)(char* name, char* data, int eof);
 } App;
 
-typedef int (*ReadCallbackFn)(char* data, int size);
-typedef int (*SeekCallbackFn)(int offset, int whence);
+typedef int (*ReadFn)(char* data, int size);
+typedef int (*SeekFn)(int offset, int whence);
+typedef int (*WriteFn)(char* data, int size);
 
-typedef struct Reader	{
-	ReadCallbackFn read;
-	SeekCallbackFn seek;
-} Reader;
-
-int processRead(Reader reader, char* data, int size) {
-	return reader.read(data, size);
+int callRead(ReadFn fn, char* data, int size) {
+	return fn(data, size);
 }
-
+int callSeek(SeekFn fn, int offset, int whence) {
+	return fn(offset, whence);
+}
+int callWrite(WriteFn fn, char* data, int size) {
+	return fn(data, size);
+}
 
 #include <stdlib.h>
 
@@ -110,11 +111,14 @@ extern Result setConfig(char* node, char* key, char* s, int i, char* b);
 extern Result newIdentity(char* nick);
 extern Result setIdentity(char* identity);
 extern Result getIdentity(char* id);
-extern Result safeOpen(char* id, char* token, char* openOptions);
-extern Result safeClose(char* safeName);
-extern Result safeList(char* safeName, char* zoneName);
-extern Result safePut(char* safeName, char* zoneName, char* name, Reader reader, char* putOptions);
-extern Result safePutBytes(char* safeName, char* zoneName, char* name, void* data, size_t dataSize, char* putOptions);
+extern Result open(char* id, char* token, char* openOptions);
+extern Result close(char* safeName);
+extern Result list(char* safeName, char* zoneName);
+extern Result put(char* safeName, char* zoneName, char* name, ReadFn read, SeekFn seek, char* putOptions);
+extern Result get(char* safeName, char* zoneName, char* name, WriteFn write, char* getOptions);
+extern Result createZone(char* safeName, char* zoneName, char* users);
+extern Result zones(char* safeName);
+extern Result setUsers(char* safeName, char* zoneName, char* users);
 
 #ifdef __cplusplus
 }

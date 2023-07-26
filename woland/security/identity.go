@@ -1,10 +1,8 @@
 package security
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -14,13 +12,18 @@ import (
 	eciesgo "github.com/ecies/go/v2"
 
 	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
 )
 
 var ErrInvalidSignature = errors.New("signature is invalid")
+var ErrInvalidID = errors.New("ID is neither a public or private key")
 
 const (
-	Secp256k1 = "secp256k1"
-	Ed25519   = "ed25519"
+	Secp256k1               = "secp256k1"
+	secp256k1PublicKeySize  = 33
+	secp256k1PrivateKeySize = 32
+
+	Ed25519 = "ed25519"
 )
 
 type Key struct {
@@ -29,15 +32,17 @@ type Key struct {
 }
 
 type Identity struct {
-	Nick    string    `json:"n"`
-	Email   string    `json:"m"`
+	ID      string    `json:"i"`
+	Nick    string    `json:"n,omitempty"`
+	Email   string    `json:"e,omitempty"`
 	ModTime time.Time `json:"modTime"`
 
-	SignatureKey  Key `json:"s"`
-	EncryptionKey Key `json:"e"`
+	Private string `json:"p,omitempty"`
 
-	Trusted []string `json:"t"`
-	Avatar  []byte   `json:"a"`
+	// SignatureKey  Key `json:"s"`
+	// EncryptionKey Key `json:"e"`
+
+	Avatar []byte `json:"a,omitempty"`
 }
 
 func NewIdentity(nick string) (Identity, error) {
@@ -49,125 +54,106 @@ func NewIdentity(nick string) (Identity, error) {
 	if core.IsErr(err, "cannot generate secp256k1 key: %v") {
 		return identity, err
 	}
-	identity.EncryptionKey = Key{
-		Public:  privateCrypt.PublicKey.Bytes(true),
-		Private: privateCrypt.Bytes(),
-	}
+	publicCrypt := privateCrypt.PublicKey.Bytes(true)
 
 	publicSign, privateSign, err := ed25519.GenerateKey(rand.Reader)
 	if core.IsErr(err, "cannot generate ed25519 key: %v") {
 		return identity, err
 	}
-	identity.SignatureKey = Key{
-		Public:  publicSign[:],
-		Private: privateSign[:],
-	}
+
+	public := base64.StdEncoding.EncodeToString(append(publicCrypt, publicSign[:]...))
+	identity.ID = strings.ReplaceAll(public, "/", "_")
+	private := base64.StdEncoding.EncodeToString(append(privateCrypt.Bytes(), privateSign[:]...))
+	identity.Private = strings.ReplaceAll(private, "/", "_")
+
 	return identity, nil
 }
 
 func (i Identity) Public() Identity {
 	return Identity{
+		ID:      i.ID,
 		Nick:    i.Nick,
 		Email:   i.Email,
 		ModTime: i.ModTime,
-		EncryptionKey: Key{
-			Public: i.EncryptionKey.Public,
-		},
-		SignatureKey: Key{
-			Public: i.SignatureKey.Public,
-		},
+		Avatar:  i.Avatar,
 	}
-}
-
-func IdentityFromBase64(b64 string) (Identity, error) {
-	var i Identity
-	data, err := base64.StdEncoding.DecodeString(b64)
-	if core.IsErr(err, "cannot decode Identity string in base64: %v") {
-		return i, err
-	}
-
-	err = json.Unmarshal(data, &i)
-	if core.IsErr(err, "cannot decode Identity string from json: %v") {
-		return i, err
-	}
-	return i, nil
-}
-
-const secp256k1PublicKeySize = 33
-
-func IdentityFromId(id string) (Identity, error) {
-	id2 := strings.ReplaceAll(id, "_", "/")
-	b, err := base64.StdEncoding.DecodeString(id2)
-	if core.IsErr(err, "invalid id: %v") {
-		return Identity{}, err
-	}
-
-	if len(b) != ed25519.PublicKeySize+secp256k1PublicKeySize {
-		return Identity{}, core.ErrInvalidId
-	}
-
-	return Identity{
-		SignatureKey: Key{
-			Public: b[0:+ed25519.PublicKeySize],
-		},
-		EncryptionKey: Key{
-			Public: b[ed25519.PublicKeySize:],
-		},
-	}, nil
-}
-
-func (i Identity) Base64() (string, error) {
-	data, err := json.Marshal(i)
-	if core.IsErr(err, "cannot marshal identity: %v") {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(data), nil
-}
-
-func (i Identity) ID() string {
-	b := append(i.SignatureKey.Public, i.EncryptionKey.Public...)
-	b64 := base64.StdEncoding.EncodeToString(b)
-	return strings.ReplaceAll(b64, "/", "_")
-}
-
-func SameIdentity(a, b Identity) bool {
-	return bytes.Equal(a.SignatureKey.Public, b.SignatureKey.Public) &&
-		bytes.Equal(a.EncryptionKey.Public, b.EncryptionKey.Public)
 }
 
 func SetIdentity(i Identity) error {
-	return sqlSetIdentity(i)
+	data, err := json.Marshal(i)
+	if core.IsErr(err, "cannot marshal identity: %v") {
+		return err
+	}
+
+	_, err = sql.Exec("SET_IDENTITY", sql.Args{
+		"id":   i.ID,
+		"data": data,
+	})
+	return err
 }
 
 func DelIdentity(id string) error {
-	return sqlDelIdentity(id)
+	_, err := sql.Exec("DEL_IDENTITY", sql.Args{
+		"id": id,
+	})
+	return err
 }
 
-func GetIdentity(id string) (identity Identity, ok bool, err error) {
-	identity, err = sqlGetIdentity(id)
-	switch err {
-	case nil:
-		return identity, true, nil
-	case sql.ErrNoRows:
-		return identity, false, nil
-	default:
-		return identity, false, err
+func GetIdentity(id string) (Identity, error) {
+	var data []byte
+	var identity Identity
+	err := sql.QueryRow("GET_IDENTITY", sql.Args{"id": id}, &data)
+	if err == nil {
+		err = json.Unmarshal(data, &identity)
+		if core.IsErr(err, "corrupted identity on db: %v") {
+			return identity, err
+		}
 	}
-}
-
-func SetAlias(i Identity, alias string) error {
-	return sqlSetAlias(i, alias)
-}
-
-func Trust(i Identity, trusted bool) error {
-	return sqlSetTrust(i, trusted)
-}
-
-func Trusted() ([]Identity, error) {
-	return sqlGetIdentities(true)
+	return identity, err
 }
 
 func Identities() ([]Identity, error) {
-	return sqlGetIdentities(false)
+	rows, err := sql.Query("GET_IDENTITIES", sql.Args{})
+	if core.IsErr(err, "cannot get trusted identities from db: %v") {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var identities []Identity
+	for rows.Next() {
+		var i64 []byte
+		err = rows.Scan(&i64)
+		if core.IsErr(err, "cannot read pool feeds from db: %v") {
+			continue
+		}
+
+		var identity Identity
+		err := json.Unmarshal(i64, &identity)
+		if core.IsErr(err, "invalid identity record '%s': %v", i64) {
+			continue
+		}
+
+		identities = append(identities, identity)
+	}
+	return identities, nil
+}
+
+func DecodeKeys(id string) (cryptKey []byte, signKey []byte, err error) {
+	id = strings.ReplaceAll(id, "_", "/")
+	data, err := base64.StdEncoding.DecodeString(id)
+	if core.IsErr(err, "cannot decode base64: %v") {
+		return nil, nil, err
+	}
+
+	var split int
+	if len(data) == secp256k1PrivateKeySize+ed25519.PrivateKeySize {
+		split = secp256k1PrivateKeySize
+	} else if len(data) == secp256k1PublicKeySize+ed25519.PublicKeySize {
+		split = secp256k1PublicKeySize
+	} else {
+		core.IsErr(ErrInvalidID, "invalid ID %s with length %d: %v", id, len(data))
+		return nil, nil, ErrInvalidID
+	}
+
+	return data[:split], data[split:], nil
 }

@@ -22,6 +22,8 @@ parts:
     override-build: | 
       go build -buildmode=c-shared -tags linux -o $SNAPCRAFT_PART_INSTALL/usr/lib/libwoland.so
     stage-packages: 
+      - libglib2.0-0 
+      - libglibc2.34 
       - libavcodec-dev
       - libavutil-dev
       - libavformat-dev

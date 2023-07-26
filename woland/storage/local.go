@@ -28,7 +28,7 @@ func OpenLocal(connectionUrl string) (Store, error) {
 		return nil, err
 	}
 
-	base := u.Path
+	base := filepath.Join(u.Host, u.Path)
 	if base == "" {
 		base = "/"
 	}

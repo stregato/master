@@ -63,13 +63,13 @@ Delete(store, name) error
 ---
 ![bg right:33%](safebox.jpg)
 
-## Safe
-A safe is a remote location where data is securily stored. 
+## Portal
+A portal is a remote location where data is securily stored. 
 
-A safe is accessible via an access token, defined by a name, an AES encryption key and one or more URLs, each pointing to a store. The information is encoded with the private key of an identity
+A portal is accessible via an access token, defined by a name, an AES encryption key and one or more URLs, each pointing to a store. The information is encoded with the private key of an identity
 
 ## Zone
-A zone is part of a safe that is accessible to a list of users. 
+A zone is part of a portal that is accessible to a list of users. 
 Each zone has one or more encryption key.
 Each zone has at least one admin (usually the creator).
 
@@ -82,23 +82,23 @@ Only admins can create an access token.
 
 ```
 Open(token, options)
-Close(safe)
+Close(portal)
 Share(token, from, to)
 
-ListZones(safe, mine)
-AddUsers(safe, zone, users)
-RemoveUser(safe, zone, time, users)
-ListUsers(safe, zone)
+ListZones(portal, mine)
+AddUsers(portal, zone, users)
+RemoveUser(portal, zone, time, users)
+ListUsers(portal, zone)
 
-List(safe, zone, filter)
-Put(safe, zone, name, source, options) 
-Get(safe, zone, name, dest, options)
-Delete(safe, zone, name) error
+List(portal, zone, filter)
+Put(portal, zone, name, source, options) 
+Get(portal, zone, name, dest, options)
+Delete(portal, zone, name) error
 
 ```
 
 ---
-## Safe Layout
+## Portal Layout
 ```bash
 └── ch.woland.playground
     ├── users
@@ -133,7 +133,7 @@ Delete(safe, zone, name) error
 ## Keys
 
 Three different encryption keys:
-1. optionally each safe has a AES key (part of access token) to encrypt names on the store
+1. optionally each portal has a AES key (part of access token) to encrypt names on the store
 2. each zone has a AES key to encrypt headers
 3. each header has a AES key to encrypt the body
 

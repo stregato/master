@@ -2,16 +2,17 @@ package security
 
 import (
 	eciesgo "github.com/ecies/go/v2"
+
 	"github.com/stregato/master/woland/core"
 )
 
 func EcEncrypt(id string, data []byte) ([]byte, error) {
-	identity, err := IdentityFromId(id)
-	if core.IsErr(err, "cannot convert id to identity: %v") {
+	cryptKey, _, err := DecodeKeys(id)
+	if core.IsErr(err, "cannot decode keys: %v") {
 		return nil, err
 	}
 
-	pk, err := eciesgo.NewPublicKeyFromBytes(identity.EncryptionKey.Public)
+	pk, err := eciesgo.NewPublicKeyFromBytes(cryptKey)
 	if core.IsErr(err, "cannot convert bytes to secp256k1 public key: %v") {
 		return nil, err
 	}
@@ -23,7 +24,12 @@ func EcEncrypt(id string, data []byte) ([]byte, error) {
 }
 
 func EcDecrypt(identity Identity, data []byte) ([]byte, error) {
-	data, err := eciesgo.Decrypt(eciesgo.NewPrivateKeyFromBytes(identity.EncryptionKey.Private), data)
+	cryptKey, _, err := DecodeKeys(identity.Private)
+	if core.IsErr(err, "cannot decode keys: %v") {
+		return nil, err
+	}
+
+	data, err = eciesgo.Decrypt(eciesgo.NewPrivateKeyFromBytes(cryptKey), data)
 	if core.IsErr(err, "cannot decrypt with secp256k1: %v") {
 		return nil, err
 	}

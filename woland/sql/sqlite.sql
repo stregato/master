@@ -1,9 +1,8 @@
 -- INIT
 CREATE TABLE IF NOT EXISTS identities (
     id VARCHAR(256),
-    i64 BLOB,
+    data BLOB,
     trusted INTEGER,
-    alias VARCHAR(256),
     PRIMARY KEY(id)
 );
 
@@ -11,27 +10,18 @@ CREATE TABLE IF NOT EXISTS identities (
 CREATE INDEX IF NOT EXISTS idx_identities_trust ON identities(trusted);
 
 -- GET_IDENTITIES
-SELECT i64, alias FROM identities
+SELECT data FROM identities
 
 -- GET_IDENTITY
-SELECT i64, alias FROM identities WHERE id=:id
+SELECT data FROM identities WHERE id=:id
 
 -- DEL_IDENTITY
 DELETE FROM identities WHERE id=:id
 
--- GET_TRUSTED
-SELECT i64, alias FROM identities WHERE trusted
-
--- SET_TRUSTED
-UPDATE identities SET trusted=:trusted WHERE id=:id
-
 -- SET_IDENTITY
-INSERT INTO identities(id,i64,alias) VALUES(:id,:i64,'')
-    ON CONFLICT(id) DO UPDATE SET i64=:i64
+INSERT INTO identities(id,data) VALUES(:id,:data)
+    ON CONFLICT(id) DO UPDATE SET data=:data
 	WHERE id=:id
-
--- SET_ALIAS
-UPDATE identities SET alias=:alias WHERE id=:id
 
 -- INIT
 CREATE TABLE IF NOT EXISTS configs (
@@ -56,25 +46,25 @@ DELETE FROM configs WHERE node=:node
 
 -- INIT
 CREATE TABLE IF NOT EXISTS Zone (
-    safe TEXT PRIMARY KEY,
+    portal TEXT PRIMARY KEY,
     name TEXT,
     value BLOB
 );
 
 -- GET_ZONES
-SELECT name, value FROM Zone WHERE safe=:safe
+SELECT name, value FROM Zone WHERE portal=:portal
 
 -- SET_ZONE
-INSERT INTO Zone(safe,name,value) VALUES(:safe,:name,:value)
-  ON CONFLICT(safe) DO UPDATE SET value=:value, name=:name
-  WHERE safe=:safe
+INSERT INTO Zone(portal,name,value) VALUES(:portal,:name,:value)
+  ON CONFLICT(portal) DO UPDATE SET value=:value, name=:name
+  WHERE portal=:portal
 
 -- DELETE_ZONE
-DELETE FROM Zone WHERE safe=:safe AND name=:name
+DELETE FROM Zone WHERE portal=:portal AND name=:name
 
 -- INIT
 CREATE TABLE IF NOT EXISTS File (
-  safe TEXT NOT NULL,
+  portal TEXT NOT NULL,
   zone TEXT NOT NULL,
   name TEXT NOT NULL,
   ymd TEXT NOT NULL,
@@ -86,21 +76,21 @@ CREATE TABLE IF NOT EXISTS File (
   deleted INTEGER,
   cacheExpires INTEGER,
   header BLOB,
-  PRIMARY KEY (safe, zone, name, ymd, bodyId)
+  PRIMARY KEY (portal, zone, name, ymd, bodyId)
 );
 
 -- SET_FILE
-INSERT INTO File (safe, zone, name, ymd, bodyId, modTime, folder, tags, contentType, header, deleted, cacheExpires)
-VALUES (:safe, :zone, :name, :ymd, :bodyId, :modTime, :folder, :tags, :contentType, :header, :deleted, :cacheExpires)
-ON CONFLICT (safe, zone, name, ymd, bodyId)
+INSERT INTO File (portal, zone, name, ymd, bodyId, modTime, folder, tags, contentType, header, deleted, cacheExpires)
+VALUES (:portal, :zone, :name, :ymd, :bodyId, :modTime, :folder, :tags, :contentType, :header, :deleted, :cacheExpires)
+ON CONFLICT (portal, zone, name, ymd, bodyId)
 DO UPDATE SET modTime = :modTime, folder = :folder, tags = :tags, contentType = :contentType, deleted=:deleted, cacheExpires=:cacheExpires, header = :header
 
 -- SET_DELETED_FILE
-UPDATE File SET deleted = 1 WHERE safe = :safe AND zone = :zone AND name = :name AND ymd = :ymd AND bodyId = :bodyId
+UPDATE File SET deleted = 1 WHERE portal = :portal AND zone = :zone AND name = :name AND ymd = :ymd AND bodyId = :bodyId
 
 -- GET_FILES
 SELECT header FROM File
-WHERE safe = :safe
+WHERE portal = :portal
   AND zone = :zone
   AND (:name = '' OR name = :name)
   AND (:suffix = '' OR name LIKE '%' || :suffix)
@@ -117,7 +107,7 @@ LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 -- GET_LAST_YMD
 SELECT ymd
 FROM File
-WHERE safe = :safe
+WHERE portal = :portal
   AND zone = :zone
 ORDER BY ymd DESC
 LIMIT 1
@@ -125,14 +115,14 @@ LIMIT 1
 -- GET_FILE_BODY_ID
 SELECT bodyId
 FROM File
-WHERE safe = :safe
+WHERE portal = :portal
   AND zone = :zone
   AND ymd >= :ymd
 
 -- GET_LAST_FILE
 SELECT header
 FROM File
-WHERE safe = :safe
+WHERE portal = :portal
   AND zone = :zone
   AND name = :name
   AND (bodyId = :bodyId OR :bodyId = 0)

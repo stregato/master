@@ -1,13 +1,13 @@
 
 OUT=$(PWD)/dist
-CASPIAN=$(PWD)/../margarita
+MARGARITA=$(PWD)/../margarita
 
 linux-x86_64:
 	CGO_ENABLED=1 \
 	GOOS=linux \
 	GOARCH=amd64 \
 	go build -buildmode=c-shared -tags linux -o $(OUT)/linux/libwoland.so
-	test -e $(CASPIAN) && cp -rf $(OUT)/linux $(CASPIAN)
+	test -e $(MARGARITA) && cp -rf $(OUT)/linux $(MARGARITA)
 linux: linux-x86_64
 
 windows:
@@ -16,7 +16,7 @@ windows:
 	GOOS=windows \
 	GOARCH=amd64 \
 	go build -buildmode=c-shared -tags windows -o $(OUT)/windows/woland.dll
-	test -e $(CASPIAN) && cp -rf $(OUT)/windows $(CASPIAN)
+	test -e $(MARGARITA) && cp -rf $(OUT)/windows $(MARGARITA)
 
 macos-x86_64:
 	CGO_ENABLED=1 \
@@ -31,7 +31,7 @@ macos-arm_64:
 macos: macos-x86_64 macos-arm_64
 	lipo $(OUT)/macos/x86/libwoland.dylib $(OUT)/macos/arm64/libwoland.dylib -create -output $(OUT)/macos/libwoland.dylib
 	rm -rf $(OUT)/macos/x86 $(OUT)/macos/arm64
-	test -e $(CASPIAN) && cp -rf $(OUT)/macos $(CASPIAN)
+	test -e $(MARGARITA) && cp -rf $(OUT)/macos $(MARGARITA)
 
 ios-arm64:
 	CGO_ENABLED=1 \
@@ -65,7 +65,7 @@ ios: ios-arm64 ios-x86_64
     -headers $(OUT)/ios/x86/woland.h
 	rm -r $(OUT)/ios/arm64
 	rm -r $(OUT)/ios/x86
-	test -e $(CASPIAN) && cp -rf $(OUT)/ios $(CASPIAN)
+	test -e $(MARGARITA) && cp -rf $(OUT)/ios $(MARGARITA)
 
 apple: macos ios
 
@@ -87,7 +87,7 @@ android-arm64:
 	GOOS=android \
 	GOARCH=arm64 \
 	CC=$(NDK_BIN)/aarch64-linux-android21-clang \
-	go build -v -buildmode=c-shared -o $(OUT)/android/arm64-v8a/libwoland.so
+	go build -v -buildmode=c-shared -o $(OUT)/android/app/src/main/jniLibs/arm64-v8a/libwoland.so
 
 # android-x86:
 # 	CGO_ENABLED=1 \
@@ -101,21 +101,24 @@ android-x86_64:
 	GOOS=android \
 	GOARCH=amd64 \
 	CC=$(NDK_BIN)/x86_64-linux-android21-clang \
-	go build -v -buildmode=c-shared -o $(OUT)/android/x86_64/libwoland.so
+	go build -v -buildmode=c-shared -o $(OUT)/android/app/src/main/jniLibs/x86_64/libwoland.so
 
 #android: android-armv7a android-arm64 android-x86 android-x86_64
 android: android-arm64 android-x86_64
-	test -e $(CASPIAN) && cp -rf $(OUT)/android $(CASPIAN)
+	test -e $(MARGARITA) && cp -rf $(OUT)/android $(MARGARITA)
 
-SNAP_OUT=$(CASPIAN)/snap/local
+SNAP_OUT=$(MARGARITA)/snap/local
 snap:
 	go mod tidy
 	CGO_ENABLED=1 \
 	GOOS=linux \
 	GOARCH=amd64 \
-	go build -buildmode=c-shared -tags linux -o $(PREFIX)/libwoland.so
+	go build -buildmode=c-archive -tags linux -o $(PREFIX)/libwoland.so
+
+clean: 
+	rm -rf $(OUT)
 
 margarita:
-	test -e $(CASPIAN) && cp -rf $(OUT)/* $(CASPIAN)
+	test -e $(MARGARITA) && cp -rf $(OUT)/* $(MARGARITA)
 
 	

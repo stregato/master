@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
@@ -67,11 +66,6 @@ func LoadSQLFromFile(name string) error {
 }
 
 var MemoryDB = ":memory:"
-
-func TestDB(t *testing.T) error {
-	t.Cleanup(func() { CloseDB() })
-	return OpenDB(MemoryDB)
-}
 
 func OpenDB(dbPath string) error {
 	if db != nil {

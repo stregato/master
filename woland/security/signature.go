@@ -3,8 +3,6 @@ package security
 import (
 	"bytes"
 	"crypto/ed25519"
-	"encoding/base64"
-	"strings"
 
 	"github.com/stregato/master/woland/core"
 )
@@ -30,21 +28,24 @@ type Public struct {
 }
 
 func Sign(identity Identity, data []byte) ([]byte, error) {
-	private := identity.SignatureKey.Private
-	return ed25519.Sign(ed25519.PrivateKey(private), data), nil
+	_, signKey, err := DecodeKeys(identity.Private)
+	if core.IsErr(err, "cannot decode keys: %v") {
+		return nil, err
+	}
+
+	return ed25519.Sign(ed25519.PrivateKey(signKey), data), nil
 }
 
 func Verify(id string, data []byte, sig []byte) bool {
-	id2 := strings.ReplaceAll(id, "_", "/")
-	public, err := base64.StdEncoding.DecodeString(id2)
-	if core.IsErr(err, "invalid id '%s': %v", id) {
+	_, signKey, err := DecodeKeys(id)
+	if core.IsErr(err, "cannot decode keys: %v") {
 		return false
 	}
 
 	for off := 0; off < len(sig); off += SignatureSize {
 		if func() bool {
 			defer func() { recover() }()
-			return ed25519.Verify(ed25519.PublicKey(public[0:ed25519.PublicKeySize]), data, sig[off:off+SignatureSize])
+			return ed25519.Verify(ed25519.PublicKey(signKey), data, sig[off:off+SignatureSize])
 		}() {
 			return true
 		}
@@ -64,22 +65,22 @@ type SignedHash struct {
 
 func NewSignedHash(hash []byte, i Identity) (SignedHash, error) {
 	signature, err := Sign(i, hash)
-	if core.IsErr(err, "cannot sign with identity %s: %v", base64.StdEncoding.EncodeToString(i.SignatureKey.Public)) {
+	if core.IsErr(err, "cannot sign with identity %s: %v", i.ID) {
 		return SignedHash{}, err
 	}
 
 	return SignedHash{
 		Hash:       hash,
-		Signatures: map[string][]byte{i.ID(): signature},
+		Signatures: map[string][]byte{i.ID: signature},
 	}, nil
 }
 
 func AppendToSignedHash(s SignedHash, i Identity) error {
 	signature, err := Sign(i, s.Hash)
-	if core.IsErr(err, "cannot sign with identity %s: %v", base64.StdEncoding.EncodeToString(i.SignatureKey.Public)) {
+	if core.IsErr(err, "cannot sign with identity %s: %v", i.ID) {
 		return err
 	}
-	s.Signatures[i.ID()] = signature
+	s.Signatures[i.ID] = signature
 	return nil
 }
 
@@ -89,7 +90,7 @@ func VerifySignedHash(s SignedHash, trusts []Identity, hash []byte) bool {
 	}
 
 	for _, trust := range trusts {
-		id := trust.ID()
+		id := trust.ID
 		if signature, ok := s.Signatures[id]; ok {
 			if Verify(id, hash, signature) {
 				return true
