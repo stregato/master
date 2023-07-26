@@ -43,11 +43,13 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
-**/android/app/debug
-**/android/app/profile
-**/android/app/release
-
-**/linux/CMakeFiles
+margarita/android/app/debug/
+margarita/android/app/profile/
+margarita/android/app/release/
+margarita/prime/
+margarita/tmp/
+margarita/linux/plugins/
+margarita/linux/CMakeFiles/
 .DS_Store
 ios/Podfile.lock
 macos/Podfile.lock

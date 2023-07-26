@@ -1,0 +1,71 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+linux/CMakeFiles/cmake.check_cache
+linux/CMakeFiles/CMakeDirectoryInformation.cmake
+linux/CMakeFiles/CMakeRuleHashes.txt
+linux/CMakeFiles/Makefile.cmake
+linux/CMakeFiles/Makefile2
+linux/CMakeFiles/progress.marks
+linux/CMakeFiles/TargetDirectories.txt
+linux/CMakeFiles/3.24.2/CMakeCXXCompiler.cmake
+linux/CMakeFiles/3.24.2/CMakeDetermineCompilerABI_CXX.bin
+linux/CMakeFiles/3.24.2/CMakeSystem.cmake
+linux/CMakeFiles/3.24.2/CompilerIdCXX/a.out
+linux/CMakeFiles/3.24.2/CompilerIdCXX/CMakeCXXCompilerId.cpp
+linux/CMakeFiles/margarita.dir/build.make
+linux/CMakeFiles/margarita.dir/cmake_clean.cmake
+linux/CMakeFiles/margarita.dir/compiler_depend.make
+linux/CMakeFiles/margarita.dir/compiler_depend.ts
+linux/CMakeFiles/margarita.dir/depend.make
+linux/CMakeFiles/margarita.dir/DependInfo.cmake
+linux/CMakeFiles/margarita.dir/flags.make
+linux/CMakeFiles/margarita.dir/link.txt
+linux/CMakeFiles/margarita.dir/progress.make
+.DS_Store
+ios/Podfile.lock
+macos/Podfile.lock
+
+*.snap

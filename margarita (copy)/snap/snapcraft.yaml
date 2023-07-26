@@ -1,0 +1,74 @@
+name: margarita
+version: 0.1.0
+summary: Linux UI for Woland
+description: App to access and use woland portals
+icon: snap/gui/margarita.png
+confinement: strict
+base: core22
+grade: stable
+    
+
+apps:
+  margarita:
+    command: margarita
+    extensions: [gnome]
+    plugs:
+    - network
+    - network-manager
+    - network-observe
+    - desktop
+    - home
+    - wayland
+    - x11
+
+parts:   
+  woland:
+    source: ../../woland
+    build-packages:
+      - build-essential 
+      - pkg-config
+      - libavcodec-dev
+      - libavutil-dev
+      - libavformat-dev
+      - libswscale-dev
+    build-snaps:
+      - go
+    plugin: go
+    override-build: | 
+      go build -buildmode=c-shared -tags linux -o $SNAPCRAFT_PART_INSTALL/usr/lib/libwoland.so
+    stage-packages: 
+      - libavcodec-dev
+      - libavutil-dev
+      - libavformat-dev
+      - libswscale-dev
+
+  margarita:
+    after: [woland]
+    source: .
+    plugin: flutter
+    flutter-channel: stable
+    build-packages:
+      - build-essential 
+      - pkg-config
+      - libavcodec-dev
+      - libavutil-dev
+      - libavformat-dev
+      - libswscale-dev
+      - libgtk-3-dev
+      - libharfbuzz0b
+    flutter-target: lib/main.dart
+    stage-packages:
+      - libglib2.0-0
+      - libgtk-3-0
+      - libharfbuzz0b
+      - libavcodec-dev
+      - libavutil-dev
+      - libavformat-dev
+      - libswscale-dev
+  zenity:
+    plugin: nil
+    stage-packages:
+      - zenity
+    prime:
+      - usr/bin/zenity
+      - usr/share/zenity/*

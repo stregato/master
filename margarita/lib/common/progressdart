@@ -1,0 +1,85 @@
+import 'dart:isolate';
+
+import 'package:flutter/material.dart';
+
+Future<Object?> progressDialog(BuildContext context, String message,
+    Function(Function(double) updateProgress) task,
+    {String? successMessage, String? errorMessage}) async {
+  var dialog = ProgressDialog(message);
+  Object? error;
+
+  var overlay = OverlayEntry(
+      opaque: false,
+      builder: (BuildContext context) {
+        return dialog;
+      });
+  Overlay.of(context).insert(overlay);
+  var updateProgress = dialog.state.updateProgress;
+  await Future.delayed(Duration.zero, () {
+    task(updateProgress);
+  });
+
+  //   if (successMessage != null && context.mounted) {
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //         backgroundColor: Colors.green, content: Text(successMessage)));
+  //   }
+  // } catch (e) {
+  //   error = e;
+  //   if (errorMessage != null) {
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //         backgroundColor: Colors.red,
+  //         content: Text(
+  //           "$errorMessage: $e",
+  //         )));
+  //   }
+  // }
+  overlay.remove();
+  return error;
+}
+
+class ProgressDialog extends StatefulWidget {
+  final String message;
+  final ProgressState state = ProgressState();
+  ProgressDialog(this.message, {Key? key}) : super(key: key);
+
+  @override
+  // ignore: no_logic_in_create_state
+  State<ProgressDialog> createState() => state;
+}
+
+class ProgressState extends State<ProgressDialog> {
+  double? _progress;
+
+  void updateProgress(double progress) {
+    setState(() {
+      _progress = progress;
+    });
+  }
+
+  void close(BuildContext context) {
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      // The background color
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // The loading indicator
+            CircularProgressIndicator(value: _progress),
+            const SizedBox(
+              height: 15,
+            ),
+            // Some text
+            Text(widget.message)
+          ],
+        ),
+      ),
+    );
+  }
+}
