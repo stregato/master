@@ -1,6 +1,8 @@
 //import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:margarita/woland/woland.dart' as sp;
+import 'package:margarita/common/io.dart';
+import 'package:margarita/common/profile.dart';
+import 'package:margarita/woland/woland.dart';
 
 class Reset extends StatefulWidget {
   const Reset({Key? key}) : super(key: key);
@@ -39,7 +41,11 @@ class _Reset extends State<Reset> {
                 icon: const Icon(Icons.restore),
                 onPressed: () => setState(() {
                       if (_fullReset == 0) {
-                        sp.factoryReset();
+                        stop();
+                        clearProfiles();
+                        factoryReset();
+                        start(
+                            "$applicationFolder/woland.db", applicationFolder);
                         _fullReset = 5;
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

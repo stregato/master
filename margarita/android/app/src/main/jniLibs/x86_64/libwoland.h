@@ -124,9 +124,11 @@ extern Result encodeToken(char* userId, char* portalName, char* aesKey, char* ur
 extern Result decodeToken(char* identity, char* token);
 extern Result openPortal(char* identity, char* token, char* openOptions);
 extern Result closePortal(char* portalName);
+extern Result getIdentities(char* portalName);
 extern Result listFiles(char* portalName, char* zoneName, char* listOptions);
+extern Result listSubFolders(char* portalName, char* zoneName, char* folder);
 extern Result putData(char* portalName, char* zoneName, char* name, Reader* r, char* putOptions);
-extern Result putCString(char* portalName, char* zoneName, char* name, char* data, int size, char* putOptions);
+extern Result putCString(char* portalName, char* zoneName, char* name, char* data, char* putOptions);
 extern Result putFile(char* portalName, char* zoneName, char* name, char* sourceFile, char* putOptions);
 extern Result getData(char* portalName, char* zoneName, char* name, Writer* w, char* getOptions);
 extern Result getCString(char* portalName, char* zoneName, char* name, char* getOptions);
@@ -134,6 +136,7 @@ extern Result getFile(char* portalName, char* zoneName, char* name, char* destFi
 extern Result createZone(char* portalName, char* zoneName, char* users);
 extern Result listZones(char* portalName);
 extern Result setUsers(char* portalName, char* zoneName, char* users);
+extern Result getUsers(char* portalName, char* zoneName);
 extern Result getLogs();
 extern Result setLogLevel(int level);
 

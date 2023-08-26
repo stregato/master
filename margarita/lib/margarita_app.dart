@@ -22,9 +22,13 @@ import 'package:margarita/common/io.dart';
 import 'package:margarita/common/profile.dart';
 import 'package:margarita/safe/add.dart';
 import 'package:margarita/safe/addportal.dart';
-import 'package:margarita/safe/create.dart';
+import 'package:margarita/safe/create_portal.dart';
+import 'package:margarita/safe/create_zone.dart';
 import 'package:margarita/safe/home.dart';
+import 'package:margarita/safe/library_actions.dart';
+import 'package:margarita/safe/library_upload.dart';
 import 'package:margarita/safe/portal.dart';
+import 'package:margarita/safe/zone.dart';
 import 'package:margarita/settings/reset.dart';
 import 'package:margarita/settings/settings.dart';
 import 'package:margarita/settings/setup.dart';
@@ -78,19 +82,22 @@ class _MargaritaAppState extends State<MargaritaApp> {
         "/setup": (context) => const Setup(),
         "/reset": (context) => const Reset(),
         "/addPortal": (context) => const AddPortal(),
-        "/addPortal/create": (context) => const CreatePortal(),
+        "/addPortal/create": (context) => const CreatePortalView(),
         "/addPortal/add": (context) => const Add(),
         "/settings": (context) => const Settings(),
 
-        "/portal": (context) => const PortalView(),
+        "/portal": (context) => PortalView(),
+        "/portal/zone": (context) => const ZoneView(),
+        "/portal/createZone": (context) => const CreateZoneView(),
+
 //         "/pool/sub": (context) => const SubPool(),
 //         "/pool/settings": (context) => const PoolSettings(),
 //         "/apps/chat": (context) => const Chat(),
 //         "/apps/private": (context) => const Private(),
 //         "/apps/library": (context) => const Library(),
-//         "/apps/library/upload": (context) => const UploadFile(),
+        "/library/upload": (context) => const LibraryUpload(),
 // //        "/apps/library/download": (context) => const DownloadFile(),
-//         "/apps/library/actions": (context) => const LibraryActions(),
+        "/library/actions": (context) => const LibraryActions(),
 //         "/apps/invite": (context) => const Invite(),
 //         "/apps/invite/list": (context) => const InviteList(),
       },

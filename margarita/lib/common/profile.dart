@@ -2,10 +2,30 @@ import 'dart:convert';
 
 import 'dart:typed_data';
 
+import 'package:margarita/woland/woland.dart';
 import 'package:margarita/woland/woland_def.dart';
 
 var profiles = <Profile>[];
 var currentProfile = Profile();
+var identities = <String, Identity>{};
+
+void clearProfiles() {
+  profiles = [];
+  currentProfile = Profile();
+  identities = {};
+}
+
+Identity getCachedIdentity(String id) {
+  return identities.putIfAbsent(id, () {
+    try {
+      return getIdentity(id);
+    } catch (e) {
+      var i = Identity();
+      i.id = id;
+      return i;
+    }
+  });
+}
 
 class Profile {
   Identity identity = Identity();

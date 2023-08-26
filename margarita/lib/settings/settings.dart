@@ -4,10 +4,11 @@ import 'dart:io';
 //import 'package:file_selector/file_selector.dart';
 import 'package:margarita/common/image.dart';
 import 'package:flutter/material.dart';
+import 'package:margarita/common/io.dart';
 import 'package:margarita/common/profile.dart';
 import 'package:margarita/navigation/bar.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:margarita/woland/woland.dart' as w;
+import 'package:margarita/woland/woland.dart';
 import 'package:flutter/services.dart';
 
 class Settings extends StatefulWidget {
@@ -99,7 +100,7 @@ class _SettingsState extends State<Settings> {
                   currentUser.avatar = _avatar;
                   currentUser.nick = nick.text;
                   currentUser.email = email.text;
-                  w.setIdentity(currentUser);
+                  setIdentity(currentUser);
                 }),
             const SizedBox(height: 6),
             Row(
@@ -121,7 +122,7 @@ class _SettingsState extends State<Settings> {
                     icon: const Icon(Icons.upload),
                     onPressed: () {
                       try {
-                        var logs = w.getLogs();
+                        var logs = getLogs();
                         var content = logs.join("\n");
                         if (Platform.isAndroid || Platform.isIOS) {
                           var file = XFile.fromData(
@@ -166,7 +167,7 @@ class _SettingsState extends State<Settings> {
                 onChanged: (e) {
                   setState(() {
                     _logLevel = e!;
-                    w.setLogLevel(logLevels[_logLevel] ?? 1);
+                    setLogLevel(logLevels[_logLevel] ?? 1);
                   });
                 }),
             Row(
@@ -179,7 +180,7 @@ class _SettingsState extends State<Settings> {
                     icon: const Icon(Icons.copy),
                     onPressed: () {
                       try {
-                        var logs = w.getLogs();
+                        var logs = getLogs();
                         var content = logs.join("\n");
                         if (Platform.isAndroid || Platform.isIOS) {
                           Share.share(content, subject: "Logs from Caspian");
@@ -209,7 +210,7 @@ class _SettingsState extends State<Settings> {
                     icon: const Icon(Icons.download_for_offline),
                     onPressed: () {
                       try {
-                        var logs = w.getLogs();
+                        var logs = getLogs();
                         var content = logs.join("\n");
 
                         if (Platform.isAndroid || Platform.isIOS) {
@@ -246,7 +247,11 @@ class _SettingsState extends State<Settings> {
                 icon: const Icon(Icons.restore),
                 onPressed: () => setState(() {
                       if (_fullReset == 0) {
-                        w.factoryReset();
+                        stop();
+                        clearProfiles();
+                        factoryReset();
+                        start(
+                            "$applicationFolder/woland.db", applicationFolder);
                         _fullReset = 5;
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

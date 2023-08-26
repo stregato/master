@@ -5,6 +5,7 @@ import 'package:margarita/common/common.dart';
 import 'package:margarita/common/profile.dart';
 import 'package:margarita/common/progress.dart';
 import 'package:margarita/navigation/bar.dart';
+import 'package:margarita/safe/portal.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:margarita/woland/woland_def.dart';
@@ -72,7 +73,8 @@ class _HomeViewState extends State<HomeView> {
       return openPortal(currentProfile.identity, token, OpenOptions());
     }), errorMessage: "cannot connect to $portalName");
     if (p != null && context.mounted) {
-      return Navigator.pushNamed(context, "/portal", arguments: p);
+      return Navigator.pushNamed(context, "/portal",
+          arguments: PortalViewArgs(portalName));
     }
     return null;
   }

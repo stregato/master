@@ -789,6 +789,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  snowflake_dart:
+    dependency: "direct main"
+    description:
+      name: snowflake_dart
+      sha256: "131cbbb0da9eb4f7fb421501a8b93aaf01e4842f601c59f9a11230745ccb625d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   source_span:
     dependency: transitive
     description:

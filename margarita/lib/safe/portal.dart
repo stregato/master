@@ -1,7 +1,8 @@
 import 'package:basic_utils/basic_utils.dart';
+import 'package:margarita/safe/create_zone.dart';
+import 'package:margarita/safe/zone.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:flutter/material.dart';
-import 'package:margarita/woland/woland_def.dart';
 
 import '../navigation/bar.dart';
 
@@ -12,30 +13,56 @@ var appsIcons = {
   "invite": Icons.token,
 };
 
-class PortalView extends StatelessWidget {
+class PortalViewArgs {
+  String portalName;
+  PortalViewArgs(this.portalName);
+}
+
+class PortalView extends StatefulWidget {
   const PortalView({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final portal = ModalRoute.of(context)!.settings.arguments as Portal;
+  State<PortalView> createState() => _PortalViewState();
+}
 
-    var zones = listZones(portal.name);
-    var zonesWidgets = zones.fold(<Widget>[], (res, e) {
+class _PortalViewState extends State<PortalView> {
+  late PortalViewArgs _args;
+
+  List<String> _zones = [];
+
+  @override
+  Widget build(BuildContext context) {
+    _args = ModalRoute.of(context)!.settings.arguments as PortalViewArgs;
+
+    _zones = listZones(_args.portalName);
+    var zonesWidgets = _zones.fold(<Widget>[], (res, zoneName) {
       res.addAll([
         Row(
           children: [
             Expanded(
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, "/portal/$e", arguments: portal);
+                  Navigator.pushNamed(
+                    context,
+                    "/portal/zone",
+                    arguments: ZoneViewArgs(_args.portalName, zoneName),
+                  );
                 },
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     const SizedBox(height: 20),
-                    Icon(appsIcons[e]),
-                    const SizedBox(height: 10),
-                    Text(StringUtils.capitalize(e)),
+                    Row(
+                        // Aligns the Icon and Text to the center of the Row
+                        children: [
+                          const Icon(Icons
+                              .arrow_circle_right), // An Icon widget with the icon corresponding to the zoneName
+                          const SizedBox(
+                              width:
+                                  10), // Empty space with a width of 10 pixels between the Icon and Text
+                          Text(StringUtils.capitalize(
+                              zoneName)), // A Text widget displaying the capitalized zoneName
+                        ]),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -50,11 +77,17 @@ class PortalView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(portal.name),
+        title: Text(_args.portalName),
         actions: [
           ElevatedButton(
             child: const Text("Add Zone"),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.pushNamed(context, "/portal/createZone",
+                      arguments: CreateZoneViewArgs(_args.portalName))
+                  .then((value) => setState(() {
+                        _zones = listZones(_args.portalName);
+                      }));
+            },
           ),
         ],
       ),
@@ -64,7 +97,7 @@ class PortalView extends StatelessWidget {
           children: zonesWidgets,
         ),
       ),
-      bottomNavigationBar: MainNavigationBar(portal.name),
+      bottomNavigationBar: MainNavigationBar(_args.portalName),
     );
   }
 }

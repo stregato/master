@@ -69,6 +69,7 @@ dependencies:
   image: ^4.0.17
   qr_flutter: ^4.1.0
   uni_links_desktop: ^0.1.6
+  snowflake_dart: ^2.0.0
 
 dev_dependencies:
   flutter_test:

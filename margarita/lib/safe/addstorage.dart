@@ -57,7 +57,7 @@ class _AddStorageState extends State<AddStorage> {
         u += "${a.host}/${a.path}";
         return u;
       case "Folder":
-        return "file:/${a.path}";
+        return "file://${a.path}";
       default:
         return "";
     }
@@ -79,16 +79,6 @@ class _AddStorageState extends State<AddStorage> {
       default:
         return false;
     }
-  }
-
-  Widget getShareCheckbox() {
-    return CheckboxListTile(
-      title: const Text("Share with others"),
-      value: a.public_,
-      onChanged: (val) => setState(() {
-        a.public_ = val ?? false;
-      }),
-    );
   }
 
   Map<String, Widget> getBuilders() {
@@ -119,7 +109,6 @@ class _AddStorageState extends State<AddStorage> {
               a.secret = val;
             }),
           ),
-          getShareCheckbox(),
         ],
       ),
       "SFTP": Column(
@@ -154,7 +143,6 @@ class _AddStorageState extends State<AddStorage> {
               a.key = val;
             }),
           ),
-          getShareCheckbox(),
         ],
       ),
       "WebDAV": Column(
@@ -190,7 +178,6 @@ class _AddStorageState extends State<AddStorage> {
               a.https = val!;
             }),
           ),
-          getShareCheckbox(),
         ],
       ),
       "Folder": Column(
@@ -201,7 +188,6 @@ class _AddStorageState extends State<AddStorage> {
               a.path = val;
             }),
           ),
-          getShareCheckbox(),
         ],
       )
     };

@@ -115,12 +115,12 @@ class Header {
         thumbnail = base64Decode(json['thumbnail'] ?? ""),
         contentType = json['contentType'],
         modTime = DateTime.parse(json['modTime']),
-        meta = json['meta'],
+        meta = json['meta'] ?? {},
         bodyID = json['bodyID'],
         bodyKey = base64Decode(json['bodyKey'] ?? ""),
         iv = base64Decode(json['iv'] ?? ""),
-        deleted = json['deleted'],
-        downloads = json['downloads'],
+        deleted = json['deleted'] ?? false,
+        downloads = json['downloads'] ?? {},
         cached = json['cached'],
         cachedExpires = DateTime.parse(json['cachedExpires']);
 
@@ -183,8 +183,8 @@ class ListOptions {
         'contentType': contentType,
         'bodyID': bodyID,
         'tags': tags,
-        'before': before.toIso8601String(),
-        'after': after.toIso8601String(),
+        //'before': before.toIso8601String(),
+        //'after': after.toIso8601String(),
         'offset': offset,
         'limit': limit,
         'includeDeleted': includeDeleted,
@@ -223,3 +223,6 @@ class GetOptions {
 
 typedef Permission = int;
 typedef Users = Map<String, Permission>;
+
+var permissionUser = 1;
+var permissionAdmin = 2;
