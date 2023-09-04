@@ -3,37 +3,37 @@ import 'package:margarita/apps/chat/chat.dart';
 import 'package:margarita/safe/library.dart';
 
 class ZoneViewArgs {
-  String portalName;
+  String safeName;
   String zoneName;
-  ZoneViewArgs(this.portalName, this.zoneName);
+  ZoneViewArgs(this.safeName, this.zoneName);
 }
 
-class ZoneView extends StatefulWidget {
-  const ZoneView({Key? key}) : super(key: key);
+var currentPanelIdx = <String, int>{};
+
+class Space extends StatefulWidget {
+  const Space({Key? key}) : super(key: key);
 
   @override
-  State<ZoneView> createState() => _ZoneViewState();
+  State<Space> createState() => _SpaceState();
 }
 
-class _ZoneViewState extends State<ZoneView> {
+class _SpaceState extends State<Space> {
   List<Widget> _panels = [];
-  final List<String> _panelNames = ["Chat", "Library"];
-  final List<IconData> _panelIcons = [Icons.chat, Icons.library_books];
   int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    var args = ModalRoute.of(context)!.settings.arguments as ZoneViewArgs;
+    var safeName = ModalRoute.of(context)!.settings.arguments as String;
     if (_panels.isEmpty) {
-      _panels = [
-        Chat(args.portalName, args.zoneName),
-        Library(args.portalName, args.zoneName)
-      ];
+      _panels = [Chat(safeName), Library(safeName)];
     }
+
+    _currentIndex = currentPanelIdx[safeName] ?? 0;
+    var title = safeName.split("/").reversed.join("@");
 
     return Scaffold(
       appBar: AppBar(
-          title: Text(" ${args.portalName}: ${_panelNames[_currentIndex]}"),
+          title: Text(title, style: const TextStyle(fontSize: 18)),
           actions: [
             IconButton(
               icon: const Icon(Icons.person_add),
@@ -48,6 +48,7 @@ class _ZoneViewState extends State<ZoneView> {
         onTap: (int index) {
           setState(() {
             _currentIndex = index;
+            currentPanelIdx[safeName] = index;
           });
         },
         items: const [

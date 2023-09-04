@@ -4,9 +4,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/safe"
-	"github.com/stregato/master/massolit/sql"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/safe"
+	"github.com/stregato/master/woland/sql"
 )
 
 func Start(dbPath, appPath string) error {

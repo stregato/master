@@ -24,9 +24,8 @@ import 'package:mime/mime.dart';
 import 'package:path/path.dart' as ph;
 
 class Chat extends StatefulWidget {
-  final String portalName;
-  final String zoneName;
-  const Chat(this.portalName, this.zoneName, {Key? key}) : super(key: key);
+  final String safeName;
+  const Chat(this.safeName, {Key? key}) : super(key: key);
 
   @override
   State<Chat> createState() => _ChatState();
@@ -59,11 +58,13 @@ class _ChatState extends State<Chat> {
   }
 
   void _setUsers() {
-    var users = getUsers(widget.portalName, widget.zoneName);
+    var profile = Profile.current();
+    var currentUser = profile.identity;
+    var users = getUsers(widget.safeName);
     _currentUser = types.User(
-        id: currentProfile.identity.id,
-        firstName: currentProfile.identity.nick,
-        lastName: currentProfile.identity.email);
+        id: currentUser.id,
+        firstName: currentUser.nick,
+        lastName: currentUser.email);
 
     for (var id in users.keys) {
       Identity i = getCachedIdentity(id);
@@ -75,6 +76,7 @@ class _ChatState extends State<Chat> {
   void dispose() {
     super.dispose();
     timer?.cancel();
+    timer = null;
   }
 
   types.Message _convertHtml(Header h, types.User user) {
@@ -109,11 +111,17 @@ class _ChatState extends State<Chat> {
   }
 
   types.Message _convertEmbeddedImage(Header h, types.User user) {
-    var size = h.thumbnail.length;
+    var size = h.thumbnail.isEmpty ? h.size : h.thumbnail.length;
     var file = File("$temporaryFolder/${h.name}");
     var stat = FileStat.statSync(file.path);
-    if (stat.size != size) {
-      file.writeAsBytesSync(h.thumbnail, flush: true);
+    if (h.size != stat.size) {
+      if (h.thumbnail.isNotEmpty) {
+        file.writeAsBytesSync(h.thumbnail);
+      } else {
+        var options = GetOptions();
+        options.fileId = h.fileId;
+        getFile(widget.safeName, h.name, file.path, options);
+      }
     }
 
     return types.ImageMessage(
@@ -128,7 +136,7 @@ class _ChatState extends State<Chat> {
 
   types.Message _convert(Header h) {
     try {
-      var user = _users[h.author] ?? types.User(id: h.author);
+      var user = _users[h.creator] ?? types.User(id: h.creator);
       var contentType = h.contentType;
       _loaded.add(h.name);
 
@@ -138,7 +146,7 @@ class _ChatState extends State<Chat> {
       if (contentType.startsWith('text/')) {
         return _convertText(h, user);
       }
-      if (contentType.startsWith("image/") && h.thumbnail.isNotEmpty) {
+      if (contentType.startsWith("image/")) {
         return _convertEmbeddedImage(h, user);
       }
       if (contentType.startsWith("application/") ||
@@ -149,13 +157,13 @@ class _ChatState extends State<Chat> {
           id: h.name,
           text: "Unsupported message with content type $contentType",
           createdAt: h.modTime.millisecondsSinceEpoch,
-          author: types.User(id: h.author));
+          author: types.User(id: h.creator));
     } catch (err) {
       return types.TextMessage(
           id: h.name,
           createdAt: h.modTime.millisecondsSinceEpoch,
           text: "Error: $err",
-          author: types.User(id: h.author));
+          author: types.User(id: h.creator));
     }
   }
 
@@ -164,12 +172,15 @@ class _ChatState extends State<Chat> {
     options.after = after;
     options.before = before;
     options.limit = isDesktop ? 40 : 20;
-    options.folder = "chat";
     return Isolate.run<List<Header>>(
-        () => listFiles(widget.portalName, widget.zoneName, options));
+        () => listFiles(widget.safeName, "chat", options));
   }
 
   _loadMoreMessages([bool showProgress = false]) async {
+    if (timer == null) {
+      return;
+    }
+
     var headers = showProgress
         ? await progressDialog<List<Header>>(
             context, "Getting messages", _listFiles(widget, _from, _to))
@@ -245,13 +256,12 @@ class _ChatState extends State<Chat> {
   }
 
   void _handleSendPressed(types.PartialText message) {
-    var name = '/chat/${Snowflake(nodeId: 0).generate()}';
+    var name = 'chat/${Snowflake(nodeId: 0).generate()}';
     var putOptions = PutOptions();
     putOptions.contentType = "text/plain";
     putOptions.meta = {'text': message.text};
 
-    var header = putBytes(
-        widget.portalName, widget.zoneName, name, Uint8List(0), putOptions);
+    var header = putBytes(widget.safeName, name, Uint8List(0), putOptions);
 
     final textMessage = types.TextMessage(
       author: _currentUser,
@@ -313,8 +323,7 @@ class _ChatState extends State<Chat> {
 
     var size = File(filePath).lengthSync();
     var name = 'chat/${ph.basename(filePath)}';
-    var header = putFile(
-        widget.portalName, widget.zoneName, filePath, "chat/$name", options);
+    var header = putFile(widget.safeName, name, filePath, options);
 
     final message = types.FileMessage(
       author: _currentUser,
@@ -369,8 +378,7 @@ class _ChatState extends State<Chat> {
     options.autoThumbnail = true;
     options.contentType = lookupMimeType(xfile.path) ?? '';
 
-    var header =
-        putFile(widget.portalName, widget.zoneName, name, xfile.path, options);
+    var header = putFile(widget.safeName, name, xfile.path, options);
 
     final message = types.ImageMessage(
       author: _currentUser,
@@ -490,11 +498,6 @@ class _ChatState extends State<Chat> {
 
     return Column(
       children: [
-        // Card(
-        //   child: Row(
-        //     children: privateChips,
-        //   ),
-        // ),
         DropTarget(
           onDragDone: (details) async {
             _dropFiles(details.files);

@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 func ReadFile(s Store, name string) ([]byte, error) {
@@ -91,7 +91,7 @@ func CopyFile(dest Store, destName string, source Store, sourceName string) erro
 		}
 		r = core.NewBytesReader(buf.Bytes())
 	} else {
-		file, err := os.CreateTemp("", "massolit")
+		file, err := os.CreateTemp("", "woland")
 		if core.IsErr(err, nil, "cannot create temporary file for CopyFile: %v") {
 			return err
 		}

@@ -14,7 +14,7 @@ func TestHash(t *testing.T) {
 	}
 }
 
-func TestNextID(t *testing.T) {
+func TestNextId(t *testing.T) {
 	input := uint64(1234567890)
 	id1 := NextID(input)
 	id2 := NextID(input)

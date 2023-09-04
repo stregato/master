@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 type _memoryFile struct {

@@ -2,19 +2,17 @@ package safe
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/sql"
-	"github.com/stregato/master/massolit/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 var dbPath = sql.TempDB
-
-// var dbPath = sql.MemoryDBPath
-var storeUrl = TestLocalStoreUrl // TestMemStoreUrl
 
 func TestNewAccess(t *testing.T) {
 	StartTestDB(t, dbPath)
@@ -29,70 +27,98 @@ func TestNewAccess(t *testing.T) {
 
 }
 
+func TestCreate(t *testing.T) {
+	StartTestDB(t, dbPath)
+
+	access, err := EncodeAccess(TestID, "test-save", TestID, nil, "file:///tmp") // Provide a mock access string
+	core.TestErr(t, err, "cannot encode access token: %v")
+
+	// Call the Open function
+	s, err := Create(TestIdentity, access, CreateOptions{Wipe: true})
+	core.TestErr(t, err, "cannot open portal: %v")
+
+	Close(s)
+}
 func TestOpen(t *testing.T) {
 	StartTestDB(t, dbPath)
 
 	// Prepare the necessary test inputs
 	//	access, err := EncodeToken(TestID, "test-save", nil, "mem://314") // Provide a mock access string
 	//	access, err := EncodeToken(TestID, "test-save", nil, "sftp://sftp_user:11H%5Em63W5vAL@localhost/sftp_user") // Provide a mock access string
-	access, err := EncodeAccess(TestID, "test-save", TestID, nil, "file://tmp") // Provide a mock access string
+	access, err := EncodeAccess(TestID, "test-save", TestID, nil, "file:///tmp") // Provide a mock access string
 	core.TestErr(t, err, "cannot encode access token: %v")
 
 	// Call the Open function
-	p, err := Open(TestIdentity, access, OpenOptions{})
+	s, err := Open(TestIdentity, access, OpenOptions{})
 	core.TestErr(t, err, "cannot open portal: %v")
 
-	p.Close()
+	Close(s)
 }
 
 func TestZoneLocal(t *testing.T) {
-	testZone(t, sql.TempDB, TestLocalStoreUrl)
+	testSafe(t, sql.TempDB, TestLocalStoreUrl)
 }
 
 func TestS3(t *testing.T) {
 	credentials := storage.LoadTestURLs("../../../credentials/urls.yaml")
-	testZone(t, sql.TempDB, credentials["s3"])
+	testSafe(t, sql.TempDB, credentials["s3"])
 }
 
-func testZone(t *testing.T, dbPath string, storeUrl string) {
+func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	StartTestDB(t, dbPath)
-	portal := OpenTestPortal(t, storeUrl, true)
-
-	zoneName := "toyroom"
-	err := safe.CreateZone(zoneName, nil)
-	assert.Nil(t, err)
+	s := GetTestSafe(t, storeUrl, true)
 
 	data := []byte("Hello, World!")
 	r := core.NewBytesReader(data)
 
-	header, err := safe.Put(zoneName, "file1", r, PutOptions{
+	file, err := Put(s, "sub/file1", r, PutOptions{
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
 	})
 	core.TestErr(t, err, "cannot put file: %v")
+	core.Assert(t, file.Name == "sub/file1", "Expected file name to be 'file1', got '%s'", file.Name)
 
-	headers, err := safe.ListFiles(zoneName, ListOptions{})
+	files, err := ListFiles(s, "sub", ListOptions{})
 	core.TestErr(t, err, "cannot list files: %v")
-	core.Assert(t, len(headers) == 1, "Expected 1 file, got %d", len(headers))
-	header = headers[0]
-	if header.Name != "/file1" {
-		t.Errorf("Expected file name to be 'file1', got '%s'", header.Name)
+	core.Assert(t, len(files) == 1, "Expected 1 file, got %d", len(files))
+	file = files[0]
+	if file.Name != "sub/file1" {
+		t.Errorf("Expected file name to be 'file1', got '%s'", file.Name)
 	}
-	if header.Size != int64(len(data)) {
-		t.Errorf("Expected file size to be %d, got %d", len(data), header.Size)
+	if file.Size != int64(len(data)) {
+		t.Errorf("Expected file size to be %d, got %d", len(data), file.Size)
 	}
 
 	b := bytes.Buffer{}
-	_, err = safe.Get(zoneName, "/file1", &b, GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, data, b.Bytes())
+	_, err = Get(s, "sub/file1", &b, GetOptions{Destination: "sub/file1"})
+	core.TestErr(t, err, "cannot get file: %v")
+	core.Assert(t, bytes.Equal(data, b.Bytes()), "Expected data to be '%s', got '%s'", data, b.Bytes())
 
-	headers, err = safe.ListFiles(zoneName, ListOptions{})
+	files, err = ListFiles(s, "sub", ListOptions{})
 	core.TestErr(t, err, "cannot list files: %v")
-	header = headers[0]
-	if header.Cached == "" {
-		t.Errorf("Expected cached to be set")
-	}
+	file = files[0]
+	core.Assert(t, file.Cached != "", "Expected cached to be set")
+	core.Assert(t, len(file.Downloads) == 1, "Expected 1 download, got %d", len(file.Downloads))
 
-	safe.Close()
+	dirs, err := ListDirs(s, "", ListDirsOptions{})
+	core.TestErr(t, err, "cannot list dirs: %v")
+	core.Assert(t, len(dirs) == 1, "Expected 1 dir, got %d", len(dirs))
+
+	files, err = ListFiles(s, "sub", ListOptions{})
+	core.TestErr(t, err, "cannot list files: %v")
+	file = files[0]
+	core.Assert(t, file.Cached != "", "Expected cached to be set")
+	core.Assert(t, len(file.Downloads) == 1, "Expected 1 download, got %d", len(file.Downloads))
+
+	f, err := os.CreateTemp(os.TempDir(), "test-woland*")
+	core.TestErr(t, err, "cannot create temp file: %v")
+	defer os.Remove(f.Name())
+	f.Write(data)
+	h, err := Put(s, "sub/file1", f, PutOptions{
+		Source: f.Name(),
+	})
+	f.Close()
+	core.TestErr(t, err, "cannot put file: %v")
+	core.Assert(t, !h.Downloads["sub/file1"].IsZero(), "Expected download time to be set")
+	Close(s)
 }

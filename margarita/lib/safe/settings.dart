@@ -1,7 +1,5 @@
 import 'package:margarita/common/profile.dart';
-import 'package:margarita/woland/woland.dart';
 import 'package:flutter/material.dart';
-import 'package:margarita/woland/woland_def.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -17,7 +15,7 @@ const availableApps = ["chat", "library", "gallery"];
 class _SettingsViewState extends State<SettingsView> {
   @override
   Widget build(BuildContext context) {
-    final portalName = ModalRoute.of(context)!.settings.arguments as String;
+    final safeName = ModalRoute.of(context)!.settings.arguments as String;
 
     final buttonStyle = ButtonStyle(
       padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(20)),
@@ -45,13 +43,13 @@ class _SettingsViewState extends State<SettingsView> {
               label: const Text('Leave'),
               icon: const Icon(Icons.exit_to_app),
               onPressed: () {
-                currentProfile.portals.remove(portalName);
-                setConfig("margarita", "profiles",
-                    SIB.fromBytes(writeProfiles(profiles)));
+                var p = Profile.current();
+                p.communities.remove(safeName);
+                p.save();
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     backgroundColor: Colors.green,
                     content: Text(
-                      "you successfully left $portalName",
+                      "you successfully left $safeName",
                     )));
 
                 Navigator.of(context).popUntil((route) => route.isFirst);

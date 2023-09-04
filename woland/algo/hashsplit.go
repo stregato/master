@@ -11,7 +11,7 @@ import (
 	"github.com/chmduquesne/rollinghash/buzhash32"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 const windowSize = 32

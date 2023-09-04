@@ -43,18 +43,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"unsafe"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/safe"
-	"github.com/stregato/master/massolit/security"
-	"github.com/stregato/master/massolit/sql"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/safe"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/sql"
 )
 
-var ErrPortalNotFound = fmt.Errorf("portal not found")
-var portals = map[string]*safe.Pot{}
+var ErrSafeNotFound = fmt.Errorf("portal not found")
+var safes = map[string]*safe.Safe{}
 
 func cResult(v any, err error) C.Result {
 	var res []byte
@@ -164,14 +165,15 @@ func getIdentity(id *C.char) C.Result {
 	return cResult(identity, nil)
 }
 
-//export encodeToken
-func encodeToken(userId *C.char, portalName *C.char, aesKey *C.char, urls *C.char) C.Result {
+//export encodeAccess
+func encodeAccess(userId *C.char, safeName *C.char, creatorId *C.char, aesKey *C.char, urls *C.char) C.Result {
 	var urls_ []string
 	err := cUnmarshal(urls, &urls_)
 	if core.IsErr(err, nil, "cannot unmarshal urls: %v") {
 		return cResult(nil, err)
 	}
-	token, err := safe.EncodeToken(C.GoString(userId), C.GoString(portalName), []byte(C.GoString(aesKey)), urls_...)
+	token, err := safe.EncodeAccess(C.GoString(userId), C.GoString(safeName), C.GoString(creatorId),
+		[]byte(C.GoString(aesKey)), urls_...)
 	if core.IsErr(err, nil, "cannot create token: %v") {
 		return cResult(nil, err)
 	}
@@ -179,10 +181,10 @@ func encodeToken(userId *C.char, portalName *C.char, aesKey *C.char, urls *C.cha
 }
 
 type decodedToken struct {
-	PortalName string   `json:"portalName"`
-	CreatorId  string   `json:"creatorId"`
-	AesKey     []byte   `json:"aesKey"`
-	Urls       []string `json:"urls"`
+	SafeName  string   `json:"safeName"`
+	CreatorId string   `json:"creatorId"`
+	AesKey    []byte   `json:"aesKey"`
+	Urls      []string `json:"urls"`
 }
 
 //export decodeAccess
@@ -193,20 +195,42 @@ func decodeAccess(identity *C.char, token *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	portalName, creatorId, aesKey, urls, err := safe.DecodeAccess(i, C.GoString(token))
+	safeName, creatorId, aesKey, urls, err := safe.DecodeAccess(i, C.GoString(token))
 	if core.IsErr(err, nil, "cannot transfer token: %v") {
 		return cResult(nil, err)
 	}
 	return cResult(decodedToken{
-		PortalName: portalName,
-		CreatorId: ,
-		AesKey:     aesKey,
-		Urls:       urls,
+		SafeName:  safeName,
+		CreatorId: creatorId,
+		AesKey:    aesKey,
+		Urls:      urls,
 	}, nil)
 }
 
-//export openPortal
-func openPortal(identity *C.char, token *C.char, openOptions *C.char) C.Result {
+//export createSafe
+func createSafe(identity *C.char, token *C.char, createOptions *C.char) C.Result {
+	var CreateOptions safe.CreateOptions
+	err := cUnmarshal(createOptions, &CreateOptions)
+	if core.IsErr(err, nil, "cannot unmarshal createOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	var i security.Identity
+	err = cUnmarshal(identity, &i)
+	if core.IsErr(err, nil, "cannot unmarshal identity: %v") {
+		return cResult(nil, err)
+	}
+
+	s, err := safe.Create(i, C.GoString(token), CreateOptions)
+	if core.IsErr(err, nil, "cannot create portal: %v") {
+		return cResult(nil, err)
+	}
+	safes[s.Name] = s
+	return cResult(s, err)
+}
+
+//export openSafe
+func openSafe(identity *C.char, token *C.char, openOptions *C.char) C.Result {
 	var OpenOptions safe.OpenOptions
 	err := cUnmarshal(openOptions, &OpenOptions)
 	if core.IsErr(err, nil, "cannot unmarshal openOptions: %v") {
@@ -219,43 +243,30 @@ func openPortal(identity *C.char, token *C.char, openOptions *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	portal, err := safe.Open(i, C.GoString(token), OpenOptions)
+	s, err := safe.Open(i, C.GoString(token), OpenOptions)
 	if core.IsErr(err, nil, "cannot open portal: %v") {
 		return cResult(nil, err)
 	}
-	portals[safe.Name] = portal
-	return cResult(portal, err)
+	safes[s.Name] = s
+	return cResult(s, err)
 }
 
-//export closePortal
-func closePortal(portalName *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+//export closeSafe
+func closeSafe(safeName *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
-	s.Close()
-	delete(portals, C.GoString(portalName))
+	safe.Close(s)
+	delete(safes, C.GoString(safeName))
 	return cResult(nil, nil)
 }
 
-//export getIdentities
-func getIdentities(portalName *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
-	if !ok {
-		return cResult(nil, ErrPortalNotFound)
-	}
-	identities, err := s.GetIdentities()
-	if err != nil {
-		return cResult(nil, err)
-	}
-	return cResult(identities, nil)
-}
-
 //export listFiles
-func listFiles(portalName, zoneName, listOptions *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+func listFiles(safeName, dir, listOptions *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 	var options safe.ListOptions
 	err := cUnmarshal(listOptions, &options)
@@ -263,19 +274,24 @@ func listFiles(portalName, zoneName, listOptions *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	headers, err := s.ListFiles(C.GoString(zoneName), options)
+	headers, err := safe.ListFiles(s, C.GoString(dir), options)
 	return cResult(headers, err)
 }
 
-//export listSubFolders
-func listSubFolders(portalName, zoneName, folder *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+//export listDirs
+func listDirs(safeName, dir *C.char, listDirsOptions *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
+	}
+	var options safe.ListDirsOptions
+	err := cUnmarshal(listDirsOptions, &options)
+	if core.IsErr(err, nil, "cannot unmarshal listDirsOptions %s: %v", C.GoString(listDirsOptions)) {
+		return cResult(nil, err)
 	}
 
-	subFolders, err := s.ListSubFolders(C.GoString(zoneName), C.GoString(folder))
-	return cResult(subFolders, err)
+	dirs, err := safe.ListDirs(s, C.GoString(dir), options)
+	return cResult(dirs, err)
 }
 
 type CReader struct {
@@ -311,10 +327,10 @@ func (w CWriter) Write(p []byte) (n int, err error) {
 }
 
 //export putData
-func putData(portalName, zoneName, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+func putData(safeName, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 
 	var options safe.PutOptions
@@ -323,7 +339,7 @@ func putData(portalName, zoneName, name *C.char, r *C.Reader, putOptions *C.char
 		return cResult(nil, err)
 	}
 
-	header, err := s.Put(C.GoString(zoneName), C.GoString(name), CReader{r}, options)
+	header, err := safe.Put(s, C.GoString(name), CReader{r}, options)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -332,12 +348,12 @@ func putData(portalName, zoneName, name *C.char, r *C.Reader, putOptions *C.char
 }
 
 //export putCString
-func putCString(portalName, zoneName, name, data *C.char,
+func putCString(safeName, name, data *C.char,
 	putOptions *C.char) C.Result {
 
-	s, ok := portals[C.GoString(portalName)]
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 
 	var options safe.PutOptions
@@ -353,7 +369,7 @@ func putCString(portalName, zoneName, name, data *C.char,
 
 	r := core.NewBytesReader(bytes)
 
-	header, err := s.Put(C.GoString(zoneName), C.GoString(name), r, options)
+	header, err := safe.Put(s, C.GoString(name), r, options)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -361,10 +377,10 @@ func putCString(portalName, zoneName, name, data *C.char,
 }
 
 //export putFile
-func putFile(portalName, zoneName, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+func putFile(safeName, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 
 	var options safe.PutOptions
@@ -378,7 +394,7 @@ func putFile(portalName, zoneName, name *C.char, sourceFile *C.char, putOptions 
 		return cResult(nil, err)
 	}
 
-	header, err := s.Put(C.GoString(zoneName), C.GoString(name), r, options)
+	header, err := safe.Put(s, C.GoString(name), r, options)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -386,10 +402,10 @@ func putFile(portalName, zoneName, name *C.char, sourceFile *C.char, putOptions 
 }
 
 //export getData
-func getData(portalName, zoneName, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+func getData(safeName, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 
 	var options safe.GetOptions
@@ -398,7 +414,7 @@ func getData(portalName, zoneName, name *C.char, w *C.Writer, getOptions *C.char
 		return cResult(nil, err)
 	}
 
-	header, err := s.Get(C.GoString(zoneName), C.GoString(name), CWriter{w}, options)
+	header, err := safe.Get(s, C.GoString(name), CWriter{w}, options)
 	if core.IsErr(err, nil, "cannot get file: %v") {
 		return cResult(nil, err)
 	}
@@ -407,10 +423,10 @@ func getData(portalName, zoneName, name *C.char, w *C.Writer, getOptions *C.char
 }
 
 //export getCString
-func getCString(portalName, zoneName, name, getOptions *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+func getCString(safeName, name, getOptions *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 
 	var options safe.GetOptions
@@ -420,7 +436,7 @@ func getCString(portalName, zoneName, name, getOptions *C.char) C.Result {
 	}
 
 	buf := bytes.Buffer{}
-	_, err = s.Get(C.GoString(zoneName), C.GoString(name), &buf, options)
+	_, err = safe.Get(s, C.GoString(name), &buf, options)
 	if core.IsErr(err, nil, "cannot get file: %v") {
 		return cResult(nil, err)
 	}
@@ -430,10 +446,10 @@ func getCString(portalName, zoneName, name, getOptions *C.char) C.Result {
 }
 
 //export getFile
-func getFile(portalName, zoneName, name, destFile, getOptions *C.char) C.Result {
-	s := portals[C.GoString(portalName)]
+func getFile(safeName, name, destFile, getOptions *C.char) C.Result {
+	s := safes[C.GoString(safeName)]
 	if s == nil {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 
 	var options safe.GetOptions
@@ -442,58 +458,26 @@ func getFile(portalName, zoneName, name, destFile, getOptions *C.char) C.Result 
 		return cResult(nil, err)
 	}
 
-	w, err := os.Create(C.GoString(destFile))
+	dest := C.GoString(destFile)
+	os.MkdirAll(filepath.Dir(dest), 0755)
+
+	w, err := os.Create(dest)
 	if core.IsErr(err, nil, "cannot create file: %v") {
 		return cResult(nil, err)
 	}
 
-	header, err := s.Get(C.GoString(zoneName), C.GoString(name), w, options)
+	header, err := safe.Get(s, C.GoString(name), w, options)
 	if core.IsErr(err, nil, "cannot get file: %v") {
 		return cResult(nil, err)
 	}
 	return cResult(header, nil)
 }
 
-//export createZone
-func createZone(portalName, zoneName *C.char, users *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
-	if !ok {
-		return cResult(nil, ErrPortalNotFound)
-	}
-
-	var users_ safe.Users
-	err := cUnmarshal(users, &users_)
-	if core.IsErr(err, nil, "cannot unmarshal users: %v") {
-		return cResult(nil, err)
-	}
-
-	err = s.CreateZone(C.GoString(zoneName), users_)
-	if core.IsErr(err, nil, "cannot create zone: %v") {
-		return cResult(nil, err)
-	}
-
-	return cResult(nil, nil)
-}
-
-//export listZones
-func listZones(portalName *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
-	if !ok {
-		return cResult(nil, ErrPortalNotFound)
-	}
-
-	zones, err := s.ListZones()
-	if core.IsErr(err, nil, "cannot get zones: %v") {
-		return cResult(nil, err)
-	}
-	return cResult(zones, nil)
-}
-
 //export setUsers
-func setUsers(portalName, zoneName *C.char, users *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+func setUsers(safeName *C.char, users *C.char, setUsersOptions *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 
 	var users_ safe.Users
@@ -502,7 +486,13 @@ func setUsers(portalName, zoneName *C.char, users *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	err = s.SetUsers(C.GoString(zoneName), users_)
+	var options safe.SetUsersOptions
+	err = cUnmarshal(setUsersOptions, &options)
+	if core.IsErr(err, nil, "cannot unmarshal setUsersOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	err = safe.SetUsers(s, users_, options)
 	if core.IsErr(err, nil, "cannot set users: %v") {
 		return cResult(nil, err)
 	}
@@ -510,17 +500,31 @@ func setUsers(portalName, zoneName *C.char, users *C.char) C.Result {
 }
 
 //export getUsers
-func getUsers(portalName, zoneName *C.char) C.Result {
-	s, ok := portals[C.GoString(portalName)]
+func getUsers(safeName *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
 	if !ok {
-		return cResult(nil, ErrPortalNotFound)
+		return cResult(nil, ErrSafeNotFound)
 	}
 
-	users, err := s.GetUsers(C.GoString(zoneName))
+	users, err := safe.GetUsers(s)
 	if core.IsErr(err, nil, "cannot get users: %v") {
 		return cResult(nil, err)
 	}
 	return cResult(users, nil)
+}
+
+//export getIdentities
+func getIdentities(safeName *C.char) C.Result {
+	s, ok := safes[C.GoString(safeName)]
+	if !ok {
+		return cResult(nil, ErrSafeNotFound)
+	}
+
+	identities, err := safe.GetIdentities(s)
+	if err != nil {
+		return cResult(nil, err)
+	}
+	return cResult(identities, nil)
 }
 
 //export getLogs

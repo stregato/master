@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 var queriesCache = map[string]string{}

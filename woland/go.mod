@@ -17,7 +17,6 @@ require (
 	github.com/uhthomas/seekctr v0.0.0-20211121195710-e18b12545023
 	github.com/zenazn/pkcs7pad v0.0.0-20170308005700-253a5b1f0e03
 	golang.org/x/crypto v0.9.0
-	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1

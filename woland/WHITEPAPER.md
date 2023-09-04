@@ -1,4 +1,4 @@
-# Massolit: storage is all you need
+# Woland: storage is all you need
 
 ## Abstract
 This paper introduces a simple approach to distributed information across peers. Unlike a traditional peer-to-peer network, exchange is on public storage (servers or cloud) and not on the peers themselves. This approach is more scalable and more secure than traditional peer-to-peer networks.
@@ -59,12 +59,12 @@ The safe can be replicated on multiple storage services. The replicas are identi
 3. The process compares the data and metadata of each replica across the hierarchical structure. For each node in the structure, the process copies the data files that may be missing. Metadata records instead are merged and  a new file is created with them. Other metadata files are deleted.
 
 ## Implementation
-The concepts described above are implemented in a library called massolit with reference to the literary club of the famous novel "The master and margarita". The library is written in Go but can be used from any language that supports dynamic libraries. The library is available on GitHub at http://github.com/stregato/master/massolit. The name recalls the concept of mass as location that stores information.
+The concepts described above are implemented in a library called woland with reference to the famous novel "The master and margarita". The library is written in Go but can be used from any language that supports dynamic libraries. The library is available on GitHub at http://github.com/stregato/master/woland.
 
 At the same GitHub location there is a sample application that uses the library to implement a simple chat application. The application is called Margarita and it is available at http://github.com/stregato/master/margarita.
 
 ### Access
-Massolit supports multiple storage services, including S3, WebDAV. SFTP and local file system. The storage service is abstracted by an interface and can be easily extended to support other services. 
+Woland supports multiple storage services, including S3, WebDAV. SFTP and local file system. The storage service is abstracted by an interface and can be easily extended to support other services. 
 The storage service is identified by the URL and this is one of the required information for access to the safe.
 Besides the URL, the path location in the storage is required. Furthermore the peer needs the public key of the safe creator to verify the _manifest_ and the _changelog_. For redundancy reasons, the safe may be mirrored on different storage services and the peer would need the URL of all the mirrors.
 
@@ -145,6 +145,7 @@ The library provides a simple API to access the safe. The API is composed of the
 EncodeAccess(urls []string, path string, creator string) (string, error)
 DecodeAccess(access string) (urls []string, path string, creator string, err error)
 
+Create   (access string, options CreateOptions) (safe, error)
 Open     (access string) (safe, error)
 List     (safe safe, prefix string, options ListOptions) ([]File, error)
 Prefixes (safe safe, path string, option PrefixesOptions) ([]string, error)
@@ -157,17 +158,19 @@ GetUsers (safe safe) (users [string]Level, err error)
 ```
 
 ## Sample application
-A demonstration application highlights effective patterns to use Massolit.
+A demonstration application highlights effective patterns to use Woland.
 The application is called Margarita and similar to Microsoft Teams, it includes chat rooms and file sharing. The application is written in flutter and runs on Android, iOS, Windows, Mac and Linux. Both the binary and the source code are available at http://github.com/stregato/master/margarita. For Linux a snap package is available at http://snapcraft.io/margarita.
 
-In the design of the application, the first step is to define the hierarchical structure of the safe. Margarita uses a safe for each chat room. Initially only a chat room _square_ is available. 
-Assuming that the storage is available at https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/margarita and data should be in a subfolder _mycompany_, the name of the safe would name _mycompany/square_.
+The application is built on the concept of community. Each community has a main space called _welcome_ and users can create new spaces as needed. Each space has a chat room and a file sharing area. The chat room is a simple chat with text messages and images. The file sharing area is a hierarchical structure of folders and files.
+
+In the design of the application, the first step is to define how communities and spaces are represented. Margarita uses a safe for each space. Initially only a space _welcome_ is available. 
+As an example let's assume a community for people living in New York whose storage is available at https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/margarita. The first space would be _welcome_ and the related safe would be named new_york_city/welcome.
 The access token would be built from:
 - URL: https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/margarita
-- name: mycompany/square
-- creator: the public key of the safe creator
+- name: new_york_city/welcome
+- creator: the public key of the person that creates the community
 
-A single chat room is note enough and users can create new rooms as needed. Each new room is indeed a new safe, created by the user who creates the room. And the user that creates the room decides which other users can access.
+A single space is not enough and users can create new spaces as needed. Each new space is indeed a new safe, created by the user who creates the space. And the user that creates the space decides which other users can access.
 
 Each safe has a simple structure with two root folders:
 - chat: contains the messages, one file for each message

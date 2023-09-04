@@ -5,7 +5,6 @@ import 'package:margarita/common/common.dart';
 import 'package:margarita/common/profile.dart';
 import 'package:margarita/common/progress.dart';
 import 'package:margarita/navigation/bar.dart';
-import 'package:margarita/safe/portal.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:margarita/woland/woland_def.dart';
@@ -65,16 +64,15 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<Object?> open(
-      BuildContext context, Profile currentProfile, String portalName,
+      BuildContext context, Profile currentProfile, Community community,
       [bool mounted = true]) async {
-    var token = currentProfile.portals[portalName]!;
-    var p = await progressDialog(context, "Connecting to $portalName...",
+    var token = community.spaces["welcome"]!;
+    var s = await progressDialog(context, "Connecting to ${community.name}...",
         Isolate.run(() {
-      return openPortal(currentProfile.identity, token, OpenOptions());
-    }), errorMessage: "cannot connect to $portalName");
-    if (p != null && context.mounted) {
-      return Navigator.pushNamed(context, "/portal",
-          arguments: PortalViewArgs(portalName));
+      return openSafe(currentProfile.identity, token, OpenOptions());
+    }), errorMessage: "cannot connect to ${community.name}");
+    if (s != null && context.mounted) {
+      return Navigator.pushNamed(context, "/community", arguments: community);
     }
     return null;
   }
@@ -83,12 +81,13 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     _processUnilink(context);
 
-    var widgets = currentProfile.portals.keys.map(
-      (name) {
+    var profile = Profile.current();
+    var widgets = profile.communities.values.map(
+      (community) {
         return Card(
           child: ListTile(
-            title: Text(name),
-            onTap: () => open(context, currentProfile, name).then((value) {
+            title: Text(community.name),
+            onTap: () => open(context, profile, community).then((value) {
               setState(() {});
             }),
           ),
@@ -98,7 +97,11 @@ class _HomeViewState extends State<HomeView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Portals"),
+        title: const Row(children: [
+          Icon(Icons.group), // Add the desired icon
+          SizedBox(width: 8), // Add some spacing between icon and text
+          Text("My Communities"),
+        ]),
         actions: [
           ElevatedButton(
             child: const Text("Add"),

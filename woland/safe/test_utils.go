@@ -4,22 +4,19 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/security"
-	"github.com/stregato/master/massolit/sql"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/sql"
 )
 
-var TestIdentity security.Identity
-var TestID string
-
-func init() {
-	var err error
-	TestIdentity, err = security.NewIdentity("test")
-	if core.IsErr(err, nil, "cannot create identity: %v", err) {
-		panic(err)
-	}
-	TestID = TestIdentity.ID
+var TestIdentity = security.Identity{
+	Id:      "A1fAUv0cNR7NOluPcw1FY4dvxkZUaPtcIRRNkhuRpgVsHkhHQnRSEIeawPakxP5NJwExc3lWDTT80gbnUkkJBZM=",
+	Nick:    "test",
+	Private: "0aTfmfyGzzJph5OjkOzn0303TvJt4kORWMrG6PAOkLI5M5gVa_U_t7mJ0L7u7VM8iG_3nGob0sQ_WAwsYoTysB5IR0J0UhCHmsD2pMT+TScBMXN5Vg00_NIG51JJCQWT",
+	Email:   "test@woland.ch",
+	ModTime: core.Now(),
 }
+var TestID = TestIdentity.Id
 
 func StartTestDB(t *testing.T, dbPath string) {
 	sql.DeleteDB(dbPath)
@@ -37,20 +34,20 @@ const (
 	TestLocalStoreUrl = "file:///tmp"
 )
 
-const TestPortalName = "test"
+const TestSafeName = "test-safe"
 
-func OpenTestPortal(t *testing.T, storeUrl string, deleteFirst bool) *Safe {
-	//	access, err := EncodeToken(TestID, "test", nil, "mem://")
-	access, err := EncodeAccess(TestID, TestPortalName, nil, storeUrl)
+func GetTestSafe(t *testing.T, storeUrl string, createFirst bool) *Safe {
+	access, err := EncodeAccess(TestID, TestSafeName, TestID, nil, storeUrl)
 	core.TestErr(t, err, "cannot encode token: %v")
 
-	if deleteFirst {
-		err = WipePortal(TestIdentity, access)
-		core.TestErr(t, err, "cannot wipe portal: %v")
+	if createFirst {
+		s, err := Create(TestIdentity, access, CreateOptions{Wipe: true})
+		core.TestErr(t, err, "cannot wipe safe: %v")
+		Close(s)
 	}
 
-	portal, err := Open(TestIdentity, access, OpenOptions{})
-	core.TestErr(t, err, "cannot open portal: %v")
+	s, err := Open(TestIdentity, access, OpenOptions{})
+	core.TestErr(t, err, "cannot open safe: %v")
 
-	return portal
+	return s
 }

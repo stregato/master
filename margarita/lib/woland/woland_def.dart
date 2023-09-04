@@ -56,39 +56,46 @@ class Identity {
 }
 
 class DecodedToken {
-  String portalName = "";
+  String safeName = "";
+  String creatorId = "";
   String aesKey = "";
   List<String> urls = [];
 
   DecodedToken.fromJson(Map<String, dynamic> json)
-      : portalName = json['portalName'],
-        aesKey = json['aesKey'],
+      : safeName = json['safeName'],
+        aesKey = json['aesKey'] ?? "",
         urls = dynamicToList(json['urls']);
 
   Map<String, dynamic> toJson() => {
-        'portalName': portalName,
+        'safeName': safeName,
         'aesKey': aesKey,
         'urls': urls,
       };
 }
 
-class Portal {
-  String name = "";
+class Safe {
   Identity currentUser;
+  String creatorId = "";
+  String name = "";
+  String description = "";
 
-  Portal.fromJson(Map<String, dynamic> json)
+  Safe.fromJson(Map<String, dynamic> json)
       : name = json['name'],
-        currentUser = Identity.fromJson(json['currentUser']);
+        currentUser = Identity.fromJson(json['currentUser']),
+        creatorId = json['creatorId'],
+        description = json['description'];
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'currentUser': currentUser.toJson(),
+        'creatorId': creatorId,
+        'description': description,
       };
 }
 
 class Header {
   String name = '';
-  String author = '';
+  String creator = '';
   int size = 0;
   Uint8List hash = Uint8List(0);
   bool zip = false;
@@ -97,7 +104,7 @@ class Header {
   String contentType = '';
   DateTime modTime = DateTime(0);
   Map<String, dynamic> meta = {};
-  int bodyID = 0;
+  int fileId = 0;
   Uint8List bodyKey = Uint8List(0);
   Uint8List iv = Uint8List(0);
   bool deleted = false;
@@ -107,7 +114,7 @@ class Header {
 
   Header.fromJson(Map<String, dynamic> json)
       : name = json['name'],
-        author = json['author'],
+        creator = json['creator'],
         size = json['size'],
         hash = base64Decode(json['hash'] ?? ""),
         zip = json['zip'],
@@ -116,17 +123,18 @@ class Header {
         contentType = json['contentType'],
         modTime = DateTime.parse(json['modTime']),
         meta = json['meta'] ?? {},
-        bodyID = json['bodyID'],
+        fileId = json['fileId'],
         bodyKey = base64Decode(json['bodyKey'] ?? ""),
         iv = base64Decode(json['iv'] ?? ""),
         deleted = json['deleted'] ?? false,
-        downloads = json['downloads'] ?? {},
+        downloads = (json['downloads'] ?? {}).map<String, DateTime>(
+            (key, value) => MapEntry(key.toString(), DateTime.parse(value))),
         cached = json['cached'],
         cachedExpires = DateTime.parse(json['cachedExpires']);
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'author': author,
+        'creator': creator,
         'size': size,
         'hash': base64Encode(hash),
         'zip': zip,
@@ -135,13 +143,33 @@ class Header {
         'contentType': contentType,
         'modTime': modTime.toIso8601String(),
         'meta': meta,
-        'bodyID': bodyID,
+        'fileId': fileId,
         'bodyKey': base64Encode(bodyKey),
         'iv': base64Encode(iv),
         'deleted': deleted,
         'downloads': downloads,
         'cached': cached,
         'cachedExpires': cachedExpires.toIso8601String(),
+      };
+}
+
+class CreateOptions {
+  bool wipe;
+  String description;
+  int changeLogWatch;
+  int replicaWatch;
+
+  CreateOptions()
+      : wipe = false,
+        description = "",
+        changeLogWatch = 0,
+        replicaWatch = 0;
+
+  Map<String, dynamic> toJson() => {
+        'wipe': wipe,
+        'description': description,
+        'changeLogWatch': changeLogWatch,
+        'replicaWatch': replicaWatch,
       };
 }
 
@@ -163,8 +191,8 @@ class OpenOptions {
 }
 
 class ListOptions {
-  String folder = '';
   String name = '';
+  int depth = 0;
   String suffix = '';
   String contentType = '';
   int bodyID = 0;
@@ -175,10 +203,11 @@ class ListOptions {
   int limit = 0;
   bool includeDeleted = false;
   bool prefetch = false;
+  bool errorIfNotExist = false;
 
   Map<String, dynamic> toJson() => {
-        'folder': folder,
         'name': name,
+        'depth': depth,
         'suffix': suffix,
         'contentType': contentType,
         'bodyID': bodyID,
@@ -189,6 +218,17 @@ class ListOptions {
         'limit': limit,
         'includeDeleted': includeDeleted,
         'prefetch': prefetch,
+        'errorIfNotExist': errorIfNotExist,
+      };
+}
+
+class ListDirsOptions {
+  int depth = 0;
+  bool errorIfNotExist = false;
+
+  Map<String, dynamic> toJson() => {
+        'depth': depth,
+        'errorIfNotExist': errorIfNotExist,
       };
 }
 
@@ -201,6 +241,7 @@ class PutOptions {
   String contentType = "";
   bool zip = false;
   Map<String, dynamic> meta = {};
+  String source = "";
 
   Map<String, dynamic> toJson() => {
         'replace': replace,
@@ -211,18 +252,28 @@ class PutOptions {
         'contentType': contentType,
         'zip': zip,
         'meta': meta,
+        'source': source,
       };
 }
 
 class GetOptions {
   String destination = '';
-  int bodyID = 0;
+  int fileId = 0;
   bool noCache = false;
   Duration cacheExpire = Duration.zero;
+
+  Map<String, dynamic> toJson() => {
+        'destination': destination,
+        'fileId': fileId,
+        'noCache': noCache,
+        'cacheExpire': cacheExpire.inMicroseconds * 1000,
+      };
 }
 
 typedef Permission = int;
 typedef Users = Map<String, Permission>;
 
-var permissionUser = 1;
-var permissionAdmin = 2;
+var permissionRead = 1;
+var permissionWrite = 2;
+var permissionAdmin = 16;
+var permissionSuperAdmin = 32;

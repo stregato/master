@@ -5,11 +5,11 @@ import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
 import 'package:margarita/woland/woland_def.dart';
 
 class LibraryUploadArgs {
-  String portalName;
+  String safeName;
   String zoneName;
   FileSelection selection;
 
-  LibraryUploadArgs(this.portalName, this.zoneName, this.selection);
+  LibraryUploadArgs(this.safeName, this.zoneName, this.selection);
 }
 
 class LibraryUpload extends StatefulWidget {
@@ -21,9 +21,10 @@ class LibraryUpload extends StatefulWidget {
 
 class _LibraryUploadState extends State<LibraryUpload> {
   final _formKey = GlobalKey<FormState>();
-  late LibraryUploadArgs _args;
   String _targetFolder = "";
   String _targetName = "";
+  late String _safeName;
+  late FileSelection _selection;
   bool _copyLocally = false;
   bool _uploading = false;
   final Map<String, List<String>> _virtualFolders = {};
@@ -54,7 +55,7 @@ class _LibraryUploadState extends State<LibraryUpload> {
   Widget _getFolderSelection(BuildContext context) {
     var crumbs = <BreadCrumbItem>[
       BreadCrumbItem(
-        content: Text(_args.portalName),
+        content: Text(_safeName),
         onTap: () {
           setState(() {
             _targetFolder = "";
@@ -76,7 +77,7 @@ class _LibraryUploadState extends State<LibraryUpload> {
       }
     });
 
-    var ls = listSubFolders(_args.portalName, _args.zoneName, _targetFolder);
+    var ls = listDirs(_safeName, _targetFolder, ListDirsOptions());
     var subfolders = (_virtualFolders[_targetFolder] ?? []) + ls;
     var items = subfolders
         .map((e) => ListTile(
@@ -133,8 +134,9 @@ class _LibraryUploadState extends State<LibraryUpload> {
     var args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
 
-    _args = ModalRoute.of(context)!.settings.arguments as LibraryUploadArgs;
-    _targetName = _args.selection.name;
+    _selection = args["selection"] as FileSelection;
+    _safeName = args["safeName"] as String;
+    _targetName = _selection.name;
 
     var action = _uploading
         ? const CircularProgressIndicator()
@@ -149,8 +151,7 @@ class _LibraryUploadState extends State<LibraryUpload> {
                   _uploading = true;
                 });
                 var options = PutOptions();
-                putFile(_args.portalName, _args.zoneName, target,
-                    _args.selection.path, options);
+                putFile(_safeName, "library/$target", _selection.path, options);
                 Navigator.pop(context);
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -165,7 +166,7 @@ class _LibraryUploadState extends State<LibraryUpload> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Add ${_args.selection.name}"),
+        title: Text("Add ${_selection.name}"),
       ),
       body: Container(
         padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),

@@ -1,14 +1,14 @@
 import 'package:margarita/navigation/bar.dart';
 import 'package:flutter/material.dart';
 
-class AddPortal extends StatelessWidget {
-  const AddPortal({Key? key}) : super(key: key);
+class AddCommunity extends StatelessWidget {
+  const AddCommunity({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Add Portal"),
+        title: const Text("Add Community"),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),

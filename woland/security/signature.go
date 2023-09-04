@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 type PublicKey ed25519.PublicKey
@@ -65,22 +65,22 @@ type SignedHash struct {
 
 func NewSignedHash(hash []byte, i Identity) (SignedHash, error) {
 	signature, err := Sign(i, hash)
-	if core.IsErr(err, nil, "cannot sign with identity %s: %v", i.ID) {
+	if core.IsErr(err, nil, "cannot sign with identity %s: %v", i.Id) {
 		return SignedHash{}, err
 	}
 
 	return SignedHash{
 		Hash:       hash,
-		Signatures: map[string][]byte{i.ID: signature},
+		Signatures: map[string][]byte{i.Id: signature},
 	}, nil
 }
 
 func AppendToSignedHash(s SignedHash, i Identity) error {
 	signature, err := Sign(i, s.Hash)
-	if core.IsErr(err, nil, "cannot sign with identity %s: %v", i.ID) {
+	if core.IsErr(err, nil, "cannot sign with identity %s: %v", i.Id) {
 		return err
 	}
-	s.Signatures[i.ID] = signature
+	s.Signatures[i.Id] = signature
 	return nil
 }
 
@@ -90,7 +90,7 @@ func VerifySignedHash(s SignedHash, trusts []Identity, hash []byte) bool {
 	}
 
 	for _, trust := range trusts {
-		id := trust.ID
+		id := trust.Id
 		if signature, ok := s.Signatures[id]; ok {
 			if Verify(id, hash, signature) {
 				return true

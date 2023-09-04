@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/security"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
 )
 
 type _token struct {
@@ -50,7 +50,7 @@ func EncodeAccess(userID string, name string, creatorId string, aesKey []byte, u
 func DecodeAccess(identity security.Identity, access string) (name string, creatorId string, aesKey []byte, urls []string, err error) {
 	if identity.Private == "" {
 		return "", "", nil, nil,
-			fmt.Errorf("cannot decode access token: no private key available for %s", identity.ID)
+			fmt.Errorf("cannot decode access token: no private key available for %s", identity.Id)
 	}
 
 	data, err := core.Decode(access)

@@ -1,13 +1,13 @@
 package safe
 
 import (
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/security"
-	"github.com/stregato/master/massolit/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/storage"
 )
 
-func WipePortal(currentUser security.Identity, token string) error {
-	portalName, _, urls, err := DecodeAccess(currentUser, token)
+func Wipe(currentUser security.Identity, token string) error {
+	name, _, _, urls, err := DecodeAccess(currentUser, token)
 	if core.IsErr(err, nil, "invalid access token 'account'") {
 		return err
 	}
@@ -18,8 +18,8 @@ func WipePortal(currentUser security.Identity, token string) error {
 			return err
 		}
 
-		err = s.Delete(portalName)
-		if core.IsErr(err, nil, "cannot delete portal '%s': %v", portalName, err) {
+		err = s.Delete(name)
+		if core.IsErr(err, nil, "cannot delete portal '%s': %v", name, err) {
 			return err
 		}
 	}

@@ -1,43 +1,41 @@
 package safe
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
+	"os"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/sql"
-	"github.com/stregato/master/massolit/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
-var ErrInvalidTag = fmt.Errorf("invalid tag. Only alphanumeric characters are allowed")
-
 type ListOptions struct {
-	Folder         string    `json:"folder"`
-	Name           string    `json:"name"`
-	Suffix         string    `json:"suffix"`
-	ContentType    string    `json:"contentType"`
-	BodyID         uint64    `json:"bodyId"`
-	Tags           []string  `json:"tags"`
-	Before         time.Time `json:"before"`
-	After          time.Time `json:"after"`
-	Offset         int       `json:"offset"`
-	Limit          int       `json:"limit"`
-	IncludeDeleted bool      `json:"includeDeleted"`
-	Prefetch       bool      `json:"prefetch"`
+	Name            string    `json:"name"`            // Filter on the file name
+	Depth           int       `json:"deep"`            // Level of depth into subfolders in the directory. -1 means infinite
+	Suffix          string    `json:"suffix"`          // Filter on the file suffix
+	ContentType     string    `json:"contentType"`     // Filter on the content type
+	FileId          uint64    `json:"bodyId"`          // Filter on the body ID
+	Tags            []string  `json:"tags"`            // Filter on the tags
+	Before          time.Time `json:"before"`          // Filter on the modification time
+	After           time.Time `json:"after"`           // Filter on the modification time
+	Offset          int       `json:"offset"`          // Offset of the first file to return
+	Limit           int       `json:"limit"`           // Maximum number of files to return
+	IncludeDeleted  bool      `json:"includeDeleted"`  // Include deleted files
+	Prefetch        bool      `json:"prefetch"`        // Prefetch the file bodies
+	ErrorIfNotExist bool      `json:"errorIfNotExist"` // Return an error if the directory does not exist. Otherwise, return empty list
 }
 
-func (s *Safe) ListFiles(zoneName string, listOptions ListOptions) ([]File, error) {
-	zone, ok := s.zones[zoneName]
-	if !ok {
-		return nil, fmt.Errorf(ErrZoneNotExist, zoneName)
+func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
+	dir = strings.Trim(dir, "/")
+	core.Info("list files '%s'", dir)
+	err := synchorize(s.stores[0], s.Name, hashPath(dir), listOptions.Depth, s.keys)
+	if os.IsNotExist(err) && !listOptions.ErrorIfNotExist {
+		return nil, nil
 	}
-	err := sync(s.Name, zoneName, s.store, zone.Keys)
-	if core.IsErr(err, nil, "cannot sync zone: %v", err) {
+	if core.IsErr(err, nil, "cannot sync safe '%s': %v", s.Name) {
 		return nil, err
 	}
 
@@ -46,16 +44,17 @@ func (s *Safe) ListFiles(zoneName string, listOptions ListOptions) ([]File, erro
 		return nil, err
 	}
 
-	if !strings.HasPrefix(listOptions.Folder, "/") {
-		listOptions.Folder = "/" + listOptions.Folder
+	var fromDepth = strings.Count(dir, "/")
+	var toDepth int
+	if listOptions.Depth >= 0 {
+		toDepth = fromDepth + listOptions.Depth
 	}
-	listOptions.Folder = path.Clean(listOptions.Folder)
+
 	rows, err := sql.Query("GET_FILES", sql.Args{
-		"portal":         s.Name,
-		"zone":           zoneName,
+		"safe":           s.Name,
 		"name":           listOptions.Name,
-		"bodyId":         listOptions.BodyID,
-		"folder":         listOptions.Folder,
+		"fileId":         listOptions.FileId,
+		"dir":            dir,
 		"suffix":         listOptions.Suffix,
 		"contentType":    listOptions.ContentType,
 		"tags":           tags,
@@ -64,18 +63,20 @@ func (s *Safe) ListFiles(zoneName string, listOptions ListOptions) ([]File, erro
 		"after":          listOptions.After.Unix(),
 		"offset":         listOptions.Offset,
 		"limit":          listOptions.Limit,
+		"fromDepth":      fromDepth,
+		"toDepth":        toDepth,
 	})
 	if core.IsErr(err, nil, "cannot query files: %v", err) {
 		return nil, err
 	}
 
-	var headers []File
+	var headers []Header
 	for rows.Next() {
 		var data []byte
 		if core.IsErr(rows.Scan(&data), nil, "cannot scan file: %v", err) {
 			continue
 		}
-		var header File
+		var header Header
 		err = json.Unmarshal(data, &header)
 		if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
 			continue
@@ -95,7 +96,7 @@ func (s *Safe) ListFiles(zoneName string, listOptions ListOptions) ([]File, erro
 				if header.CachedExpires.Before(time.Now()) {
 					continue
 				}
-				_, err := s.Get(zoneName, header.Name, nil, GetOptions{BodyID: header.BodyID})
+				_, err := Get(s, header.Name, nil, GetOptions{FileId: header.FileId})
 				core.IsErr(err, nil, "cannot prefetch file: %v", err)
 			}
 		}()
@@ -104,173 +105,120 @@ func (s *Safe) ListFiles(zoneName string, listOptions ListOptions) ([]File, erro
 	return headers, nil
 }
 
-func (s *Safe) ListSubFolders(zoneName string, folder string) ([]string, error) {
-	if !strings.HasPrefix(folder, "/") {
-		folder = "/" + folder
+type ListDirsOptions struct {
+	Depth           int  `json:"depth"`           // Level of depth into subfolders in the directory. -1 means infinite
+	ErrorIfNotExist bool `json:"errorIfNotExist"` // Return an error if the directory does not exist. Otherwise, return empty list
+}
+
+func ListDirs(s *Safe, dir string, options ListDirsOptions) ([]string, error) {
+	dir = strings.Trim(dir, "/")
+	core.Info("list dir '%s'", dir)
+
+	var depthPlusOne int
+	if options.Depth >= 0 {
+		depthPlusOne = options.Depth + 1
 	}
-	folder = path.Clean(folder)
+	err := synchorize(s.stores[0], s.Name, hashPath(dir), depthPlusOne, s.keys)
+	if os.IsNotExist(err) && !options.ErrorIfNotExist {
+		return nil, nil
+	}
+	if core.IsErr(err, nil, "cannot sync safe '%s': %v", s.Name) {
+		return nil, err
+	}
+
+	var fromDepth = strings.Count(dir, "/") + 1
+	var toDepth int
+	if options.Depth >= 0 {
+		toDepth = fromDepth + options.Depth
+	}
 
 	rows, err := sql.Query("GET_FOLDERS", sql.Args{
-		"portal": s.Name,
-		"zone":   zoneName,
-		"depth":  strings.Count(folder, "/") + 1,
-		"folder": folder,
+		"safe":      s.Name,
+		"dir":       dir,
+		"fromDepth": fromDepth,
+		"toDepth":   toDepth,
 	})
 	if core.IsErr(err, nil, "cannot query folders: %v", err) {
 		return nil, err
 	}
-	var subFolders []string
+	var dirs []string
 	for rows.Next() {
-		var subfolder string
-		if core.IsErr(rows.Scan(&subfolder), nil, "cannot scan file: %v", err) {
+		var d string
+		if core.IsErr(rows.Scan(&d), nil, "cannot scan file: %v", err) {
 			continue
 		}
-		subFolders = append(subFolders, subfolder)
+		dirs = append(dirs, d)
 	}
-	return subFolders, nil
+	return dirs, nil
 }
 
-func getTagsArg(tags []string) (string, error) {
-	arg := ""
-	for _, tag := range tags {
-		if !isAlphanumeric(tag) {
-			return "", ErrInvalidTag
-		}
-		arg += tag + " %"
-	}
-
-	return arg, nil
-}
-
-func isAlphanumeric(s string) bool {
-	match, _ := regexp.MatchString("^[a-zA-Z0-9]*$", s)
-	return match
-}
-
-func sync(portalName, zoneName string, store storage.Store, keys map[uint64][]byte) error {
+func synchorize(store storage.Store, safeName, hashedDir string, depth int, keys map[uint64][]byte) error {
 	var touch time.Time
 	var err error
 
-	dir := path.Join(zonesDir, zoneName)
-	_, i, _, ok := sql.GetConfig("ZONE_TOUCH", dir)
+	_, i, _, ok := sql.GetConfig("SAFE_DIR_MODTIME", hashedDir)
 	if ok {
-		touch, err = GetTouch(store, dir)
+		touch, err = GetTouch(store, hashedDir)
 		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 			return err
 		}
 		if time.Unix(i, 0) == touch {
+			core.Info("safe '%s' is up to date", safeName)
 			return nil
 		}
 	}
 
-	var lastYMD string
-	err = sql.QueryRow("GET_LAST_YMD", sql.Args{"portal": portalName, "zone": zoneName}, &lastYMD)
-	if err != sql.ErrNoRows && core.IsErr(err, nil, "cannot get last YMD: %v", err) {
-		return err
-	}
-	ids, err := getBodyIds(portalName, zoneName, lastYMD)
-	if core.IsErr(err, nil, "cannot get body ids: %v", err) {
+	ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{Suffix: ".h"})
+	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
 		return err
 	}
 
-	ls, err := store.ReadDir(dir, storage.Filter{OnlyFolders: true})
-	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, dir, err) {
-		return err
-	}
+	s, _, _, _ := sql.GetConfig("SAFE_DIR_LAST", hashedDir)
+
+	var last = s
 	for _, l := range ls {
-		ymd := l.Name()
-		if !validYMD(ymd) || ymd < lastYMD {
+		if l.Name() <= s {
 			continue
 		}
 
-		ls2, err := store.ReadDir(path.Join(dir, ymd), storage.Filter{Suffix: ".h"})
-		if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, dir, err) {
+		headers, _, err := readHeaders(store, safeName, hashedDir, l.Name(), keys)
+		if err != nil {
 			continue
 		}
+		if last == "" || last < l.Name() {
+			last = l.Name()
+		}
 
-		for _, l2 := range ls2 {
-			var buf bytes.Buffer
-			fullName := path.Join(dir, ymd, l2.Name())
-			err = store.Read(fullName, nil, &buf, nil)
-			if core.IsErr(err, nil, "cannot read file %s/%s: %v", store, fullName, err) {
-				continue
-			}
-
-			headers, err := unmarshalHeaders(buf.Bytes(), keys)
-			if err == ErrNoEncryptionKey {
-				continue
-			}
-			if core.IsErr(err, nil, "cannot unmarshal headers: %v", err) {
-				continue
-			}
-
-			for _, header := range headers {
-				if ids[header.BodyID] {
-					continue
-				}
-				err = saveHeaderToDB(portalName, zoneName, ymd, header)
-				core.IsErr(err, nil, "cannot save header to DB: %v", err)
-			}
+		for _, header := range headers {
+			core.Info("saving header %s: %v", header.Name, header)
+			err = insertHeaderOrIgnoreToDB(safeName, header)
+			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}
+	err = sql.SetConfig("SAFE_DIR_LAST", hashedDir, last, 0, nil)
+	if core.IsErr(err, nil, "cannot set safe touch file: %v", err) {
+		return err
+	}
+	core.Info("saved last header %s", last)
 
-	err = sql.SetConfig("ZONE_TOUCH", dir, "", touch.Unix(), nil)
+	err = sql.SetConfig("SAFE_DIR_MODTIME", hashedDir, "", touch.Unix(), nil)
 	if core.IsErr(err, nil, "cannot set zone touch: %v", err) {
 		return err
 	}
 
-	return nil
-}
-
-func saveHeaderToDB(portalName, zoneName, ymd string, header File) error {
-	data, err := json.Marshal(header)
-	if core.IsErr(err, nil, "cannot marshal header: %v", err) {
-		return err
-	}
-
-	tags := strings.Join(header.Tags, " ") + " "
-	_, err = sql.Exec("SET_FILE", sql.Args{
-		"portal":       portalName,
-		"zone":         zoneName,
-		"name":         header.Name,
-		"short":        path.Base(header.Name),
-		"depth":        strings.Count(header.Name, "/"),
-		"ymd":          ymd,
-		"bodyId":       header.BodyID,
-		"modTime":      header.ModTime.Unix(),
-		"folder":       path.Dir(header.Name),
-		"tags":         tags,
-		"contentType":  header.ContentType,
-		"deleted":      header.Deleted,
-		"cacheExpires": header.CachedExpires.Unix(),
-		"header":       data,
-	})
-	if core.IsErr(err, nil, "cannot save header: %v", err) {
-		return err
-	}
-
-	return nil
-}
-
-func validYMD(value string) bool {
-	match, _ := regexp.MatchString("^[0-9]{8}$", value)
-	return match
-}
-
-func getBodyIds(portalName, zoneName, ymd string) (map[uint64]bool, error) {
-	ids := map[uint64]bool{}
-	rows, err := sql.Query("GET_FILE_BODY_ID", sql.Args{"portal": portalName, "zone": zoneName, "ymd": ymd})
-	if core.IsErr(err, nil, "cannot get body ids: %v", err) {
-		return nil, err
-	}
-
-	for rows.Next() {
-		var id uint64
-		if core.IsErr(rows.Scan(&id), nil, "cannot scan body id: %v", err) {
-			continue
+	if depth != 0 {
+		ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{OnlyFolders: true})
+		if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
+			return err
 		}
-		ids[id] = true
+
+		for _, l := range ls {
+			err = synchorize(store, safeName, path.Join(hashedDir, l.Name()), depth-1, keys)
+			if core.IsErr(err, nil, "cannot sync dir %s/%s: %v", store, hashedDir, err) {
+				return err
+			}
+		}
 	}
 
-	return ids, nil
+	return nil
 }

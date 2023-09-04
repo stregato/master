@@ -48,9 +48,10 @@ class _SettingsState extends State<Settings> {
       "Trace": 6,
     };
 
-    var currentUser = currentProfile.identity;
-    var nick = TextEditingController(text: currentProfile.identity.nick);
-    var email = TextEditingController(text: currentProfile.identity.email);
+    var profile = Profile.hasProfile() ? Profile.current() : Profile();
+    var currentUser = profile.identity;
+    var nick = TextEditingController(text: profile.identity.nick);
+    var email = TextEditingController(text: profile.identity.email);
     _avatar = currentUser.avatar;
 
     return Scaffold(
@@ -248,7 +249,7 @@ class _SettingsState extends State<Settings> {
                 onPressed: () => setState(() {
                       if (_fullReset == 0) {
                         stop();
-                        clearProfiles();
+                        clearIdentities();
                         factoryReset();
                         start(
                             "$applicationFolder/woland.db", applicationFolder);

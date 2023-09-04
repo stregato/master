@@ -8,11 +8,16 @@ import (
 )
 
 func Encode(data []byte) string {
-	return strings.ReplaceAll(base64.StdEncoding.EncodeToString(data), "/", "_")
+	s := base64.StdEncoding.EncodeToString(data)
+	s = strings.ReplaceAll(s, "/", "_")
+	s = strings.ReplaceAll(s, "=", "@")
+	return s
 }
 
 func Decode(data string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(strings.ReplaceAll(data, "_", "/"))
+	data = strings.ReplaceAll(data, "@", "=")
+	data = strings.ReplaceAll(data, "_", "/")
+	return base64.StdEncoding.DecodeString(data)
 }
 
 func WriteBytes(data []byte, w io.Writer) error {

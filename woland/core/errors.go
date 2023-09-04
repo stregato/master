@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var ErrNotInitialized = fmt.Errorf("massolit not initialized")
+var ErrNotInitialized = fmt.Errorf("woland not initialized")
 var ErrNoDriver = fmt.Errorf("no driver found for the provided configuration")
 var ErrInvalidSignature = fmt.Errorf("signature does not match the user id")
 var ErrInvalidSize = fmt.Errorf("provided slice has not enough data")

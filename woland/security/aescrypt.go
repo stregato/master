@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 	"github.com/uhthomas/seekctr"
 
 	"github.com/zenazn/pkcs7pad"

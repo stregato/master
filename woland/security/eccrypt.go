@@ -3,7 +3,7 @@ package security
 import (
 	eciesgo "github.com/ecies/go/v2"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 func EcEncrypt(id string, data []byte) ([]byte, error) {

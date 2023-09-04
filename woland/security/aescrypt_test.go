@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 	"github.com/stretchr/testify/assert"
 )
 

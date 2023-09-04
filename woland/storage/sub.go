@@ -57,5 +57,5 @@ func (s *sub) Close() error {
 
 // String returns a human-readable representation of the storer (e.g. sftp://user@host/path)
 func (s *sub) String() string {
-	return fmt.Sprintf("%s,sub=%s", s.Store, s.Base)
+	return fmt.Sprintf("%s/%s", s.Store, s.Base)
 }

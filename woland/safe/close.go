@@ -1,5 +1,7 @@
 package safe
 
-func (s *Safe) Close() {
-	s.store.Close()
+func Close(s *Safe) {
+	for _, store := range s.stores {
+		store.Close()
+	}
 }

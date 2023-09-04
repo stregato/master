@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/stregato/master/massolit/security"
-	"github.com/stregato/master/massolit/sql"
-	"github.com/stregato/master/massolit/storage"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 func TestSyncIdentities(t *testing.T) {
@@ -42,7 +42,7 @@ func TestSyncIdentities(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(identities))
 
-	err = security.DelIdentity(s1.ID)
+	err = security.DelIdentity(s1.Id)
 	assert.Nil(t, err)
 
 	identities, err = security.GetIdentities()

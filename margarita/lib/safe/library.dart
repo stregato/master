@@ -1,7 +1,10 @@
+// ignore_for_file: use_build_context_synchronously
+
+import 'dart:io';
 import 'dart:isolate';
 
+import 'package:margarita/common/io.dart';
 import 'package:margarita/common/progress.dart';
-import 'package:margarita/safe/library_actions.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:margarita/woland/woland_def.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -9,14 +12,16 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:margarita/apps/chat/theme.dart';
 import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
-import 'package:margarita/common/file_access.dart';
+import 'package:margarita/common/file_access.dart' as fa;
 import 'package:file_icon/file_icon.dart';
 import 'dart:collection';
+import 'package:path/path.dart' as path;
+
+import 'package:path/path.dart';
 
 class Library extends StatefulWidget {
-  final String portalName;
-  final String zoneName;
-  const Library(this.portalName, this.zoneName, {Key? key}) : super(key: key);
+  final String safeName;
+  const Library(this.safeName, {Key? key}) : super(key: key);
 
   @override
   State<Library> createState() => _LibraryState();
@@ -24,7 +29,7 @@ class Library extends StatefulWidget {
 
 class UploadArgs {
   String poolName;
-  FileSelection selection;
+  fa.FileSelection selection;
   UploadArgs(this.poolName, this.selection);
 }
 
@@ -39,16 +44,24 @@ class _LibraryState extends State<Library> {
     _reload = true;
   }
 
-  String _getState(List<Header> headers) {
-    headers.sort((a, b) => b.modTime.compareTo(a.modTime));
-    var idx = headers.indexWhere((h) => h.downloads.isNotEmpty);
+  String _getState(String name, List<Header> headers) {
+    var localFile = path.join(documentsFolder, widget.safeName, name);
+    var localStat = File(localFile).statSync();
 
+    if (headers.isEmpty) {
+      return "unstaged";
+    }
+
+    headers.sort((a, b) => b.modTime.compareTo(a.modTime));
+    var idx = headers.indexWhere((h) => h.downloads[localFile] != null);
     if (idx < 0) {
+      if (File(localFile).existsSync()) {
+        return "conflict";
+      }
       return "new";
     }
-    var local = headers[idx];
-    var modified =
-        local.downloads.values.any((modTime) => modTime.isAfter(local.modTime));
+    var downloadTime = headers[idx].downloads[localFile]!;
+    var modified = localStat.modified.difference(downloadTime).inMinutes > 1;
     if (modified) {
       return idx == 0 ? "modified" : "conflict";
     } else {
@@ -76,30 +89,85 @@ class _LibraryState extends State<Library> {
   static Future<List<Header>> _libraryList(
       Library widget, String folder) async {
     var options = ListOptions();
-    options.folder = folder;
+    var dir = folder.isEmpty ? "library" : "library/$folder";
     return Isolate.run<List<Header>>(
-        () => listFiles(widget.portalName, widget.zoneName, options));
+        () => listFiles(widget.safeName, dir, options));
   }
 
-  bool _reload = true;
-  List<Header> _list = [];
+  static Future<List<String>> _libraryDirs(
+      Library widget, String folder) async {
+    var options = ListDirsOptions();
+    var dir = folder.isEmpty ? "library" : "library/$folder";
+    return Isolate.run<List<String>>(
+        () => listDirs(widget.safeName, dir, options));
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  T _refresh<T>(T t) {
+    setState(() {
+      _reload = true;
+    });
+    return t;
+  }
+
+  _refreshIfNeeded(BuildContext context) {
     if (_reload) {
       _reload = false;
       Future.delayed(const Duration(milliseconds: 10), () async {
-        var list = await progressDialog<List<Header>>(
-            context, "loading...", _libraryList(widget, _folder));
-        if (list != null) {
-          setState(() {
-            _list = list;
-          });
+        if (!mounted) {
+          return;
         }
+        var headers = await progressDialog<List<Header>>(
+            context, "loading...", _libraryList(widget, _folder));
+        var dirs = await progressDialog<List<String>>(
+            context, "loading...", _libraryDirs(widget, _folder));
+
+        var files = SplayTreeMap<String, List<Header>>();
+        if (headers != null) {
+          for (var header in headers) {
+            var versions = files.putIfAbsent(basename(header.name), () => []);
+            versions.add(header);
+          }
+        } else {
+          headers = [];
+        }
+
+        dirs = dirs ?? [];
+        var d = Directory(path.join(documentsFolder, widget.safeName));
+        if (!d.existsSync()) {
+          d.createSync(recursive: true);
+        }
+        for (var f in d.listSync()) {
+          if (f is File) {
+            var name = f.path.split("/").last;
+            if (!files.containsKey(name)) {
+              files[name] = [];
+            }
+          }
+          if (f is Directory) {
+            var name = f.path.split("/").last;
+            if (name != ".previous" && !dirs.contains(name)) {
+              dirs.add(name);
+            }
+          }
+        }
+
+        setState(() {
+          _files = files;
+          _dirs = dirs ?? [];
+        });
       });
     }
+  }
 
-    var items = listSubFolders(widget.portalName, widget.zoneName, _folder)
+  bool _reload = true;
+  SplayTreeMap<String, List<Header>> _files =
+      SplayTreeMap<String, List<Header>>();
+  List<String> _dirs = [];
+
+  @override
+  Widget build(BuildContext context) {
+    _refreshIfNeeded(context);
+    var items = _dirs
         .map(
           (e) => Card(
             child: ListTile(
@@ -114,20 +182,10 @@ class _LibraryState extends State<Library> {
         )
         .toList();
 
-    var options = ListOptions();
-    options.folder = _folder;
-    var files = SplayTreeMap<String, List<Header>>();
-    var headers = listFiles(widget.portalName, widget.zoneName, options);
-
-    for (var header in headers) {
-      var versions = files.putIfAbsent(header.name, () => []);
-      versions.add(header);
-    }
-
-    for (var entry in files.entries) {
+    for (var entry in _files.entries) {
       var name = entry.key;
       var headers = entry.value;
-      var state = _getState(headers);
+      var state = _getState(name, headers);
       items.add(Card(
         child: ListTile(
           title: Text(name.split("/").last,
@@ -136,12 +194,12 @@ class _LibraryState extends State<Library> {
           leading: FileIcon(name),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
-            Navigator.pushNamed(context, "/library/actions",
-                    arguments: LibraryActionsArgs(
-                        widget.portalName, widget.zoneName, headers))
-                .then((value) => setState(
-                      () {},
-                    ));
+            Navigator.pushNamed(context, "/library/actions", arguments: {
+              "safeName": widget.safeName,
+              "name": name,
+              "folder": _folder,
+              "headers": headers
+            }).then(_refresh);
           },
         ),
       ));
@@ -149,18 +207,14 @@ class _LibraryState extends State<Library> {
 
     var breadcrumbsItems = <BreadCrumbItem>[
       BreadCrumbItem(
-        content: RichText(
-          text: TextSpan(
-            text: widget.zoneName,
-            style: const TextStyle(color: Colors.blue),
-            recognizer: TapGestureRecognizer()
-              ..onTap = () => setState(
-                    () {
-                      _folder = "";
-                      _reload = true;
-                    },
-                  ),
-          ),
+        content: GestureDetector(
+          onTap: () {
+            setState(() {
+              _folder = "";
+              _reload = true;
+            });
+          },
+          child: const Icon(Icons.home, color: Colors.blue),
         ),
       ),
     ];
@@ -178,20 +232,6 @@ class _LibraryState extends State<Library> {
         ));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Library"),
-        actions: [
-          ElevatedButton.icon(
-            label: const Text("Reload"),
-            onPressed: () {
-              setState(() {
-                _reload = true;
-              });
-            },
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
       body: Container(
         padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
         child: Column(children: [
@@ -204,15 +244,13 @@ class _LibraryState extends State<Library> {
               const Spacer(),
               IconButton(
                 onPressed: () {
-                  getFile(context).then((selection) {
+                  fa.getFile(context).then((selection) {
                     if (selection.valid) {
-                      Navigator.pushNamed(context, "/upload", arguments: {
-                        'portalName': widget.portalName,
-                        'zoneName': widget.zoneName,
-                        'selection': selection,
-                      }).then((value) => setState(
-                            () {},
-                          ));
+                      Navigator.pushNamed(context, "/library/upload",
+                          arguments: {
+                            'safeName': widget.safeName,
+                            'selection': selection,
+                          }).then(_refresh);
                     }
                   });
                 },
@@ -223,14 +261,12 @@ class _LibraryState extends State<Library> {
           DropTarget(
             onDragDone: (details) {
               for (var file in details.files) {
-                var selection = FileSelection(file.name, file.path, false);
+                var selection = fa.FileSelection(file.name, file.path, false);
                 Navigator.pushNamed(context, "/upload", arguments: {
-                  'portalName': widget.portalName,
-                  'zoneName': widget.zoneName,
+                  'safeName': widget.safeName,
+                  'zoneName': "widget.zoneName",
                   'selection': selection,
-                }).then((value) => setState(
-                      () {},
-                    ));
+                }).then(_refresh);
               }
             },
             child: Expanded(

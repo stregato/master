@@ -42,7 +42,7 @@ class _Reset extends State<Reset> {
                 onPressed: () => setState(() {
                       if (_fullReset == 0) {
                         stop();
-                        clearProfiles();
+                        clearIdentities();
                         factoryReset();
                         start(
                             "$applicationFolder/woland.db", applicationFolder);

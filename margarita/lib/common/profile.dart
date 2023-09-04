@@ -5,13 +5,8 @@ import 'dart:typed_data';
 import 'package:margarita/woland/woland.dart';
 import 'package:margarita/woland/woland_def.dart';
 
-var profiles = <Profile>[];
-var currentProfile = Profile();
 var identities = <String, Identity>{};
-
-void clearProfiles() {
-  profiles = [];
-  currentProfile = Profile();
+void clearIdentities() {
   identities = {};
 }
 
@@ -27,29 +22,58 @@ Identity getCachedIdentity(String id) {
   });
 }
 
+class Community {
+  String name;
+  Map<String, String> spaces;
+
+  Community(this.name, this.spaces);
+  Community.fromJson(Map<String, dynamic> json)
+      : name = json['name'],
+        spaces = json['spaces'].map<String, String>((key, value) =>
+                MapEntry<String, String>(key.toString(), value.toString()))
+            as Map<String, String>;
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'spaces': spaces,
+      };
+}
+
 class Profile {
   Identity identity = Identity();
-  Map<String, String> portals = {};
+  Map<String, Community> communities = {};
 
   Profile();
 
   Profile.fromJson(Map<String, dynamic> json)
       : identity = Identity.fromJson(json['identity']),
-        portals = ((json['portals'] ?? {}) as Map<String, dynamic>)
-            .map((key, value) => MapEntry(key, value.toString()));
+        communities = json['communities'].map<String, Community>((key, value) =>
+                MapEntry<String, Community>(
+                    key.toString(), Community.fromJson(value)))
+            as Map<String, Community>;
 
   Map<String, dynamic> toJson() => {
         'identity': identity.toJson(),
-        'portals': portals,
+        'communities': communities,
       };
-}
 
-List<Profile> readProfiles(Uint8List data) {
-  var json = jsonDecode(utf8.decode(data));
-  return dynamicToList(json).map((e) => Profile.fromJson(e)).toList();
-}
+  static Profile current() {
+    var sib = getConfig("margarita", "profile");
+    if (sib.missing) {
+      throw Exception("no profile");
+    }
 
-Uint8List writeProfiles(List<Profile> profiles) {
-  var json = jsonEncode(profiles.map((e) => e.toJson()).toList());
-  return Uint8List.fromList(utf8.encode(json));
+    return Profile.fromJson(jsonDecode(utf8.decode(sib.b)));
+  }
+
+  static bool hasProfile() {
+    var sib = getConfig("margarita", "profile");
+    if (!sib.missing) Profile.fromJson(jsonDecode(utf8.decode(sib.b)));
+    return !sib.missing;
+  }
+
+  save() {
+    setConfig("margarita", "profile",
+        SIB.fromBytes(Uint8List.fromList(utf8.encode(jsonEncode(this)))));
+  }
 }

@@ -6,7 +6,6 @@ import 'package:margarita/gen/assets.gen.dart';
 import 'package:margarita/navigation/bar.dart';
 import 'package:flutter/material.dart';
 import 'package:margarita/woland/woland.dart';
-import 'package:margarita/woland/woland_def.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
@@ -114,15 +113,11 @@ class _SetupState extends State<Setup> {
                 onPressed: isSubmitButtonDisabled
                     ? null
                     : () {
-                        currentProfile = Profile();
-                        currentProfile.identity = newIdentity(nick.text);
-                        currentProfile.identity.avatar = _avatar;
-                        currentProfile.identity.email = email.text;
-                        setIdentity(currentProfile.identity);
-                        profiles.add(currentProfile);
-
-                        setConfig("margarita", "profiles",
-                            SIB.fromBytes(writeProfiles(profiles)));
+                        var profile = Profile();
+                        profile.identity = newIdentity(nick.text);
+                        profile.identity.avatar = _avatar;
+                        profile.identity.email = email.text;
+                        profile.save();
                         Navigator.pushReplacementNamed(context, "/");
                       }),
           ],

@@ -7,6 +7,7 @@ import 'package:margarita/common/progress.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:margarita/woland/woland_def.dart';
+
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -26,13 +27,13 @@ class _AddState extends State<Add> {
   String? _validateMessage;
   bool _validToken = false;
 
-  void _updateToken(String? value) {
+  void _updateToken(Profile profile, String? value) {
     _token = value;
     try {
-      var decodedToken = decodeToken(currentProfile.identity, _token!);
-      _validateMessage = "Access to ${decodedToken.portalName}";
+      var decodedToken = decodeAccess(profile.identity, _token!);
+      _validateMessage = "Access to ${decodedToken.safeName}";
       _validToken = true;
-      _title = "Join ${decodedToken.portalName}";
+      _title = "Join ${decodedToken.safeName}";
     } catch (e) {
       _validateMessage = "invalid token: $e";
       _validToken = false;
@@ -42,15 +43,16 @@ class _AddState extends State<Add> {
 
   static testOpen(String token) {
     Isolate.run(
-        () => openPortal(currentProfile.identity, token, OpenOptions()));
+        () => openSafe(Profile.current().identity, token, OpenOptions()));
   }
 
   @override
   Widget build(BuildContext context) {
     _token ??= ModalRoute.of(context)?.settings.arguments as String?;
-    _updateToken(_token);
+    var profile = Profile.current();
+    _updateToken(profile, _token);
 
-    var currentUserId = currentProfile.identity.id;
+    var currentUserId = profile.identity.id;
 
     Widget shareButton;
     if (Platform.isAndroid || Platform.isIOS) {
@@ -59,10 +61,9 @@ class _AddState extends State<Add> {
           label: const Text("Share the URL"),
           onPressed: () {
             final box = context.findRenderObject() as RenderBox?;
-            Share.share(
-                'woland://p/$currentUserId/${currentProfile.identity.nick}',
+            Share.share('woland://p/$currentUserId/${profile.identity.nick}',
                 subject:
-                    "Hi, this is ${currentProfile.identity.nick} and my public key URL",
+                    "Hi, this is ${profile.identity.nick} and my public key URL",
                 sharePositionOrigin:
                     box!.localToGlobal(Offset.zero) & box.size);
           });
@@ -86,13 +87,13 @@ class _AddState extends State<Add> {
       const SizedBox(height: 20),
       QrImageView(
         data:
-            'https://margarita.zone/p/$currentUserId/${currentProfile.identity.nick}',
+            'https://margarita.zone/p/$currentUserId/${profile.identity.nick}',
         version: QrVersions.auto,
         size: 320,
         gapless: false,
       ),
       const SizedBox(height: 20),
-      Text('mg://p/$currentUserId/${currentProfile.identity.nick}',
+      Text('mg://p/$currentUserId/${profile.identity.nick}',
           style: TextStyle(
             color: Colors.grey[800],
             fontWeight: FontWeight.bold,
@@ -137,7 +138,8 @@ class _AddState extends State<Add> {
                           const InputDecoration(labelText: 'Portal URL'),
                       validator: (value) => _validateMessage,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
-                      onChanged: (val) => setState(() => _updateToken(val)),
+                      onChanged: (val) =>
+                          setState(() => _updateToken(profile, val)),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(

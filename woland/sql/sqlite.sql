@@ -63,83 +63,68 @@ INSERT INTO Zone(portal,name,value) VALUES(:portal,:name,:value)
 DELETE FROM Zone WHERE portal=:portal AND name=:name
 
 -- INIT
-CREATE TABLE IF NOT EXISTS File (
-  portal TEXT NOT NULL,
-  zone TEXT NOT NULL,
+CREATE TABLE IF NOT EXISTS Header (
+  safe TEXT NOT NULL,
   name TEXT NOT NULL,
-  short TEXT NOT NULL,
+  fileId INTEGER NOT NULL,
+  base TEXT NOT NULL,
+  dir TEXT,
   depth INTEGER NOT NULL,
-  ymd TEXT NOT NULL,
-  bodyId INTEGER NOT NULL,
   modTime INTEGER NOT NULL,
-  folder TEXT,
   tags TEXT,
   contentType TEXT,
   deleted INTEGER,
   cacheExpires INTEGER,
   header BLOB,
-  PRIMARY KEY (portal, zone, name, ymd, bodyId)
+  PRIMARY KEY (safe, name, fileId)
 );
 
--- SET_FILE
-INSERT INTO File (portal, zone, name, short, depth, ymd, bodyId, modTime, folder, tags, contentType, header, deleted, cacheExpires)
-VALUES (:portal, :zone, :name, :short, :depth, :ymd, :bodyId, :modTime, :folder, :tags, :contentType, :header, :deleted, :cacheExpires)
-ON CONFLICT (portal, zone, name, ymd, bodyId)
-DO UPDATE SET depth=:depth, modTime = :modTime, folder = :folder, tags = :tags, contentType = :contentType, deleted=:deleted, cacheExpires=:cacheExpires, header = :header
+-- INSERT_HEADER
+INSERT INTO Header (safe, name, fileId, base, dir, depth, modTime, tags, contentType, deleted, cacheExpires, header)
+VALUES (:safe, :name, :fileId, :base, :dir, :depth, :modTime, :tags, :contentType, :deleted, :cacheExpires, :header)
+ON CONFLICT (safe, name, fileId)  DO NOTHING;
+
+-- UPDATE_HEADER
+UPDATE Header SET header = :header, cacheExpires=:cacheExpires WHERE safe = :safe AND fileId = :fileId
 
 -- SET_DELETED_FILE
-UPDATE File SET deleted = 1 WHERE portal = :portal AND zone = :zone AND name = :name AND ymd = :ymd AND bodyId = :bodyId
+UPDATE Header SET deleted = 1 WHERE safe = :safe AND name = :name AND fileId = :fileId
 
 -- GET_FILES
-SELECT header FROM File
-WHERE portal = :portal
-  AND zone = :zone
+SELECT header FROM Header
+WHERE safe = :safe
   AND (:name = '' OR name = :name)
   AND (:suffix = '' OR name LIKE '%' || :suffix)
-  AND (:bodyId = 0 OR bodyId = :bodyId)
-  AND (:folder = '' OR folder = :folder)
+  AND (:fileId = 0 OR fileId = :fileId)
+  AND (:dir = '' OR dir = :dir)
   AND (:tags = '' OR tags LIKE '%' || :tags || '%')
   AND (:contentType = '' OR contentType = :contentType)
   AND (:before < 0 OR modTime < :before)
   AND (:after < 0 OR modTime > :after)
+  AND (depth >= :fromDepth) 
+  AND (:toDepth = 0 OR depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
 ORDER BY modTime DESC
 LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_FOLDERS
-SELECT distinct folder FROM File
-WHERE portal= :portal
-  AND zone = :zone
-  AND folder LIKE :folder || '/%'
-  AND depth = :depth
+SELECT distinct dir FROM Header
+WHERE safe= :safe
+  AND (:dir="" OR dir LIKE :dir || '/%')
+  AND (depth >= :fromDepth) 
+  AND (:toDepth = 0 OR depth <= :toDepth)
 
--- GET_LAST_YMD
-SELECT ymd
-FROM File
-WHERE portal = :portal
-  AND zone = :zone
-ORDER BY ymd DESC
-LIMIT 1
-
--- GET_FILE_BODY_ID
-SELECT bodyId
-FROM File
-WHERE portal = :portal
-  AND zone = :zone
-  AND ymd >= :ymd
-
--- GET_LAST_FILE
+-- GET_LAST_HEADER
 SELECT header
-FROM File
-WHERE portal = :portal
-  AND zone = :zone
-  AND name = :name
-  AND (bodyId = :bodyId OR :bodyId = 0)
+FROM Header
+WHERE safe = :safe
+  AND (:name = "" OR name = :name)
+  AND (fileId = :fileId OR :fileId = 0)
 ORDER BY modTime DESC
 LIMIT 1;
 
 -- GET_CACHE_EXPIRE
-SELECT header FROM File
+SELECT header FROM Header
 WHERE cacheExpires > 0
 ORDER BY cacheExpires ASC
 LIMIT 1;

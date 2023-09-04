@@ -122,7 +122,7 @@ typedef Args3SSS = CResult Function(
     Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 typedef Args4SSSS = CResult Function(
     Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
-typedef Args5SSSS = CResult Function(
+typedef Args5SSSSS = CResult Function(
     Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 
 void start(String dbPath, String appPath) {
@@ -170,77 +170,83 @@ Identity getIdentity(String id) {
   return Identity.fromJson(m);
 }
 
-List<Identity> getIdentities(String portalName) {
+List<Identity> getIdentities(String safeName) {
   var fun = lib.lookupFunction<Args1S, Args1S>("getIdentities");
-  var l = fun(portalName.toNativeUtf8()).unwrapList();
+  var l = fun(safeName.toNativeUtf8()).unwrapList();
   return l.map((e) => Identity.fromJson(e)).toList();
 }
 
-String encodeToken(
-    String userId, String portalName, String aesKey, List<String> urls) {
-  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("encodeToken");
-  return fun(userId.toNativeUtf8(), portalName.toNativeUtf8(),
-          aesKey.toNativeUtf8(), jsonEncode(urls).toNativeUtf8())
+String encodeAccess(String userId, String safeName, String creatorId,
+    String aesKey, List<String> urls) {
+  var fun = lib.lookupFunction<Args5SSSSS, Args5SSSSS>("encodeAccess");
+  return fun(
+          userId.toNativeUtf8(),
+          safeName.toNativeUtf8(),
+          creatorId.toNativeUtf8(),
+          aesKey.toNativeUtf8(),
+          jsonEncode(urls).toNativeUtf8())
       .unwrapString();
 }
 
-DecodedToken decodeToken(Identity user, String token) {
-  var fun = lib.lookupFunction<Args2SS, Args2SS>("decodeToken");
+DecodedToken decodeAccess(Identity user, String token) {
+  var fun = lib.lookupFunction<Args2SS, Args2SS>("decodeAccess");
   var m =
       fun(jsonEncode(user).toNativeUtf8(), token.toNativeUtf8()).unwrapMap();
   return DecodedToken.fromJson(m);
 }
 
-Portal openPortal(Identity identity, String token, OpenOptions options) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("openPortal");
+Safe createSafe(Identity identity, String token, CreateOptions options) {
+  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("createSafe");
   var m = fun(jsonEncode(identity).toNativeUtf8(), token.toNativeUtf8(),
           jsonEncode(options).toNativeUtf8())
       .unwrapMap();
-  return Portal.fromJson(m);
+  return Safe.fromJson(m);
 }
 
-void closePortal(String portalName) {
-  var fun = lib.lookupFunction<Args1S, Args1S>("closePortal");
-  fun(portalName.toNativeUtf8()).unwrapVoid();
+Safe openSafe(Identity identity, String token, OpenOptions options) {
+  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("openSafe");
+  var m = fun(jsonEncode(identity).toNativeUtf8(), token.toNativeUtf8(),
+          jsonEncode(options).toNativeUtf8())
+      .unwrapMap();
+  return Safe.fromJson(m);
 }
 
-List<Header> listFiles(
-    String portalName, String zoneName, ListOptions options) {
+void closeSafe(String safeName) {
+  var fun = lib.lookupFunction<Args1S, Args1S>("closeSafe");
+  fun(safeName.toNativeUtf8()).unwrapVoid();
+}
+
+List<Header> listFiles(String safeName, String dir, ListOptions options) {
   var fun = lib.lookupFunction<Args3SSS, Args3SSS>("listFiles");
-  var l = fun(portalName.toNativeUtf8(), zoneName.toNativeUtf8(),
+  var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
           jsonEncode(options).toNativeUtf8())
       .unwrapList();
   return l.map((e) => Header.fromJson(e)).toList();
 }
 
-List<String> listSubFolders(String portalName, String zoneName, String folder) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("listSubFolders");
-  var l = fun(portalName.toNativeUtf8(), zoneName.toNativeUtf8(),
-          folder.toNativeUtf8())
+List<String> listDirs(String safeName, String dir, ListDirsOptions options) {
+  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("listDirs");
+  var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
+          jsonEncode(options).toNativeUtf8())
       .unwrapList();
   return l.cast<String>();
 }
 
-Header putBytes(String portalName, String zoneName, String name, Uint8List data,
-    PutOptions putOptions) {
+Header putBytes(
+    String safeName, String name, Uint8List data, PutOptions putOptions) {
   var base64 = base64Encode(data);
-  var fun = lib.lookupFunction<Args5SSSS, Args5SSSS>("putCString");
-  var m = fun(
-          portalName.toNativeUtf8(),
-          zoneName.toNativeUtf8(),
-          name.toNativeUtf8(),
-          base64.toNativeUtf8(),
-          jsonEncode(putOptions).toNativeUtf8())
+  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putCString");
+  var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
+          base64.toNativeUtf8(), jsonEncode(putOptions).toNativeUtf8())
       .unwrapMap();
   return Header.fromJson(m);
 }
 
-Header putObject<T>(String portalName, String zoneName, String name, T object,
-    PutOptions putOptions) {
-  var fun = lib.lookupFunction<Args5SSSS, Args5SSSS>("putCString");
+Header putObject<T>(
+    String safeName, String name, T object, PutOptions putOptions) {
+  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putCString");
   var m = fun(
-          portalName.toNativeUtf8(),
-          zoneName.toNativeUtf8(),
+          safeName.toNativeUtf8(),
           name.toNativeUtf8(),
           jsonEncode(object).toNativeUtf8(),
           jsonEncode(putOptions).toNativeUtf8())
@@ -248,54 +254,49 @@ Header putObject<T>(String portalName, String zoneName, String name, T object,
   return Header.fromJson(m);
 }
 
-Header putFile<T>(String portalName, String zoneName, String name,
-    String filepath, PutOptions putOptions) {
-  var fun = lib.lookupFunction<Args5SSSS, Args5SSSS>("putFile");
-  var m = fun(
-          portalName.toNativeUtf8(),
-          zoneName.toNativeUtf8(),
-          name.toNativeUtf8(),
-          filepath.toNativeUtf8(),
-          jsonEncode(putOptions).toNativeUtf8())
+Header putFile<T>(
+    String safeName, String name, String filepath, PutOptions putOptions) {
+  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putFile");
+  var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
+          filepath.toNativeUtf8(), jsonEncode(putOptions).toNativeUtf8())
       .unwrapMap();
   return Header.fromJson(m);
 }
 
 typedef JsonFactory<T> = T Function(Map<String, dynamic>);
 
-T getObject<T>(String portalName, String zoneName, String name,
-    GetOptions getOptions, JsonFactory<T> fromJson) {
-  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("getCString");
+T getObject<T>(String safeName, String name, GetOptions getOptions,
+    JsonFactory<T> fromJson) {
+  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("getCString");
 
-  var m = fun(portalName.toNativeUtf8(), zoneName.toNativeUtf8(),
-          name.toNativeUtf8(), jsonEncode(getOptions).toNativeUtf8())
+  var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
+          jsonEncode(getOptions).toNativeUtf8())
       .unwrapMap();
 
   return fromJson(m);
 }
 
-void createZone(String portalName, String zoneName, Map<String, int> users) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("createZone");
-  fun(portalName.toNativeUtf8(), zoneName.toNativeUtf8(),
-          jsonEncode(users).toNativeUtf8())
+void getFile(
+    String safeName, String name, String filepath, GetOptions getOptions) {
+  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("getFile");
+  fun(safeName.toNativeUtf8(), name.toNativeUtf8(), filepath.toNativeUtf8(),
+          jsonEncode(getOptions).toNativeUtf8())
       .unwrapVoid();
 }
 
-List<String> listZones(String portalName) {
-  var fun = lib.lookupFunction<Args1S, Args1S>("listZones");
-  return fun(portalName.toNativeUtf8()).unwrapList().cast<String>();
+void createZone(String safeName, Map<String, int> users) {
+  var fun = lib.lookupFunction<Args2SS, Args2SS>("createZone");
+  fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8()).unwrapVoid();
 }
 
-void setUsers(String portalName, String zoneName, Users users) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("setUsers");
-  fun(portalName.toNativeUtf8(), zoneName.toNativeUtf8(),
-          jsonEncode(users).toNativeUtf8())
-      .unwrapVoid();
+void setUsers(String safeName, Users users) {
+  var fun = lib.lookupFunction<Args2SS, Args2SS>("setUsers");
+  fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8()).unwrapVoid();
 }
 
-Users getUsers(String portalName, String zoneName) {
-  var fun = lib.lookupFunction<Args2SS, Args2SS>("getUsers");
-  var m = fun(portalName.toNativeUtf8(), zoneName.toNativeUtf8()).unwrapMap();
+Users getUsers(String safeName) {
+  var fun = lib.lookupFunction<Args1S, Args1S>("getUsers");
+  var m = fun(safeName.toNativeUtf8()).unwrapMap();
   return m.map((key, value) => MapEntry(key, value as Permission));
 }
 

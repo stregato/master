@@ -19,7 +19,7 @@ import (
 	"github.com/aws/smithy-go/logging"
 	"github.com/sirupsen/logrus"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 type S3 struct {

@@ -1,52 +1,50 @@
 import 'dart:isolate';
 
-import 'package:margarita/common/complete_identity.dart';
+import 'package:margarita/common/profile.dart';
 import 'package:margarita/common/progress.dart';
+import 'package:margarita/safe/addstorage.dart';
+import 'package:margarita/safe/community.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:margarita/woland/woland_def.dart';
 import 'package:flutter/material.dart';
 
-class CreateZoneView extends StatefulWidget {
-  const CreateZoneView({super.key});
+class CreateCommunity extends StatefulWidget {
+  const CreateCommunity({super.key});
 
   @override
-  State<CreateZoneView> createState() => _CreateZoneViewState();
+  State<CreateCommunity> createState() => _CreateCommunityState();
 }
 
 const urlHint = "Enter a supported URL and click +";
 const validSchemas = ["s3", "sftp", "file"];
-const availableApps = ["chat", "library", "gallery"];
 
-class CreateZoneViewArgs {
-  String portalName;
-  CreateZoneViewArgs(this.portalName);
-}
-
-class _CreateZoneViewState extends State<CreateZoneView> {
+class _CreateCommunityState extends State<CreateCommunity> {
   final _formKey = GlobalKey<FormState>();
 
   String name = "";
-  final List<Identity> _users = [];
+  List<String> urls = [];
 
   bool _validConfig() {
-    return name.isNotEmpty && _users.isNotEmpty;
+    return name.isNotEmpty && urls.isNotEmpty;
   }
 
-  _createZone(
-      String portalName, String zoneName, Map<String, Permission> users) {
-    Isolate.run(() {
-      createZone(portalName, zoneName, users);
+  _createCommunity(String name, List<String> urls) {
+    return Isolate.run<Profile>(() {
+      var p = Profile.current();
+      var token = encodeAccess(
+          p.identity.id, "$name/$welcomeSpace", p.identity.id, "", urls);
+      createSafe(p.identity, token, CreateOptions());
+      p.communities[name] = Community(name, {welcomeSpace: token});
+      p.save();
+      return p;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    var args = ModalRoute.of(context)!.settings.arguments as CreateZoneViewArgs;
-    var identities = getIdentities(args.portalName);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Create Zone"),
+        title: const Text("Create Portal"),
       ),
       body: Container(
         padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
@@ -57,6 +55,8 @@ class _CreateZoneViewState extends State<CreateZoneView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Text(
+                    "Enter a name and at least a storage, i.e. sftp or s3"),
                 TextFormField(
                   decoration: const InputDecoration(labelText: 'Name'),
                   validator: (value) {
@@ -64,34 +64,44 @@ class _CreateZoneViewState extends State<CreateZoneView> {
                   },
                   onChanged: (val) => setState(() => name = val),
                 ),
-                const Text(
-                  "Users",
-                  style: TextStyle(color: Colors.black54, fontSize: 14),
-                ),
-                AutocompleteIdentity(
-                  identities: identities
-                      .where((element) => _users.contains(element) == false)
-                      .toList(),
-                  onSelect: (identity) {
-                    setState(() {
-                      _users.add(identity);
-                    });
-                  },
+                Row(
+                  children: [
+                    const Text(
+                      "Storages",
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () {
+                        Navigator.of(context)
+                            .push(MaterialPageRoute(
+                                builder: (context) => const AddStorage()))
+                            .then((value) {
+                          if (value is Storage) {
+                            setState(() {
+                              urls.add(value.url);
+                            });
+                          }
+                        });
+                      },
+                      icon: const Icon(Icons.add),
+                    )
+                  ],
                 ),
                 ListView.builder(
                   scrollDirection: Axis.vertical,
                   shrinkWrap: true,
-                  itemCount: _users.length,
+                  itemCount: urls.length,
                   itemBuilder: (context, index) => ListTile(
                     leading: const Icon(Icons.share),
                     trailing: IconButton(
                         icon: const Icon(Icons.delete),
                         onPressed: () {
                           setState(() {
-                            _users.removeAt(index);
+                            urls.removeAt(index);
                           });
                         }),
-                    title: Text(_users[index].nick),
+                    title: Text(urls[index]),
                   ),
                 ),
                 const SizedBox(
@@ -110,12 +120,13 @@ class _CreateZoneViewState extends State<CreateZoneView> {
                             await progressDialog(
                                 context,
                                 "opening portal, please wait",
-                                _createZone(args.portalName, name, {
-                                  for (var e in _users) e.id: permissionUser
-                                }),
+                                _createCommunity(name, urls),
                                 successMessage:
                                     "Congrats! You successfully created $name",
                                 errorMessage: "Creation failed");
+                            // ignore: use_build_context_synchronously
+                            Navigator.popUntil(
+                                context, (route) => route.isFirst);
                           }
                         : null,
                     child: const Text('Create'),

@@ -8,13 +8,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 const SignatureField = "dgst_ed25519_blake2b"
 
 func Marshal(identity Identity, v any, signatureField string) ([]byte, error) {
-	data, err := json.Marshal(v)
+	data, err := json.MarshalIndent(v, "", " ")
 	if core.IsErr(err, nil, "cannot marshal to json: %v") {
 		return data, err
 	}
@@ -33,10 +33,10 @@ func Marshal(identity Identity, v any, signatureField string) ([]byte, error) {
 	last := rune(s[len(s)-1])
 	switch last {
 	case '}':
-		s = fmt.Sprintf(`%s,"%s":"%s:%s"}`, s[0:len(s)-1], signatureField, identity.ID,
+		s = fmt.Sprintf(`%s,"%s":"%s:%s"}`, s[0:len(s)-1], signatureField, identity.Id,
 			base64.StdEncoding.EncodeToString(signature))
 	case ']':
-		s = fmt.Sprintf(`%s,"%s:%s"]`, s[0:len(s)-1], identity.ID,
+		s = fmt.Sprintf(`%s,"%s:%s"]`, s[0:len(s)-1], identity.Id,
 			base64.StdEncoding.EncodeToString(signature))
 	default:
 		return nil, &json.MarshalerError{}
@@ -44,16 +44,19 @@ func Marshal(identity Identity, v any, signatureField string) ([]byte, error) {
 	return []byte(s), nil
 }
 
-var listRegex = regexp.MustCompile(`(,\s*"([\w+=\/]+):([\w+=\/]+)")]$`)
+var listRegex = regexp.MustCompile(`(,\s*"([\w+@_=\/]+):([\w+@_=\/]+)")]$`)
 
 func Unmarshal(data []byte, v any, signatureField string) (id string, err error) {
 	var sig []byte
 	var loc []int
 	data = bytes.TrimRight(data, " ")
+	if len(data) == 0 {
+		return "", &json.SyntaxError{Offset: 0}
+	}
 	last := data[len(data)-1]
 	switch last {
 	case '}':
-		dictRegex := regexp.MustCompile(fmt.Sprintf(`(,\s*"%s"\s*:\s*"([\w+=\/]+):([\w+=\/]+)").*`, signatureField))
+		dictRegex := regexp.MustCompile(fmt.Sprintf(`(,\s*"%s"\s*:\s*"([\w+@_=\/]+):([\w+@_=\/]+)").*`, signatureField))
 		loc = dictRegex.FindSubmatchIndex(data)
 	case ']':
 		loc = listRegex.FindSubmatchIndex(data)

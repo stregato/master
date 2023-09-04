@@ -9,8 +9,8 @@ import (
 
 	eciesgo "github.com/ecies/go/v2"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/sql"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
 )
 
 var ErrInvalidSignature = errors.New("signature is invalid")
@@ -30,7 +30,7 @@ type Key struct {
 }
 
 type Identity struct {
-	ID      string    `json:"i"`
+	Id      string    `json:"i"`
 	Nick    string    `json:"n,omitempty"`
 	Email   string    `json:"e,omitempty"`
 	ModTime time.Time `json:"modTime"`
@@ -59,7 +59,7 @@ func NewIdentity(nick string) (Identity, error) {
 		return identity, err
 	}
 
-	identity.ID = core.Encode(append(publicCrypt, publicSign[:]...))
+	identity.Id = core.Encode(append(publicCrypt, publicSign[:]...))
 	identity.Private = core.Encode(append(privateCrypt.Bytes(), privateSign[:]...))
 
 	return identity, nil
@@ -67,7 +67,7 @@ func NewIdentity(nick string) (Identity, error) {
 
 func (i Identity) Public() Identity {
 	return Identity{
-		ID:      i.ID,
+		Id:      i.Id,
 		Nick:    i.Nick,
 		Email:   i.Email,
 		ModTime: i.ModTime,
@@ -82,7 +82,7 @@ func SetIdentity(i Identity) error {
 	}
 
 	_, err = sql.Exec("SET_IDENTITY", sql.Args{
-		"id":   i.ID,
+		"id":   i.Id,
 		"data": data,
 	})
 	return err

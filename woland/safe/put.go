@@ -7,16 +7,18 @@ import (
 	"image/jpeg"
 	"io"
 	"mime"
+	"os"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/disintegration/imaging"
+	"github.com/godruoyi/go-snowflake"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/sql"
-	"github.com/stregato/master/massolit/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 const (
@@ -32,163 +34,151 @@ const (
 type PutOptions struct {
 	Progress chan int64 // Progress channel
 
-	Replace       bool           // Replace all other files with the same name
-	ReplaceID     uint64         // Replace the file with the specified ID
-	Tags          []string       // Tags associated with the file
-	Thumbnail     []byte         // Thumbnail associated with the file
-	AutoThumbnail bool           // Automatically generate a thumbnail for the file
-	ContentType   string         // Content type of the file. When not provided, the content type is determined from the file extension
-	Zip           bool           // Zip the file if it is smaller than 64MB
-	Meta          map[string]any // Metadata associated with the file
+	Replace       bool           `json:"replace"`       // Replace all other files with the same name
+	ReplaceID     uint64         `json:"replaceId"`     // Replace the file with the specified ID
+	Tags          []string       `json:"tags"`          // Tags associated with the file
+	Thumbnail     []byte         `json:"thumbnail"`     // Thumbnail associated with the file
+	AutoThumbnail bool           `json:"autoThumbnail"` // Generate a thumbnail from the file
+	ContentType   string         `json:"contentType"`   // Content type of the file
+	Zip           bool           `json:"zip"`           // Zip the file if it is smaller than 64MB
+	Meta          map[string]any `json:"meta"`          // Metadata associated with the file
+	Source        string         `json:"source"`        // Track the source of the file as download location
 }
 
 //func (s *Portal) Put(name string, r io.ReadSeeker, secId uint64, options PutOptions) (Header, error) {
 
-func (s *Safe) Put(zoneName, name string, r io.ReadSeeker, options PutOptions) (File, error) {
-	zone, ok := s.zones[zoneName]
-	if !ok {
-		return File{}, fmt.Errorf(ErrZoneNotExist, zoneName)
-	}
-
+func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, error) {
 	if strings.HasPrefix(name, "/") {
-		return File{}, fmt.Errorf(ErrInvalidName, name)
+		return Header{}, fmt.Errorf(ErrInvalidName, name)
 	}
 
-	dir := path.Dir(name)
-
+	dir := hashPath(getDir(name))
 	now := core.Now()
-	ID := core.NextID(0)
-	//sub := formatYearMonthDay(now)
+	id := snowflake.ID()
 	bodyKey := core.GenerateRandomBytes(KeySize)
 	iv := core.GenerateRandomBytes(aes.BlockSize)
 
 	var err error
 	hash, err := blake2b.New384(nil)
 	if core.IsErr(err, nil, "cannot create hash: %v", err) {
-		return File{}, err
+		return Header{}, err
 	}
 
 	hsr := hashSizeReader(r, hash, options.Progress)
 	var r2 io.ReadSeeker = hsr
-	bodyFile := path.Join(zonesDir, zoneName, dir, fmt.Sprintf("%d.b", ID))
+	bodyFile := path.Join(DataFolder, dir, fmt.Sprintf("%d.b", id))
 	if options.Zip {
 		r2, err = gzipStream(r2)
 		if core.IsErr(err, nil, "cannot compress data: %v", err) {
-			return File{}, err
+			return Header{}, err
 		}
+		core.Info("Using compression for file %s", name)
 	}
 
 	r2, err = encryptReader(r2, bodyKey, iv)
 	if core.IsErr(err, nil, "cannot create encrypting reader: %v", err) {
-		return File{}, err
+		return Header{}, err
 	}
 
-	err = s.store.Write(bodyFile, r2, nil)
+	store := s.stores[0]
+	err = store.Write(bodyFile, r2, nil)
 	if core.IsErr(err, nil, "cannot write body: %v", err) {
-		return File{}, err
+		return Header{}, err
 	}
+	core.Info("Wrote body for %s to %s", name, bodyFile)
 
 	for _, tag := range options.Tags {
 		if !isAlphanumeric(tag) {
-			return File{}, ErrInvalidTag
+			return Header{}, ErrInvalidTag
 		}
 	}
 
-	if options.AutoThumbnail && options.Thumbnail == nil {
+	if options.AutoThumbnail && len(options.Thumbnail) == 0 {
 		options.Thumbnail, err = generateThumbnail(r, MaxThumbnailWidth, MaxThumbnailHeight)
 		if core.IsErr(err, nil, "cannot generate thumbnail: %v", err) {
-			s.store.Delete(bodyFile)
-			return File{}, err
+			store.Delete(bodyFile)
+			return Header{}, err
 		}
+		core.Info("Generated thumbnail for %s, size %d", name, len(options.Thumbnail))
 	}
 
 	if options.ContentType == "" {
 		options.ContentType = mime.TypeByExtension(path.Ext(name))
+		core.Info("Guessed content type for %s: %s", name, options.ContentType)
 	}
 
-	var deletables []File
+	var deletables []Header
 	if options.Replace {
-		homonyms, err := s.ListFiles(zoneName, ListOptions{Name: name})
+		homonyms, err := ListFiles(s, dir, ListOptions{Name: name})
 		if core.IsErr(err, nil, "cannot list homonyms: %v", err) {
-			s.store.Delete(bodyFile)
-			return File{}, err
+			store.Delete(bodyFile)
+			return Header{}, err
 		}
 		deletables = homonyms
+		core.Info("Replacing %d files with name %s", len(homonyms), name)
 	}
 	if options.ReplaceID != 0 {
-		replaceable, err := s.ListFiles(zoneName, ListOptions{BodyID: options.ReplaceID})
+		replaceable, err := ListFiles(s, dir, ListOptions{FileId: options.ReplaceID})
 		if core.IsErr(err, nil, "cannot list replaceable: %v", err) {
-			s.store.Delete(bodyFile)
-			return File{}, err
+			store.Delete(bodyFile)
+			return Header{}, err
 		}
 		deletables = append(deletables, replaceable...)
+		core.Info("Replacing %d files with id %d", len(replaceable), options.ReplaceID)
 	}
 
-	header := File{
+	header := Header{
 		Name:        name,
-		Creator:     s.CurrentUser.ID,
+		Creator:     s.CurrentUser.Id,
 		Size:        hsr.bytesRead,
 		Hash:        hash.Sum(nil),
 		Zip:         options.Zip,
-		Preview:     options.Thumbnail,
+		Thumbnail:   options.Thumbnail,
 		ContentType: options.ContentType,
 		Tags:        options.Tags,
 		ModTime:     now,
 		Meta:        options.Meta,
-		BodyID:      ID,
+		FileId:      id,
 		BodyKey:     bodyKey,
 		IV:          iv,
 	}
-	headers := []File{header}
-
-	data, err := marshalHeaders(headers, zone.KeyId, zone.KeyValue)
-	if core.IsErr(err, nil, "cannot encrypt header: %v", err) {
-		s.store.Delete(bodyFile)
-		return File{}, err
-	}
-
-	headerFile := path.Join(zonesDir, zoneName, dir, fmt.Sprintf("%d.h", ID))
-	hr := core.NewBytesReader(data)
-	err = s.store.Write(headerFile, hr, nil)
+	err = writeHeaders(store, s.Name, dir, s.keyId, s.keys, []Header{header})
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
-		s.store.Delete(bodyFile)
-		return File{}, err
+		store.Delete(bodyFile)
+		return Header{}, err
+	}
+	core.Info("Wrote header for %s[%d]", header.Name, header.FileId)
+
+	for _, file := range deletables {
+		deleteFile(store, s.Name, file)
+		core.Info("Deleted %s[%d]", file.Name, file.FileId)
 	}
 
-	for _, header := range deletables {
-		deleteFile(s.Name, zoneName, s.store, header)
+	if options.Source != "" {
+		stat, err := os.Stat(options.Source)
+		if core.IsErr(err, nil, "cannot stat source: %v", err) {
+			return Header{}, err
+		}
+		header.Downloads = map[string]time.Time{options.Source: stat.ModTime()}
+		core.Info("Added download location for %s: %s", name, options.Source)
 	}
+	err = insertHeaderOrIgnoreToDB(s.Name, header)
+	core.IsErr(err, nil, "cannot insert header: %v", err)
+	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
 
 	return header, nil
 }
 
-func getDir(name string) string {
-	dir := path.Dir(name)
-	if dir == "." {
-		dir = ""
-	}
-	return dir
-}
-
-func formatYearMonthDay(t time.Time) string {
-	year, month, day := t.Year(), t.Month(), t.Day()
-	return fmt.Sprintf("%04d%02d%02d", year%10000, month, day)
-}
-
 func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error) {
-	_, err := r.Seek(0, io.SeekEnd)
-	if !core.IsErr(err, nil, "cannot seek to end of file: %v") {
+	_, err := r.Seek(0, io.SeekStart)
+	if core.IsErr(err, nil, "cannot seek to start of file: %v", err) {
 		return nil, err
 	}
 
 	// Decode the image from the provided input
 	img, err := imaging.Decode(r)
-	if err != nil {
+	if core.IsErr(err, nil, "cannot decode image: %v", err) {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
-	}
-	_, err = r.Seek(0, io.SeekStart)
-	if core.IsErr(err, nil, "cannot seek to start of file: %v", err) {
-		return nil, err
 	}
 
 	// Reduce quality or dimensions until the thumbnail size is within the limit
@@ -200,10 +190,11 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 
 		// Encode the thumbnail with the current quality setting
 		err = jpeg.Encode(buffer, thumb, &jpeg.Options{Quality: quality})
-		if err != nil {
+		if core.IsErr(err, nil, "cannot encode thumbnail: %v", err) {
 			return nil, fmt.Errorf("failed to encode thumbnail: %w", err)
 		}
 
+		core.Info("Generated thumbnail with quality %d, size %d", quality, len(buffer.Bytes()))
 		// Check the size of the thumbnail
 		if len(buffer.Bytes()) <= MaxThumbnailSize {
 			return buffer.Bytes(), nil
@@ -221,20 +212,17 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 	}
 }
 
-func deleteFile(portalName, zoneName string, store storage.Store, header File) error {
-	ymd := formatYearMonthDay(header.ModTime)
-	fullName := path.Join(zonesDir, zoneName, ymd, fmt.Sprintf("%d.b", header.BodyID))
+func deleteFile(store storage.Store, safeName string, header Header) error {
+	fullName := path.Join(DataFolder, fmt.Sprintf("%d.b", header.FileId))
 	err := store.Delete(fullName)
 	if core.IsErr(err, nil, "cannot delete file: %v", err) {
 		return err
 	}
 
 	_, err = sql.Exec("SET_DELETED_FILE", sql.Args{
-		"portal": portalName,
-		"zone":   zoneName,
+		"safe":   safeName,
 		"name":   header.Name,
-		"ymd":    ymd,
-		"bodyId": header.BodyID,
+		"fileId": header.FileId,
 	})
 	if core.IsErr(err, nil, "cannot set deleted file: %v", err) {
 		return err

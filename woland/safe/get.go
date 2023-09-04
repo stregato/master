@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/sql"
-	"github.com/stregato/master/massolit/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 var ErrFileNotExist = fmt.Errorf("file does not exist") // Returned when a file does not exist
@@ -20,54 +20,50 @@ var DelayForDestination = 100 * time.Millisecond        // Delay before checking
 var currentCacheSize int64 = -1                         // Current size of the cache
 
 type GetOptions struct {
-	Destination string            // Track the file is downloaded to the specified destination. File must be closed within a second
-	Async       func(File, error) // When not nil, the download is asynchronous and the function is called when the download is complete or fails
-	Progress    chan int64        // Send progress updates to the channel
-	BodyID      uint64            // Get the file with the specified body ID
-	NoCache     bool              // Do not cache the file
-	CacheExpire time.Duration     // Cache expiration time
-	Range       *storage.Range    // Range of bytes to read
+	Destination string              `json:"destination"` // Track the file is downloaded to the specified destination. File must be closed within a second
+	Async       func(Header, error) `json:"-"`           // When not nil, the download is asynchronous and the function is called when the download is complete or fails
+	Progress    chan int64          `json:"progress"`    // Send progress updates to the channel
+	FileId      uint64              `json:"fileId"`      // Get the file with the specified body ID
+	NoCache     bool                `json:"noCache"`     // Do not cache the file
+	CacheExpire time.Duration       `json:"cacheExpire"` // Cache expiration time
+	Range       *storage.Range      `json:"range"`       // Range of bytes to read
 }
 
-func (s *Safe) Get(zoneName, name string, w io.Writer, options GetOptions) (File, error) {
-	_, ok := s.zones[zoneName]
-	if !ok {
-		return File{}, fmt.Errorf(ErrZoneNotExist, zoneName)
-	}
-
+func Get(s *Safe, name string, w io.Writer, options GetOptions) (Header, error) {
 	var data []byte
-	err := sql.QueryRow("GET_LAST_FILE", sql.Args{
-		"portal": s.Name,
-		"zone":   zoneName,
+	err := sql.QueryRow("GET_LAST_HEADER", sql.Args{
+		"safe":   s.Name,
 		"name":   name,
-		"bodyId": options.BodyID,
+		"fileId": options.FileId,
 	}, &data)
 	if err == sql.ErrNoRows {
-		return File{}, ErrFileNotExist
+		return Header{}, ErrFileNotExist
 	}
 	if core.IsErr(err, nil, "cannot query file: %v", err) {
-		return File{}, err
+		return Header{}, err
 	}
 
-	var header File
+	var header Header
 	err = json.Unmarshal(data, &header)
 	if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
-		return File{}, err
+		return Header{}, err
 	}
 
 	w, err = decryptWriter(w, header.BodyKey, header.IV)
 	if core.IsErr(err, nil, "cannot create decrypting writer: %v", err) {
-		return File{}, err
+		return Header{}, err
 	}
 
 	if options.Progress != nil {
 		w = progressWriter(w, options.Progress)
+		core.Info("Progress writer created")
 	}
 	if header.Zip {
 		w, err = gunzipStream(w)
 		if core.IsErr(err, nil, "cannot decompress data: %v", err) {
-			return File{}, err
+			return Header{}, err
 		}
+		core.Info("Gzip stream created")
 	}
 
 	if header.Cached != "" {
@@ -76,36 +72,40 @@ func (s *Safe) Get(zoneName, name string, w io.Writer, options GetOptions) (File
 			defer r.Close()
 			if w != nil {
 				_, err = io.Copy(w, r)
+				core.IsErr(err, nil, "cannot copy cached file: %v", err)
 			}
-			return File{}, err
+			if err == nil {
+				return header, nil
+			}
 		}
+		core.Info("Cannot open cached file: %v", err)
 	}
 
 	var cacheFile *os.File
 	if !options.NoCache {
 		cacheFile, err = getCacheFile(header)
 		if core.IsErr(err, nil, "cannot create cache file: %v", err) {
-			return File{}, err
+			return Header{}, err
 		}
 	}
 
 	if options.Async != nil {
 		go func() {
-			header, err := writeFile(s.store, s.Name, zoneName, options, header, w, cacheFile)
+			header, err := writeFile(s.stores[0], s.Name, options, header, w, cacheFile)
 			options.Async(header, err)
 		}()
 		return header, nil
 	} else {
-		return writeFile(s.store, s.Name, zoneName, options, header, w, cacheFile)
+		return writeFile(s.stores[0], s.Name, options, header, w, cacheFile)
 	}
 }
 
-func getCacheFile(header File) (*os.File, error) {
+func getCacheFile(header Header) (*os.File, error) {
 	if currentCacheSize < 0 {
 		currentCacheSize = getCurrentCacheSize()
 	}
 
-	cacheFilename := filepath.Join(CacheFolder, fmt.Sprintf("%d.cache", header.BodyID))
+	cacheFilename := filepath.Join(CacheFolder, fmt.Sprintf("%d.cache", header.FileId))
 	cacheFile, err := os.Create(cacheFilename)
 	if core.IsErr(err, nil, "cannot create cache file: %v", err) {
 		return nil, err
@@ -113,7 +113,7 @@ func getCacheFile(header File) (*os.File, error) {
 	return cacheFile, nil
 }
 
-func writeFile(store storage.Store, portalName, zoneName string, options GetOptions, header File, w io.Writer, cacheFile *os.File) (File, error) {
+func writeFile(store storage.Store, safeName string, options GetOptions, header Header, w io.Writer, cacheFile *os.File) (Header, error) {
 	var err error
 
 	if w != nil {
@@ -121,16 +121,15 @@ func writeFile(store storage.Store, portalName, zoneName string, options GetOpti
 	} else if cacheFile != nil {
 		w = cacheFile
 	} else {
-		return File{}, nil
+		return Header{}, nil
 	}
 
-	dir := path.Join(zonesDir, zoneName)
-	ymd := formatYearMonthDay(header.ModTime)
-	fullname := path.Join(dir, ymd, fmt.Sprintf("%d.b", header.BodyID))
+	hashedDir := hashPath(getDir(header.Name))
+	fullname := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", header.FileId))
 
 	err = store.Read(fullname, options.Range, w, nil)
 	if core.IsErr(err, nil, "cannot read file: %v", err) {
-		return File{}, err
+		return Header{}, err
 	}
 
 	if cacheFile != nil {
@@ -141,7 +140,7 @@ func writeFile(store storage.Store, portalName, zoneName string, options GetOpti
 		} else {
 			header.CachedExpires = core.Now().Add(30 * 24 * time.Hour)
 		}
-		err := saveHeaderToDB(portalName, zoneName, ymd, header)
+		err := insertHeaderOrIgnoreToDB(safeName, header)
 		core.IsErr(err, nil, "cannot save header to DB: %v", err)
 
 		currentCacheSize += header.Size
@@ -150,23 +149,24 @@ func writeFile(store storage.Store, portalName, zoneName string, options GetOpti
 		}
 	}
 
-	if options.Destination != "" {
-		go func() {
-
-			for i := 1; i < 11; i++ {
-				time.Sleep(DelayForDestination * time.Duration(i))
-				stat, err := os.Stat(options.Destination)
-				if err == nil {
-					if header.Downloads == nil {
-						header.Downloads = make(map[string]time.Time)
-					}
-					header.Downloads[options.Destination] = stat.ModTime()
-					err = saveHeaderToDB(portalName, zoneName, ymd, header)
-					core.IsErr(err, nil, "cannot save header to DB: %v", err)
+	if options.Destination != "" || cacheFile != nil {
+		updateHeaderInDB(safeName, header.FileId, func(h Header) Header {
+			if options.Destination != "" {
+				if h.Downloads == nil {
+					h.Downloads = make(map[string]time.Time)
 				}
+				h.Downloads[options.Destination] = core.Now()
+				core.Info("Added download location for %s: %s", header.Name, options.Destination)
 			}
-		}()
+			if cacheFile != nil {
+				h.Cached = cacheFile.Name()
+				h.CachedExpires = core.Now().Add(30 * 24 * time.Hour)
+				core.Info("Added cache location for %s: %s", header.Name, h.Cached)
+			}
+			return h
+		})
 	}
+
 	return header, nil
 }
 
@@ -193,10 +193,10 @@ func getCurrentCacheSize() int64 {
 
 func removeOldestCacheFiles() {
 	for currentCacheSize > MaxCacheSize*9/10 {
-		var header File
-		var saveName, zoneName string
+		var header Header
+		var saveName string
 		var data []byte
-		err := sql.QueryRow("GET_OLDEST_CACHE_FILE", nil, &saveName, &zoneName, &data)
+		err := sql.QueryRow("GET_CACHE_EXPIRE", nil, &saveName, &data)
 		if core.IsErr(err, nil, "cannot query file: %v", err) {
 			return
 		}
@@ -209,8 +209,7 @@ func removeOldestCacheFiles() {
 		currentCacheSize -= header.Size
 		header.Cached = ""
 		header.CachedExpires = time.Time{}
-		ymd := formatYearMonthDay(header.ModTime)
-		err = saveHeaderToDB(saveName, zoneName, ymd, header)
+		err = insertHeaderOrIgnoreToDB(saveName, header)
 		core.IsErr(err, nil, "cannot save header to DB: %v", err)
 	}
 }

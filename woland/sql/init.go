@@ -11,7 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 
-	"github.com/stregato/master/massolit/core"
+	"github.com/stregato/master/woland/core"
 )
 
 //go:embed sqlite.sql
@@ -68,7 +68,7 @@ func LoadSQLFromFile(name string) error {
 }
 
 var MemoryDBPath = ":memory:"
-var TempDB = filepath.Join(os.TempDir(), "massolit-test.db")
+var TempDB = filepath.Join(os.TempDir(), "woland-test.db")
 
 func OpenDB(dbPath string) error {
 	if db != nil {

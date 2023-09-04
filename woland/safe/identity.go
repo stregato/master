@@ -5,9 +5,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/stregato/master/massolit/core"
-	"github.com/stregato/master/massolit/security"
-	"github.com/stregato/master/massolit/storage"
+	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/storage"
 )
 
 var ErrSignatureMismatch = fmt.Errorf("provided signature does not match the expected identity")
@@ -15,11 +15,11 @@ var ErrSignatureMismatch = fmt.Errorf("provided signature does not match the exp
 // writeIdentity writes an identity to a store and update the DB
 func writeIdentity(st storage.Store, self security.Identity) error {
 	data, err := security.Marshal(self, self.Public(), "sg")
-	if core.IsErr(err, nil, "cannot marshal identity %s: %v", self.ID) {
+	if core.IsErr(err, nil, "cannot marshal identity %s: %v", self.Id) {
 		return err
 	}
-	err = storage.WriteFile(st, path.Join(UsersFolder, self.ID, UserFile), data)
-	if core.IsErr(err, nil, "cannot write identity %s: %v", self.ID) {
+	err = storage.WriteFile(st, path.Join(UsersFolder, self.Id, UserFile), data)
+	if core.IsErr(err, nil, "cannot write identity %s: %v", self.Id) {
 		return err
 	}
 	return nil
@@ -34,7 +34,7 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 
 	m := map[string]*security.Identity{}
 	for _, i := range dbIdentities {
-		m[i.ID] = &i
+		m[i.Id] = &i
 	}
 
 	ls, err := st.ReadDir(UsersFolder, storage.Filter{})
@@ -69,7 +69,7 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 		if core.IsErr(err, nil, "cannot parse identity file '%s': %v", l.Name()) {
 			continue
 		}
-		if userId != identity.ID {
+		if userId != identity.Id {
 			core.IsErr(ErrSignatureMismatch, nil, "file '%s' is signed with wrong identity: %v", l.Name())
 		}
 
