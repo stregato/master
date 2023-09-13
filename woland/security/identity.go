@@ -59,8 +59,8 @@ func NewIdentity(nick string) (Identity, error) {
 		return identity, err
 	}
 
-	identity.Id = core.Encode(append(publicCrypt, publicSign[:]...))
-	identity.Private = core.Encode(append(privateCrypt.Bytes(), privateSign[:]...))
+	identity.Id = core.EncodeBinary(append(publicCrypt, publicSign[:]...))
+	identity.Private = core.EncodeBinary(append(privateCrypt.Bytes(), privateSign[:]...))
 
 	return identity, nil
 }
@@ -135,7 +135,7 @@ func GetIdentities() ([]Identity, error) {
 }
 
 func DecodeKeys(id string) (cryptKey []byte, signKey []byte, err error) {
-	data, err := core.Decode(id)
+	data, err := core.DecodeBinary(id)
 	if core.IsErr(err, nil, "cannot decode base64: %v") {
 		return nil, nil, err
 	}

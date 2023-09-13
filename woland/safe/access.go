@@ -43,8 +43,10 @@ func EncodeAccess(userID string, name string, creatorId string, aesKey []byte, u
 		if core.IsErr(err, nil, "cannot encrypt access token for %s", userID) {
 			return "", err
 		}
+	} else {
+		data = buf.Bytes()
 	}
-	return core.Encode(data), nil
+	return core.EncodeBinary(data), nil
 }
 
 func DecodeAccess(identity security.Identity, access string) (name string, creatorId string, aesKey []byte, urls []string, err error) {
@@ -53,7 +55,7 @@ func DecodeAccess(identity security.Identity, access string) (name string, creat
 			fmt.Errorf("cannot decode access token: no private key available for %s", identity.Id)
 	}
 
-	data, err := core.Decode(access)
+	data, err := core.DecodeBinary(access)
 	if core.IsErr(err, nil, "cannot decode access token: %v") {
 		return "", "", nil, nil, err
 	}

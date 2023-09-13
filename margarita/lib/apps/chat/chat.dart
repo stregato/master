@@ -25,7 +25,8 @@ import 'package:path/path.dart' as ph;
 
 class Chat extends StatefulWidget {
   final String safeName;
-  const Chat(this.safeName, {Key? key}) : super(key: key);
+  final String privateId;
+  const Chat(this.safeName, this.privateId, {Key? key}) : super(key: key);
 
   @override
   State<Chat> createState() => _ChatState();
@@ -33,8 +34,8 @@ class Chat extends StatefulWidget {
 
 class _ChatState extends State<Chat> {
   final List<types.Message> _messages = [];
-  DateTime _from = DateTime.fromMicrosecondsSinceEpoch(0);
-  DateTime _to = DateTime.fromMicrosecondsSinceEpoch(0);
+  DateTime _from = DateTime.now().add(-const Duration(days: 1));
+  DateTime _to = DateTime.now();
   Timer? timer;
   DateTime _lastMessage = DateTime.now();
   late types.User _currentUser;
@@ -47,7 +48,7 @@ class _ChatState extends State<Chat> {
   void initState() {
     super.initState();
     timer = Timer.periodic(
-      const Duration(seconds: 3),
+      const Duration(seconds: 30),
       (Timer t) {
         var diff = DateTime.now().difference(_lastMessage).inSeconds;
         if (diff < 20 || diff > 50) {
@@ -85,38 +86,40 @@ class _ChatState extends State<Chat> {
         author: user,
         createdAt: h.modTime.millisecondsSinceEpoch,
         metadata: {
-          'mime': h.contentType,
-          'data': h.meta['data'],
+          'mime': h.attributes.contentType,
+          'data': h.attributes.extra['data'],
         });
   }
 
   types.Message _convertText(Header h, types.User user) {
     return types.TextMessage(
         id: h.name,
-        text: h.meta['text'],
+        text: h.attributes.extra['text'],
         author: user,
         createdAt: h.modTime.millisecondsSinceEpoch);
   }
 
   types.Message _convertLibraryFile(Header h, types.User user) {
-    var text = h.meta['text'];
+    var text = h.attributes.extra['text'];
     return types.FileMessage(
         author: user,
         createdAt: h.modTime.millisecondsSinceEpoch,
         id: h.name,
-        mimeType: h.contentType,
+        mimeType: h.attributes.contentType,
         name: ph.basename(text),
         uri: text,
         size: 1);
   }
 
   types.Message _convertEmbeddedImage(Header h, types.User user) {
-    var size = h.thumbnail.isEmpty ? h.size : h.thumbnail.length;
+    var size =
+        h.attributes.thumbnail.isEmpty ? h.size : h.attributes.thumbnail.length;
     var file = File("$temporaryFolder/${h.name}");
+    file.parent.createSync(recursive: true);
     var stat = FileStat.statSync(file.path);
     if (h.size != stat.size) {
-      if (h.thumbnail.isNotEmpty) {
-        file.writeAsBytesSync(h.thumbnail);
+      if (h.attributes.thumbnail.isNotEmpty) {
+        file.writeAsBytesSync(h.attributes.thumbnail);
       } else {
         var options = GetOptions();
         options.fileId = h.fileId;
@@ -137,7 +140,7 @@ class _ChatState extends State<Chat> {
   types.Message _convert(Header h) {
     try {
       var user = _users[h.creator] ?? types.User(id: h.creator);
-      var contentType = h.contentType;
+      var contentType = h.attributes.contentType;
       _loaded.add(h.name);
 
       if (contentType == 'text/html') {
@@ -168,10 +171,14 @@ class _ChatState extends State<Chat> {
   }
 
   static _listFiles(Chat widget, DateTime after, DateTime before) {
-    var options = ListOptions();
-    options.after = after;
-    options.before = before;
-    options.limit = isDesktop ? 40 : 20;
+    var options =
+        ListOptions(after: after, before: before, limit: isDesktop ? 40 : 20);
+
+    if (widget.privateId.isNotEmpty) {
+      options.privateId = widget.privateId;
+    } else {
+      options.noPrivate = true;
+    }
     return Isolate.run<List<Header>>(
         () => listFiles(widget.safeName, "chat", options));
   }
@@ -180,8 +187,9 @@ class _ChatState extends State<Chat> {
     if (timer == null) {
       return;
     }
-
+    _to = DateTime.now();
     var headers = showProgress
+        // ignore: use_build_context_synchronously
         ? await progressDialog<List<Header>>(
             context, "Getting messages", _listFiles(widget, _from, _to))
         : await _listFiles(widget, _from, _to);
@@ -189,6 +197,8 @@ class _ChatState extends State<Chat> {
     if (headers == null || headers.isEmpty) {
       return;
     }
+
+    headers = headers.reversed.toList();
 
     setState(() {
       for (var header in headers) {
@@ -203,7 +213,7 @@ class _ChatState extends State<Chat> {
       if (_from.microsecondsSinceEpoch == 0) {
         _from = headers.first.modTime;
       }
-      _to = headers.last.modTime;
+      _from = headers.last.modTime;
       _lastMessage = DateTime.now();
     });
   }
@@ -233,7 +243,7 @@ class _ChatState extends State<Chat> {
   }
 
   Future<void> _handleEndReached() async {
-    var after = DateTime.fromMicrosecondsSinceEpoch(0);
+    var after = _from.add(-const Duration(days: -1));
     var before = _from;
     var headers = await progressDialog<List<Header>>(
         context, "Getting messages", _listFiles(widget, after, before));
@@ -329,7 +339,7 @@ class _ChatState extends State<Chat> {
       author: _currentUser,
       createdAt: DateTime.now().millisecondsSinceEpoch,
       id: name,
-      mimeType: header.contentType,
+      mimeType: header.attributes.contentType,
       name: name,
       size: size,
       uri: "file://$name",

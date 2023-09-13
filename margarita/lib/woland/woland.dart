@@ -116,12 +116,14 @@ class CException implements Exception {
 
 typedef Args0 = CResult Function();
 typedef Args1S = CResult Function(Pointer<Utf8>);
-typedef Args1<T> = CResult Function(T);
+typedef Args1T<T> = CResult Function(T);
 typedef Args2SS = CResult Function(Pointer<Utf8>, Pointer<Utf8>);
 typedef Args3SSS = CResult Function(
     Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 typedef Args4SSSS = CResult Function(
     Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef Args4SSST<T> = CResult Function(
+    Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, T);
 typedef Args5SSSSS = CResult Function(
     Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 
@@ -289,9 +291,11 @@ void createZone(String safeName, Map<String, int> users) {
   fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8()).unwrapVoid();
 }
 
-void setUsers(String safeName, Users users) {
-  var fun = lib.lookupFunction<Args2SS, Args2SS>("setUsers");
-  fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8()).unwrapVoid();
+void setUsers(String safeName, Users users, SetUsersOptions options) {
+  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("setUsers");
+  fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8(),
+          jsonEncode(options).toNativeUtf8())
+      .unwrapVoid();
 }
 
 Users getUsers(String safeName) {
@@ -300,12 +304,23 @@ Users getUsers(String safeName) {
   return m.map((key, value) => MapEntry(key, value as Permission));
 }
 
+typedef Args4SSSI = Args4SSST<Int>;
+typedef Args4SSSi = Args4SSST<int>;
+List<String> checkForUpdates(
+    String safeName, String dir, DateTime after, int depth) {
+  var fun = lib.lookupFunction<Args4SSSI, Args4SSSi>("checkForUpdates");
+  var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
+          after.toUtc().toIso8601String().toNativeUtf8(), depth)
+      .unwrapList();
+  return l.cast<String>();
+}
+
 List<String> getLogs() {
   var fun = lib.lookupFunction<Args0, Args0>("getLogs");
   return fun().unwrapList().cast<String>();
 }
 
 void setLogLevel(int level) {
-  var fun = lib.lookupFunction<Args1<Int>, Args1<int>>("setLogLevel");
+  var fun = lib.lookupFunction<Args1T<Int>, Args1T<int>>("setLogLevel");
   fun(level).unwrapVoid();
 }

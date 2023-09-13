@@ -14,6 +14,7 @@ import 'package:margarita/apps/chat/theme.dart';
 import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
 import 'package:margarita/common/file_access.dart' as fa;
 import 'package:file_icon/file_icon.dart';
+import 'package:open_file_plus/open_file_plus.dart';
 import 'dart:collection';
 import 'package:path/path.dart' as path;
 
@@ -242,22 +243,39 @@ class _LibraryState extends State<Library> {
                 divider: const Icon(Icons.chevron_right),
               ),
               const Spacer(),
-              IconButton(
-                onPressed: () {
-                  fa.getFile(context).then((selection) {
-                    if (selection.valid) {
-                      Navigator.pushNamed(context, "/library/upload",
-                          arguments: {
-                            'safeName': widget.safeName,
-                            'selection': selection,
-                          }).then(_refresh);
-                    }
-                  });
-                },
-                icon: const Icon(Icons.upload_file),
-              ),
             ],
           ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              ElevatedButton(
+                child: const Text("Open Folder"),
+                onPressed: () => fa.openFile(
+                    context, "$documentsFolder/${widget.safeName}/$_folder"),
+              ),
+              const Spacer(),
+              ElevatedButton(
+                child: const Text("New Folder"),
+                onPressed: () => fa.openFile(
+                    context, "$documentsFolder/${widget.safeName}/$_folder"),
+              ),
+              const Spacer(),
+              ElevatedButton(
+                  child: const Text("Upload"),
+                  onPressed: () {
+                    fa.getFile(context).then((selection) {
+                      if (selection.valid) {
+                        Navigator.pushNamed(context, "/library/upload",
+                            arguments: {
+                              'safeName': widget.safeName,
+                              'selection': selection,
+                            }).then(_refresh);
+                      }
+                    });
+                  }),
+            ],
+          ),
+          const SizedBox(height: 10),
           DropTarget(
             onDragDone: (details) {
               for (var file in details.files) {

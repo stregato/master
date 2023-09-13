@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
@@ -21,9 +22,13 @@ type ListOptions struct {
 	Tags            []string  `json:"tags"`            // Filter on the tags
 	Before          time.Time `json:"before"`          // Filter on the modification time
 	After           time.Time `json:"after"`           // Filter on the modification time
+	KnownSince      time.Time `json:"knownSince"`      // Filter on the sync time
 	Offset          int       `json:"offset"`          // Offset of the first file to return
 	Limit           int       `json:"limit"`           // Maximum number of files to return
 	IncludeDeleted  bool      `json:"includeDeleted"`  // Include deleted files
+	Creator         string    `json:"creator"`         // Filter on the creator
+	NoPrivate       bool      `json:"noPrivate"`       // Ignore private files
+	PrivateId       string    `json:"privateId"`       // Filter on private files either created by the current user or the specified user
 	Prefetch        bool      `json:"prefetch"`        // Prefetch the file bodies
 	ErrorIfNotExist bool      `json:"errorIfNotExist"` // Return an error if the directory does not exist. Otherwise, return empty list
 }
@@ -31,7 +36,7 @@ type ListOptions struct {
 func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 	dir = strings.Trim(dir, "/")
 	core.Info("list files '%s'", dir)
-	err := synchorize(s.stores[0], s.Name, hashPath(dir), listOptions.Depth, s.keys)
+	_, err := synchorize(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), listOptions.Depth, s.keys)
 	if os.IsNotExist(err) && !listOptions.ErrorIfNotExist {
 		return nil, nil
 	}
@@ -57,10 +62,15 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 		"dir":            dir,
 		"suffix":         listOptions.Suffix,
 		"contentType":    listOptions.ContentType,
+		"creator":        listOptions.Creator,
+		"noPrivate":      listOptions.NoPrivate,
+		"privateId":      listOptions.PrivateId,
+		"currentUser":    s.CurrentUser.Id,
 		"tags":           tags,
 		"includeDeleted": listOptions.IncludeDeleted,
 		"before":         listOptions.Before.Unix(),
 		"after":          listOptions.After.Unix(),
+		"syncAfter":      listOptions.KnownSince.Unix(),
 		"offset":         listOptions.Offset,
 		"limit":          listOptions.Limit,
 		"fromDepth":      fromDepth,
@@ -118,7 +128,7 @@ func ListDirs(s *Safe, dir string, options ListDirsOptions) ([]string, error) {
 	if options.Depth >= 0 {
 		depthPlusOne = options.Depth + 1
 	}
-	err := synchorize(s.stores[0], s.Name, hashPath(dir), depthPlusOne, s.keys)
+	_, err := synchorize(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), depthPlusOne, s.keys)
 	if os.IsNotExist(err) && !options.ErrorIfNotExist {
 		return nil, nil
 	}
@@ -152,25 +162,24 @@ func ListDirs(s *Safe, dir string, options ListDirsOptions) ([]string, error) {
 	return dirs, nil
 }
 
-func synchorize(store storage.Store, safeName, hashedDir string, depth int, keys map[uint64][]byte) error {
+func synchorize(currentUser security.Identity, store storage.Store, safeName, hashedDir string, depth int, keys map[uint64][]byte) (newFiles int, err error) {
 	var touch time.Time
-	var err error
 
 	_, i, _, ok := sql.GetConfig("SAFE_DIR_MODTIME", hashedDir)
 	if ok {
 		touch, err = GetTouch(store, hashedDir)
 		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
-			return err
+			return 0, err
 		}
 		if time.Unix(i, 0) == touch {
 			core.Info("safe '%s' is up to date", safeName)
-			return nil
+			return 0, nil
 		}
 	}
 
 	ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{Suffix: ".h"})
 	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
-		return err
+		return 0, err
 	}
 
 	s, _, _, _ := sql.GetConfig("SAFE_DIR_LAST", hashedDir)
@@ -190,35 +199,51 @@ func synchorize(store storage.Store, safeName, hashedDir string, depth int, keys
 		}
 
 		for _, header := range headers {
+			if header.PrivateId != "" {
+				key, err := getDiffHillmanKey(currentUser, header)
+				if core.IsErr(err, nil, "cannot get hillman key: %v", err) {
+					continue
+				}
+				attributes, err := decryptHeaderAttributes(key, header.IV, header.EncryptedAttributes)
+				if core.IsErr(err, nil, "cannot decrypt attributes: %v", err) {
+					continue
+				}
+				header.Attributes = attributes
+				header.EncryptedAttributes = nil
+				header.BodyKey = key
+			}
+
 			core.Info("saving header %s: %v", header.Name, header)
+			newFiles++
 			err = insertHeaderOrIgnoreToDB(safeName, header)
 			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}
 	err = sql.SetConfig("SAFE_DIR_LAST", hashedDir, last, 0, nil)
 	if core.IsErr(err, nil, "cannot set safe touch file: %v", err) {
-		return err
+		return 0, err
 	}
 	core.Info("saved last header %s", last)
 
 	err = sql.SetConfig("SAFE_DIR_MODTIME", hashedDir, "", touch.Unix(), nil)
 	if core.IsErr(err, nil, "cannot set zone touch: %v", err) {
-		return err
+		return 0, err
 	}
 
 	if depth != 0 {
 		ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{OnlyFolders: true})
 		if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
-			return err
+			return 0, err
 		}
 
 		for _, l := range ls {
-			err = synchorize(store, safeName, path.Join(hashedDir, l.Name()), depth-1, keys)
+			nf, err := synchorize(currentUser, store, safeName, path.Join(hashedDir, l.Name()), depth-1, keys)
 			if core.IsErr(err, nil, "cannot sync dir %s/%s: %v", store, hashedDir, err) {
-				return err
+				return 0, err
 			}
+			newFiles += nf
 		}
 	}
 
-	return nil
+	return newFiles, nil
 }

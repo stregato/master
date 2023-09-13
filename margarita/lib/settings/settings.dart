@@ -6,7 +6,6 @@ import 'package:margarita/common/image.dart';
 import 'package:flutter/material.dart';
 import 'package:margarita/common/io.dart';
 import 'package:margarita/common/profile.dart';
-import 'package:margarita/navigation/bar.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:flutter/services.dart';
@@ -272,7 +271,7 @@ class _SettingsState extends State<Settings> {
           ],
         ),
       ),
-      bottomNavigationBar: const MainNavigationBar(null),
+      // bottomNavigationBar: const NewsNavigationBar(null),
     );
   }
 }

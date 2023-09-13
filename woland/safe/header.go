@@ -16,6 +16,7 @@ import (
 	"github.com/godruoyi/go-snowflake"
 
 	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
@@ -23,24 +24,30 @@ import (
 var ErrInvalidHeaders = fmt.Errorf("headers are invalid")
 var ErrNoEncryptionKey = fmt.Errorf("no encryption key")
 
+type Attributes struct {
+	Hash        []byte         `json:"ha,omitempty"`
+	ContentType string         `json:"co,omitempty"`
+	Zip         bool           `json:"zi,omitempty"`
+	Thumbnail   []byte         `json:"th,omitempty"`
+	Tags        []string       `json:"ta,omitempty"`
+	Extra       map[string]any `json:"ex,omitempty"`
+}
+
 type Header struct {
-	Name          string               `json:"name"`
-	Creator       string               `json:"creator"`
-	Size          int64                `json:"size"`
-	Hash          []byte               `json:"hash"`
-	Zip           bool                 `json:"zip"`
-	Tags          []string             `json:"tags"`
-	Thumbnail     []byte               `json:"thumbnail"`
-	ContentType   string               `json:"contentType"`
-	ModTime       time.Time            `json:"modTime"`
-	Meta          map[string]any       `json:"meta"`
-	FileId        uint64               `json:"fileId"`
-	BodyKey       []byte               `json:"bodyKey"`
-	IV            []byte               `json:"iv"`
-	Deleted       bool                 `json:"deleted"`
-	Downloads     map[string]time.Time `json:"downloads"`
-	Cached        string               `json:"cached"`
-	CachedExpires time.Time            `json:"cachedExpires"`
+	Name                string               `json:"na"`
+	Creator             string               `json:"cr"`
+	Size                int64                `json:"si"`
+	ModTime             time.Time            `json:"mo"`
+	FileId              uint64               `json:"fi"`
+	IV                  []byte               `json:"iv"`
+	Attributes          Attributes           `json:"at,omitempty"`
+	EncryptedAttributes []byte               `json:"en,omitempty"`
+	BodyKey             []byte               `json:"bo,omitempty"`
+	PrivateId           string               `json:"pr,omitempty"`
+	Deleted             bool                 `json:"de,omitempty"`
+	Downloads           map[string]time.Time `json:"do,omitempty"`
+	Cached              string               `json:"ca,omitempty"`
+	CachedExpires       time.Time            `json:"cac,omitempty"`
 }
 
 func marshalHeaders(files []Header, keyId uint64, keyValue []byte) ([]byte, error) {
@@ -135,7 +142,7 @@ func insertHeaderOrIgnoreToDB(safeName string, header Header) error {
 		return err
 	}
 
-	tags := strings.Join(header.Tags, " ") + " "
+	tags := strings.Join(header.Attributes.Tags, " ") + " "
 	r, err := sql.Exec("INSERT_HEADER", sql.Args{
 		"safe":         safeName,
 		"name":         header.Name,
@@ -144,8 +151,11 @@ func insertHeaderOrIgnoreToDB(safeName string, header Header) error {
 		"dir":          getDir(header.Name),
 		"depth":        strings.Count(header.Name, "/"),
 		"modTime":      header.ModTime.Unix(),
+		"syncTime":     time.Now().Unix(),
 		"tags":         tags,
-		"contentType":  header.ContentType,
+		"contentType":  header.Attributes.ContentType,
+		"creator":      header.Creator,
+		"privateId":    header.PrivateId,
 		"deleted":      header.Deleted,
 		"cacheExpires": header.CachedExpires.Unix(),
 		"header":       data,
@@ -157,7 +167,7 @@ func insertHeaderOrIgnoreToDB(safeName string, header Header) error {
 		core.Info("Header %s already exists", header.Name)
 		return nil
 	}
-	core.Info("Saved header %s", header.Name)
+	core.Info("Saved header %s [%d]", header.Name, header.FileId)
 
 	return nil
 }
@@ -189,4 +199,47 @@ func updateHeaderInDB(safeName string, fileId uint64, update func(Header) Header
 		return err
 	}
 	return nil
+}
+
+func getDiffHillmanKey(currentUser security.Identity, header Header) ([]byte, error) {
+	if header.PrivateId == currentUser.Id {
+		secondaryKey, err := security.DiffieHellmanKey(currentUser, header.Creator)
+		if core.IsErr(err, nil, "cannot create secondary key: %v", err) {
+			return secondaryKey, err
+		}
+		return secondaryKey, nil
+	} else if header.Creator == currentUser.Id {
+		secondaryKey, err := security.DiffieHellmanKey(currentUser, header.PrivateId)
+		if core.IsErr(err, nil, "cannot create secondary key: %v", err) {
+			return secondaryKey, err
+		}
+		return secondaryKey, nil
+	} else {
+		return nil, ErrNoEncryptionKey
+	}
+}
+
+func encryptHeaderAttributes(key []byte, iv []byte, attributes Attributes) ([]byte, error) {
+	data, err := json.Marshal(attributes)
+	if core.IsErr(err, nil, "cannot marshal attributes: %v", err) {
+		return nil, err
+	}
+	encryptedAttributes, err := security.EncryptBlock(key, iv, data)
+	if core.IsErr(err, nil, "cannot encrypt attributes: %v", err) {
+		return nil, err
+	}
+	return encryptedAttributes, nil
+}
+
+func decryptHeaderAttributes(key []byte, iv []byte, encryptedAttributes []byte) (Attributes, error) {
+	var attributes Attributes
+	data, err := security.DecryptBlock(key, iv, encryptedAttributes)
+	if core.IsErr(err, nil, "cannot decrypt attributes: %v", err) {
+		return attributes, err
+	}
+	err = json.Unmarshal(data, &attributes)
+	if core.IsErr(err, nil, "cannot unmarshal attributes: %v", err) {
+		return attributes, err
+	}
+	return attributes, nil
 }

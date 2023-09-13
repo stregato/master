@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:margarita/common/image.dart';
 import 'package:margarita/common/profile.dart';
 import 'package:margarita/gen/assets.gen.dart';
-import 'package:margarita/navigation/bar.dart';
 import 'package:flutter/material.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:share_plus/share_plus.dart';
@@ -123,7 +122,7 @@ class _SetupState extends State<Setup> {
           ],
         ),
       ),
-      bottomNavigationBar: const MainNavigationBar(null),
+      // bottomNavigationBar: const NewsNavigationBar(null),
     );
   }
 }

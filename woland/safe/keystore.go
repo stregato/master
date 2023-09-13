@@ -30,6 +30,10 @@ func readKeystores(s storage.Store, safename string, currentUser security.Identi
 		if core.IsErr(err, nil, "cannot read keystore file: %v", err) {
 			continue
 		}
+		if keyId2 == 0 {
+			continue
+		}
+
 		keys[keyId2] = key2
 
 		if keyId2 > keyId && users[signedBy] >= PermissionAdmin {
@@ -74,7 +78,7 @@ func readKeystore(s storage.Store, safeName string, path string, currentUser sec
 
 	encryptedKey, ok := keystore.Keys[currentUser.Id]
 	if !ok {
-		return 0, nil, nil, "", fmt.Errorf("cannot find primary key for user %s", currentUser.Id)
+		return 0, nil, nil, "", nil
 	}
 
 	key, err = security.EcDecrypt(currentUser, encryptedKey)

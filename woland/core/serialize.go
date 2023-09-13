@@ -7,14 +7,14 @@ import (
 	"strings"
 )
 
-func Encode(data []byte) string {
+func EncodeBinary(data []byte) string {
 	s := base64.StdEncoding.EncodeToString(data)
 	s = strings.ReplaceAll(s, "/", "_")
 	s = strings.ReplaceAll(s, "=", "@")
 	return s
 }
 
-func Decode(data string) ([]byte, error) {
+func DecodeBinary(data string) ([]byte, error) {
 	data = strings.ReplaceAll(data, "@", "=")
 	data = strings.ReplaceAll(data, "_", "/")
 	return base64.StdEncoding.DecodeString(data)

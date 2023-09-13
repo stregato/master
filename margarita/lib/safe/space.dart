@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:margarita/apps/chat/chat.dart';
+import 'package:margarita/navigation/bar.dart';
 import 'package:margarita/safe/library.dart';
 
 class ZoneViewArgs {
@@ -25,7 +26,7 @@ class _SpaceState extends State<Space> {
   Widget build(BuildContext context) {
     var safeName = ModalRoute.of(context)!.settings.arguments as String;
     if (_panels.isEmpty) {
-      _panels = [Chat(safeName), Library(safeName)];
+      _panels = [Chat(safeName, ""), Library(safeName)];
     }
 
     _currentIndex = currentPanelIdx[safeName] ?? 0;
@@ -43,8 +44,7 @@ class _SpaceState extends State<Space> {
             ),
           ]),
       body: _panels[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
+      bottomNavigationBar: NewsNavigationBar(
         onTap: (int index) {
           setState(() {
             _currentIndex = index;

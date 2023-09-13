@@ -1,26 +1,24 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'package:margarita/common/common.dart';
 import 'package:margarita/common/profile.dart';
-import 'package:margarita/common/progress.dart';
 import 'package:margarita/navigation/bar.dart';
-import 'package:margarita/woland/woland.dart';
+import 'package:margarita/navigation/news.dart';
 import 'package:flutter/material.dart';
-import 'package:margarita/woland/woland_def.dart';
 import 'package:uni_links/uni_links.dart';
 import 'package:flutter/services.dart' show PlatformException;
 
-class HomeView extends StatefulWidget {
-  const HomeView({Key? key}) : super(key: key);
+class Home extends StatefulWidget {
+  const Home({Key? key}) : super(key: key);
 
   @override
-  State<HomeView> createState() => _HomeViewState();
+  State<Home> createState() => _HomeState();
 }
 
-class _HomeViewState extends State<HomeView> {
+class _HomeState extends State<Home> {
   static StreamSubscription<Uri?>? linkSub;
   Uri? _unilink;
+  bool _refresh = false;
 
   @override
   void initState() {
@@ -50,10 +48,8 @@ class _HomeViewState extends State<HomeView> {
         case "invite":
           if (segments.length == 2) {
             var token = Uri.decodeComponent(segments[1]);
-            Future.delayed(
-                const Duration(milliseconds: 100),
-                () => Navigator.pushNamed(context, "/addPortal/import",
-                    arguments: token));
+            Future.delayed(const Duration(milliseconds: 100),
+                () => Navigator.pushNamed(context, "/token", arguments: token));
           }
           break;
         case "id":
@@ -63,23 +59,16 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
-  Future<Object?> open(
-      BuildContext context, Profile currentProfile, Community community,
-      [bool mounted = true]) async {
-    var token = community.spaces["welcome"]!;
-    var s = await progressDialog(context, "Connecting to ${community.name}...",
-        Isolate.run(() {
-      return openSafe(currentProfile.identity, token, OpenOptions());
-    }), errorMessage: "cannot connect to ${community.name}");
-    if (s != null && context.mounted) {
-      return Navigator.pushNamed(context, "/community", arguments: community);
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     _processUnilink(context);
+    _refresh = false;
+
+    if (!Profile.hasProfile()) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Loading")),
+      );
+    }
 
     var profile = Profile.current();
     var widgets = profile.communities.values.map(
@@ -87,9 +76,8 @@ class _HomeViewState extends State<HomeView> {
         return Card(
           child: ListTile(
             title: Text(community.name),
-            onTap: () => open(context, profile, community).then((value) {
-              setState(() {});
-            }),
+            onTap: () => Navigator.pushNamed(context, "/community",
+                arguments: community),
           ),
         );
       },
@@ -103,12 +91,44 @@ class _HomeViewState extends State<HomeView> {
           Text("My Communities"),
         ]),
         actions: [
-          ElevatedButton(
-            child: const Text("Add"),
-            onPressed: () {
-              Navigator.pushNamed(context, "/addPortal")
-                  .then((value) => {setState(() {})});
+          PopupMenuButton<String>(
+            onSelected: (String result) {
+              switch (result) {
+                case 'join':
+                  Navigator.pushNamed(context, "/join")
+                      .then((value) => setState(() {
+                            _refresh = true;
+                          }));
+                  break;
+                case 'create':
+                  Navigator.pushNamed(context, "/create")
+                      .then((value) => setState(() {
+                            _refresh = true;
+                          }));
+                  break;
+                case 'settings':
+                  Navigator.pushNamed(context, "/settings")
+                      .then((value) => setState(() {
+                            _refresh = true;
+                          }));
+                  break;
+              }
             },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'join',
+                child: Text('Join Community'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'create',
+                child: Text('Create Community'),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'settings',
+                child: Text('Settings'),
+              ),
+            ],
           ),
         ],
       ),
@@ -116,7 +136,18 @@ class _HomeViewState extends State<HomeView> {
         padding: const EdgeInsets.all(8),
         children: widgets,
       ),
-      bottomNavigationBar: const MainNavigationBar(null),
+      bottomNavigationBar: NewsNavigationBar(
+        onTap: (idx) {
+          switch (idx) {
+            case 0:
+              Navigator.of(context).popUntil((route) => route.isFirst);
+              break;
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+        ],
+      ),
     );
   }
 }

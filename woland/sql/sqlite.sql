@@ -71,8 +71,11 @@ CREATE TABLE IF NOT EXISTS Header (
   dir TEXT,
   depth INTEGER NOT NULL,
   modTime INTEGER NOT NULL,
+  syncTime INTEGER NOT NULL,
   tags TEXT,
   contentType TEXT,
+  creator TEXT,
+  privateId TEXT,
   deleted INTEGER,
   cacheExpires INTEGER,
   header BLOB,
@@ -80,8 +83,8 @@ CREATE TABLE IF NOT EXISTS Header (
 );
 
 -- INSERT_HEADER
-INSERT INTO Header (safe, name, fileId, base, dir, depth, modTime, tags, contentType, deleted, cacheExpires, header)
-VALUES (:safe, :name, :fileId, :base, :dir, :depth, :modTime, :tags, :contentType, :deleted, :cacheExpires, :header)
+INSERT INTO Header (safe, name, fileId, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, cacheExpires, header)
+VALUES (:safe, :name, :fileId, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :cacheExpires, :header)
 ON CONFLICT (safe, name, fileId)  DO NOTHING;
 
 -- UPDATE_HEADER
@@ -99,8 +102,12 @@ WHERE safe = :safe
   AND (:dir = '' OR dir = :dir)
   AND (:tags = '' OR tags LIKE '%' || :tags || '%')
   AND (:contentType = '' OR contentType = :contentType)
+  AND (:creator = '' OR creator = :creator)
+  AND (:noPrivate = 0 OR privateId == '')
+  AND (:privateId = '' OR (privateId = :privateId AND creator = :currentUser) OR (privateId = :currentUser AND creator = :privateId))
   AND (:before < 0 OR modTime < :before)
   AND (:after < 0 OR modTime > :after)
+  AND (:syncAfter < 0 OR syncTime > :syncAfter)
   AND (depth >= :fromDepth) 
   AND (:toDepth = 0 OR depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)

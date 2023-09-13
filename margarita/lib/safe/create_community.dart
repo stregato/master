@@ -44,7 +44,7 @@ class _CreateCommunityState extends State<CreateCommunity> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Create Portal"),
+        title: const Text("Create Community"),
       ),
       body: Container(
         padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),

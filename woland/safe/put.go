@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
@@ -43,6 +44,7 @@ type PutOptions struct {
 	Zip           bool           `json:"zip"`           // Zip the file if it is smaller than 64MB
 	Meta          map[string]any `json:"meta"`          // Metadata associated with the file
 	Source        string         `json:"source"`        // Track the source of the file as download location
+	Private       string         `json:"private"`       // Id of the target user in case of private message
 }
 
 //func (s *Portal) Put(name string, r io.ReadSeeker, secId uint64, options PutOptions) (Header, error) {
@@ -55,8 +57,19 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 	dir := hashPath(getDir(name))
 	now := core.Now()
 	id := snowflake.ID()
-	bodyKey := core.GenerateRandomBytes(KeySize)
+	var secondaryKey []byte
 	iv := core.GenerateRandomBytes(aes.BlockSize)
+
+	if options.Private != "" {
+		key, err := security.DiffieHellmanKey(s.CurrentUser, options.Private)
+		if core.IsErr(err, nil, "cannot create diffie hellman key: %v", err) {
+			return Header{}, err
+		}
+		secondaryKey = key
+		core.Info("Using diffie hellman key for %s", name)
+	} else {
+		secondaryKey = core.GenerateRandomBytes(KeySize)
+	}
 
 	var err error
 	hash, err := blake2b.New384(nil)
@@ -75,7 +88,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		core.Info("Using compression for file %s", name)
 	}
 
-	r2, err = encryptReader(r2, bodyKey, iv)
+	r2, err = encryptReader(r2, secondaryKey, iv)
 	if core.IsErr(err, nil, "cannot create encrypting reader: %v", err) {
 		return Header{}, err
 	}
@@ -128,21 +141,38 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 	}
 
 	header := Header{
-		Name:        name,
-		Creator:     s.CurrentUser.Id,
-		Size:        hsr.bytesRead,
-		Hash:        hash.Sum(nil),
-		Zip:         options.Zip,
-		Thumbnail:   options.Thumbnail,
-		ContentType: options.ContentType,
-		Tags:        options.Tags,
-		ModTime:     now,
-		Meta:        options.Meta,
-		FileId:      id,
-		BodyKey:     bodyKey,
-		IV:          iv,
+		Name:      name,
+		Size:      hsr.bytesRead,
+		Creator:   s.CurrentUser.Id,
+		FileId:    id,
+		IV:        iv,
+		BodyKey:   secondaryKey,
+		PrivateId: options.Private,
+		ModTime:   now,
+		Attributes: Attributes{
+			ContentType: options.ContentType,
+			Hash:        hash.Sum(nil),
+			Zip:         options.Zip,
+			Thumbnail:   options.Thumbnail,
+			Tags:        options.Tags,
+			Extra:       options.Meta,
+		},
 	}
-	err = writeHeaders(store, s.Name, dir, s.keyId, s.keys, []Header{header})
+	if options.Private != "" {
+		var encryptedHeader = header
+		var encryptedAttributes []byte
+		encryptedAttributes, err = encryptHeaderAttributes(secondaryKey, iv, header.Attributes)
+		if core.IsErr(err, nil, "cannot encrypt attributes: %v", err) {
+			store.Delete(bodyFile)
+			return Header{}, err
+		}
+		encryptedHeader.EncryptedAttributes = encryptedAttributes
+		encryptedHeader.BodyKey = nil
+		encryptedHeader.Attributes = Attributes{}
+		err = writeHeaders(store, s.Name, dir, s.keyId, s.keys, []Header{encryptedHeader})
+	} else {
+		err = writeHeaders(store, s.Name, dir, s.keyId, s.keys, []Header{header})
+	}
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
 		store.Delete(bodyFile)
 		return Header{}, err

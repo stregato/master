@@ -58,7 +58,7 @@ func Get(s *Safe, name string, w io.Writer, options GetOptions) (Header, error) 
 		w = progressWriter(w, options.Progress)
 		core.Info("Progress writer created")
 	}
-	if header.Zip {
+	if header.Attributes.Zip {
 		w, err = gunzipStream(w)
 		if core.IsErr(err, nil, "cannot decompress data: %v", err) {
 			return Header{}, err
@@ -132,23 +132,6 @@ func writeFile(store storage.Store, safeName string, options GetOptions, header 
 		return Header{}, err
 	}
 
-	if cacheFile != nil {
-		header.Cached = cacheFile.Name()
-		cacheFile.Close()
-		if options.CacheExpire > 0 {
-			header.CachedExpires = core.Now().Add(options.CacheExpire)
-		} else {
-			header.CachedExpires = core.Now().Add(30 * 24 * time.Hour)
-		}
-		err := insertHeaderOrIgnoreToDB(safeName, header)
-		core.IsErr(err, nil, "cannot save header to DB: %v", err)
-
-		currentCacheSize += header.Size
-		if currentCacheSize > MaxCacheSize {
-			removeOldestCacheFiles()
-		}
-	}
-
 	if options.Destination != "" || cacheFile != nil {
 		updateHeaderInDB(safeName, header.FileId, func(h Header) Header {
 			if options.Destination != "" {
@@ -160,8 +143,16 @@ func writeFile(store storage.Store, safeName string, options GetOptions, header 
 			}
 			if cacheFile != nil {
 				h.Cached = cacheFile.Name()
-				h.CachedExpires = core.Now().Add(30 * 24 * time.Hour)
+				if options.CacheExpire > 0 {
+					h.CachedExpires = core.Now().Add(options.CacheExpire)
+				} else {
+					h.CachedExpires = core.Now().Add(30 * 24 * time.Hour)
+				}
 				core.Info("Added cache location for %s: %s", header.Name, h.Cached)
+				currentCacheSize += header.Size
+				if currentCacheSize > MaxCacheSize {
+					go removeOldestCacheFiles()
+				}
 			}
 			return h
 		})
@@ -207,9 +198,11 @@ func removeOldestCacheFiles() {
 
 		os.Remove(header.Cached)
 		currentCacheSize -= header.Size
-		header.Cached = ""
-		header.CachedExpires = time.Time{}
-		err = insertHeaderOrIgnoreToDB(saveName, header)
+		err = updateHeaderInDB(saveName, header.FileId, func(h Header) Header {
+			h.Cached = ""
+			h.CachedExpires = time.Time{}
+			return h
+		})
 		core.IsErr(err, nil, "cannot save header to DB: %v", err)
 	}
 }

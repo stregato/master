@@ -64,12 +64,14 @@ class DecodedToken {
   DecodedToken.fromJson(Map<String, dynamic> json)
       : safeName = json['safeName'],
         aesKey = json['aesKey'] ?? "",
-        urls = dynamicToList(json['urls']);
+        urls = dynamicToList(json['urls']),
+        creatorId = json['creatorId'];
 
   Map<String, dynamic> toJson() => {
         'safeName': safeName,
         'aesKey': aesKey,
         'urls': urls,
+        'creatorId': creatorId,
       };
 }
 
@@ -93,63 +95,76 @@ class Safe {
       };
 }
 
+class Attributes {
+  Uint8List hash = Uint8List(0);
+  String contentType = '';
+  bool zip = false;
+  Uint8List thumbnail = Uint8List(0);
+  List<String> tags = [];
+  Map<String, dynamic> extra = {};
+
+  Attributes();
+
+  Attributes.fromJson(Map<String, dynamic> json)
+      : hash = base64Decode(json['ha'] ?? ""),
+        contentType = json['co'] ?? "",
+        zip = json['zip'] ?? false,
+        thumbnail = base64Decode(json['th'] ?? ""),
+        tags = dynamicToList(json['ta']),
+        extra = json['ex'] ?? {};
+
+  Map<String, dynamic> toJson() => {
+        'ha': base64Encode(hash),
+        'co': contentType,
+        'zi': zip,
+        'th': base64Encode(thumbnail),
+        'ta': tags,
+        'ex': extra,
+      };
+}
+
 class Header {
   String name = '';
   String creator = '';
   int size = 0;
-  Uint8List hash = Uint8List(0);
-  bool zip = false;
-  List<String> tags = [];
-  Uint8List thumbnail = Uint8List(0);
-  String contentType = '';
   DateTime modTime = DateTime(0);
-  Map<String, dynamic> meta = {};
   int fileId = 0;
   Uint8List bodyKey = Uint8List(0);
   Uint8List iv = Uint8List(0);
+  Attributes attributes = Attributes();
   bool deleted = false;
   Map<String, DateTime> downloads = {};
   String cached = '';
   DateTime cachedExpires = DateTime.now();
 
   Header.fromJson(Map<String, dynamic> json)
-      : name = json['name'],
-        creator = json['creator'],
-        size = json['size'],
-        hash = base64Decode(json['hash'] ?? ""),
-        zip = json['zip'],
-        tags = dynamicToList(json['tags']),
-        thumbnail = base64Decode(json['thumbnail'] ?? ""),
-        contentType = json['contentType'],
-        modTime = DateTime.parse(json['modTime']),
-        meta = json['meta'] ?? {},
-        fileId = json['fileId'],
-        bodyKey = base64Decode(json['bodyKey'] ?? ""),
+      : name = json['na'],
+        creator = json['cr'],
+        size = json['si'],
+        modTime = DateTime.parse(json['mo']),
+        fileId = json['fi'],
+        bodyKey = base64Decode(json['bo'] ?? ""),
         iv = base64Decode(json['iv'] ?? ""),
-        deleted = json['deleted'] ?? false,
-        downloads = (json['downloads'] ?? {}).map<String, DateTime>(
+        attributes = Attributes.fromJson(json['at'] ?? {}),
+        deleted = json['de'] ?? false,
+        downloads = (json['do'] ?? {}).map<String, DateTime>(
             (key, value) => MapEntry(key.toString(), DateTime.parse(value))),
-        cached = json['cached'],
-        cachedExpires = DateTime.parse(json['cachedExpires']);
+        cached = json['ca'] ?? "",
+        cachedExpires = DateTime.parse(json['cac']);
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'creator': creator,
-        'size': size,
-        'hash': base64Encode(hash),
-        'zip': zip,
-        'tags': tags,
-        'thumbnail': base64Encode(thumbnail),
-        'contentType': contentType,
-        'modTime': modTime.toIso8601String(),
-        'meta': meta,
-        'fileId': fileId,
-        'bodyKey': base64Encode(bodyKey),
+        'na': name,
+        'cr': creator,
+        'si': size,
+        'mo': modTime.toIso8601String(),
+        'fi': fileId,
+        'bo': base64Encode(bodyKey),
         'iv': base64Encode(iv),
-        'deleted': deleted,
-        'downloads': downloads,
-        'cached': cached,
-        'cachedExpires': cachedExpires.toIso8601String(),
+        'at': attributes.toJson(),
+        'de': deleted,
+        'do': downloads,
+        'ca': cached,
+        'cac': cachedExpires.toIso8601String(),
       };
 }
 
@@ -191,29 +206,56 @@ class OpenOptions {
 }
 
 class ListOptions {
-  String name = '';
-  int depth = 0;
-  String suffix = '';
-  String contentType = '';
-  int bodyID = 0;
-  List<String> tags = [];
-  DateTime before = DateTime(0); // Default value for before (Year 2000)
-  DateTime after = DateTime(0); // Default value for after (Year 2000)
-  int offset = 0;
-  int limit = 0;
-  bool includeDeleted = false;
-  bool prefetch = false;
-  bool errorIfNotExist = false;
+  String name;
+  int depth;
+  String suffix;
+  String contentType;
+  String creator;
+  bool noPrivate;
+  String privateId;
+  int bodyID;
+  List<String> tags;
+  DateTime? before;
+  DateTime? after;
+  DateTime? knownSince;
+  int offset;
+  int limit;
+  bool includeDeleted;
+  bool prefetch;
+  bool errorIfNotExist;
+
+  ListOptions(
+      {this.name = '',
+      this.depth = 0,
+      this.suffix = '',
+      this.contentType = '',
+      this.creator = '',
+      this.noPrivate = false,
+      this.privateId = '',
+      this.bodyID = 0,
+      this.tags = const [],
+      this.before,
+      this.after,
+      this.knownSince,
+      this.offset = 0,
+      this.limit = 0,
+      this.includeDeleted = false,
+      this.prefetch = false,
+      this.errorIfNotExist = false});
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'depth': depth,
         'suffix': suffix,
         'contentType': contentType,
+        'creator': creator,
+        'noPrivate': noPrivate,
+        'privateId': privateId,
         'bodyID': bodyID,
         'tags': tags,
-        //'before': before.toIso8601String(),
-        //'after': after.toIso8601String(),
+        'before': before?.toUtc().toIso8601String(),
+        'after': after?.toUtc().toIso8601String(),
+        'knownSince': knownSince?.toUtc().toIso8601String(),
         'offset': offset,
         'limit': limit,
         'includeDeleted': includeDeleted,
@@ -223,8 +265,10 @@ class ListOptions {
 }
 
 class ListDirsOptions {
-  int depth = 0;
-  bool errorIfNotExist = false;
+  int depth;
+  bool errorIfNotExist;
+
+  ListDirsOptions({this.depth = 0, this.errorIfNotExist = false});
 
   Map<String, dynamic> toJson() => {
         'depth': depth,
@@ -233,15 +277,26 @@ class ListDirsOptions {
 }
 
 class PutOptions {
-  bool replace = false;
-  int replaceID = 0;
-  List<String> tags = [];
-  List<int> thumbnail = [];
-  bool autoThumbnail = false;
-  String contentType = "";
-  bool zip = false;
-  Map<String, dynamic> meta = {};
-  String source = "";
+  bool replace;
+  int replaceID;
+  List<String> tags;
+  List<int> thumbnail;
+  bool autoThumbnail;
+  String contentType;
+  bool zip;
+  Map<String, dynamic> meta;
+  String source;
+
+  PutOptions(
+      {this.replace = false,
+      this.replaceID = 0,
+      this.tags = const [],
+      this.thumbnail = const [],
+      this.autoThumbnail = false,
+      this.contentType = '',
+      this.zip = false,
+      this.meta = const {},
+      this.source = ''});
 
   Map<String, dynamic> toJson() => {
         'replace': replace,
@@ -257,16 +312,39 @@ class PutOptions {
 }
 
 class GetOptions {
-  String destination = '';
-  int fileId = 0;
-  bool noCache = false;
-  Duration cacheExpire = Duration.zero;
+  String destination;
+  int fileId;
+  bool noCache;
+  Duration cacheExpire;
+
+  GetOptions(
+      {this.destination = '',
+      this.fileId = 0,
+      this.noCache = false,
+      this.cacheExpire = Duration.zero});
 
   Map<String, dynamic> toJson() => {
         'destination': destination,
         'fileId': fileId,
         'noCache': noCache,
         'cacheExpire': cacheExpire.inMicroseconds * 1000,
+      };
+}
+
+class SetUsersOptions {
+  bool replaceUsers;
+  Duration alignDelay;
+  bool syncAlign;
+
+  SetUsersOptions(
+      {this.replaceUsers = false,
+      this.alignDelay = Duration.zero,
+      this.syncAlign = false});
+
+  Map<String, dynamic> toJson() => {
+        'replaceUsers': replaceUsers,
+        'alignDelay': alignDelay.inMicroseconds * 1000,
+        'syncAlign': syncAlign,
       };
 }
 

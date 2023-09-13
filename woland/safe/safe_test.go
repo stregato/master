@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
@@ -110,15 +111,50 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	core.Assert(t, file.Cached != "", "Expected cached to be set")
 	core.Assert(t, len(file.Downloads) == 1, "Expected 1 download, got %d", len(file.Downloads))
 
+	second, err := security.NewIdentity("test2")
+	core.TestErr(t, err, "cannot create identity: %v")
+
 	f, err := os.CreateTemp(os.TempDir(), "test-woland*")
 	core.TestErr(t, err, "cannot create temp file: %v")
 	defer os.Remove(f.Name())
 	f.Write(data)
 	h, err := Put(s, "sub/file1", f, PutOptions{
-		Source: f.Name(),
+		Source:      f.Name(),
+		Private:     second.Id,
+		Tags:        []string{"tag1", "tag2"},
+		ContentType: "text/plain",
 	})
 	f.Close()
 	core.TestErr(t, err, "cannot put file: %v")
-	core.Assert(t, !h.Downloads["sub/file1"].IsZero(), "Expected download time to be set")
+	core.Assert(t, !h.Downloads[f.Name()].IsZero(), "Expected download time to be set")
+
+	err = SetUsers(s, map[string]Permission{second.Id: PermissionRead}, SetUsersOptions{})
+	core.TestErr(t, err, "cannot set users: %v")
+
+	users, err := GetUsers(s)
+	core.TestErr(t, err, "cannot get users: %v")
+	core.Assert(t, len(users) == 2, "Expected 2 users, got %d", len(users))
+
+	Close(s)
+
+	sql.CloseDB()
+	StartTestDB(t, dbPath)
+
+	access, err := EncodeAccess(second.Id, TestSafeName, TestID, nil, storeUrl)
+	core.TestErr(t, err, "cannot encode token: %v")
+
+	s, err = Open(second, access, OpenOptions{})
+	core.TestErr(t, err, "cannot open safe: %v")
+
+	files, err = ListFiles(s, "sub", ListOptions{})
+	core.TestErr(t, err, "cannot list files: %v")
+	core.Assert(t, len(files) == 2, "Expected 2 files, got %d", len(files))
+
+	h, err = Get(s, "sub/file1", &b, GetOptions{FileId: h.FileId})
+	core.TestErr(t, err, "cannot get file: %v")
+	core.Assert(t, bytes.Equal(data, b.Bytes()), "Expected data to be '%s', got '%s'", data, b.Bytes())
+	core.Assert(t, h.Attributes.ContentType == "text/plain", "Expected content type to be 'text/plain', got '%s'", h.Attributes.ContentType)
+	core.Assert(t, len(h.Attributes.Tags) == 2, "Expected 2 tags, got %d", len(h.Attributes.Tags))
+
 	Close(s)
 }

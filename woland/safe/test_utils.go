@@ -10,9 +10,9 @@ import (
 )
 
 var TestIdentity = security.Identity{
-	Id:      "A1fAUv0cNR7NOluPcw1FY4dvxkZUaPtcIRRNkhuRpgVsHkhHQnRSEIeawPakxP5NJwExc3lWDTT80gbnUkkJBZM=",
+	Id:      "AoG3alCW3P1JQEnYFw+Z_24vqPNcC8_YVWarZKsodCIFQ+j_VmNa9gkWMJnpZe58zO1Rpx8U31q7n2XzAIn8jaQ@",
 	Nick:    "test",
-	Private: "0aTfmfyGzzJph5OjkOzn0303TvJt4kORWMrG6PAOkLI5M5gVa_U_t7mJ0L7u7VM8iG_3nGob0sQ_WAwsYoTysB5IR0J0UhCHmsD2pMT+TScBMXN5Vg00_NIG51JJCQWT",
+	Private: "4J9vYRT5EYeeNH_S9C0jY9eaxDGtheEk31tXwqCh22akyZIDXA9a_mbtqQ+5Qi3u_mJqpkndUmudPC4g6RCfNUPo_1ZjWvYJFjCZ6WXufMztUacfFN9au59l8wCJ_I2k",
 	Email:   "test@woland.ch",
 	ModTime: core.Now(),
 }

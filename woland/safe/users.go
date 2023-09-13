@@ -19,9 +19,9 @@ const (
 )
 
 type SetUsersOptions struct {
-	ReplaceUsers bool
-	AlignDelay   time.Duration
-	SyncAlign    bool
+	ReplaceUsers bool          `json:"replaceUsers"`
+	AlignDelay   time.Duration `json:"alignDelay"`
+	SyncAlign    bool          `json:"syncAlign"`
 }
 
 // SetUsers sets some users with corresponding permissions for a zone.
@@ -46,7 +46,7 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		}
 	}
 
-	keyId, key, keys, delta, err := readKeystores(s.stores[0], s.Name, s.CurrentUser, s.users)
+	keyId, key, keys, delta, err := readKeystores(s.stores[0], s.Name, s.CurrentUser, users)
 	if core.IsErr(err, nil, "cannot read keystores in %s: %v", s.Name) {
 		return err
 	}

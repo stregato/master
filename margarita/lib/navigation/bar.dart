@@ -3,62 +3,73 @@ import 'dart:async';
 //import 'package:margarita/woland/woland.dart' as w;
 //import 'package:margarita/woland/woland_def.dart' as w;
 import 'package:flutter/material.dart';
+import 'package:margarita/navigation/news.dart';
+import 'package:margarita/woland/woland.dart';
+import 'package:margarita/woland/woland_def.dart';
 //import 'package:margarita/portal/pool.dart';
 //import 'package:basic_utils/basic_utils.dart';
 
-class MainNavigationBar extends StatefulWidget {
-  final String? poolName;
-  final bool settings;
-  const MainNavigationBar(
-    this.poolName, {
-    Key? key,
-    this.settings = false,
-  }) : super(key: key);
+class NewsNavigationBar extends StatefulWidget {
+  final int currentIndex;
+  final List<BottomNavigationBarItem> items;
+  final ValueChanged<int>? onTap;
+
+  const NewsNavigationBar(
+      {Key? key, required this.items, this.onTap, this.currentIndex = 0})
+      : super(key: key);
 
   @override
-  State<MainNavigationBar> createState() => _MainNavigationBarState();
+  State<NewsNavigationBar> createState() => _NewsNavigationBarState();
 }
 
-class _MainNavigationBarState extends State<MainNavigationBar> {
-  static Timer? _timer;
-//  static List<sp.Notification> _notifications = [];
-  static List<String> _notifications = [];
+class _NewsNavigationBarState extends State<NewsNavigationBar> {
+  Timer? _timer;
+  late int _currentIndex;
 
-  checkNotifications() {
-    setState(() {
-      _notifications = [];
-      //  sp.notifications(DateTime.now().subtract(const Duration(days: 1)));
-    });
+  _NewsNavigationBarState() {
+    _currentIndex = 0;
+    _timer ??= Timer.periodic(
+      const Duration(minutes: 10),
+      (Timer t) {
+        setState(() {});
+      },
+    );
   }
 
-  // @override
-  // void dispose() {
-  //   super.dispose();
-  //   _timer?.cancel();
-  //   _timer = null;
-  // }
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+    super.dispose();
+  }
 
-  void showNotifications() {
-    var notificationsList = _notifications
-        .map(
-          (e) => const Card(
-            child: ListTile(
-                // title: Text(e.count > 0 ? "${e.pool} (${e.count})" : e.pool),
-                // subtitle: e.message.isNotEmpty ? Text(e.message) : null,
-                // trailing: appsIcons[e.app] != null
-                //     ? Text(StringUtils.capitalize(e.app))
-                //     : Row(children: [
-                //         Text(StringUtils.capitalize(e.app)),
-                //         Icon(appsIcons[e.app])
-                //       ]),
-                // onTap: () {
-                //   Navigator.pushNamed(context, "/apps/${e.app}",
-                //       arguments: e.pool);
-                // },
-                ),
+  void showNotifications(Map<String, int> news) {
+    var entries = news.entries.toList();
+    entries.sort((a, b) => a.key.compareTo(b.key));
+    var notificationsList = entries.map(
+      (e) {
+        var sn = e.key;
+        var community = sn.substring(0, sn.lastIndexOf("/"));
+        var space = sn.substring(sn.lastIndexOf("/") + 1);
+        var count = e.value;
+        return Card(
+          child: ListTile(
+            title: Text("$space@$community ($count)"),
+            // subtitle: e.message.isNotEmpty ? Text(e.message) : null,
+            // trailing: appsIcons[e.app] != null
+            //     ? Text(StringUtils.capitalize(e.app))
+            //     : Row(children: [
+            //         Text(StringUtils.capitalize(e.app)),
+            //         Icon(appsIcons[e.app])
+            //       ]),
+            onTap: () {
+              // Navigator.pushNamed(context, "/apps/${e.app}",
+              //     arguments: e.pool);
+            },
           ),
-        )
-        .toList();
+        );
+      },
+    ).toList();
 
     showModalBottomSheet<void>(
         context: context,
@@ -72,53 +83,41 @@ class _MainNavigationBarState extends State<MainNavigationBar> {
         });
   }
 
+  Map<String, int> checkNotifications() {
+    var news = <String, int>{};
+
+    for (var e in openSaves.entries) {
+      var lastOpen = openSaves[e.key] ?? DateTime.fromMicrosecondsSinceEpoch(0);
+      var files = listFiles(e.key, "chat", ListOptions(knownSince: lastOpen));
+      if (files.isNotEmpty) {
+        news[e.key] = files.length;
+      }
+    }
+    return news;
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_timer == null) {
-      Future.delayed(const Duration(seconds: 1), checkNotifications);
-      _timer ??= Timer.periodic(
-        const Duration(minutes: 10),
-        (Timer t) {
-          checkNotifications();
-        },
-      );
-    }
-
-    var count = 0;
-    // for (var e in _notifications) {
-    //   count += e.count;
-    // }
-
+    var news = checkNotifications();
     return BottomNavigationBar(
-      currentIndex: 0,
+      currentIndex: _currentIndex,
       onTap: (idx) {
-        switch (idx) {
-          case 0:
-            Navigator.of(context).popUntil((route) => route.isFirst);
-            break;
-          case 1:
-            widget.poolName == null
-                ? Navigator.pushNamed(context, '/settings')
-                : Navigator.pushNamed(context, '/pool/settings',
-                    arguments: widget.poolName);
-            break;
-          case 2:
-            showNotifications();
-            break;
+        setState(() {
+          _currentIndex = idx;
+        });
+        if (idx < widget.items.length) {
+          widget.onTap?.call(idx);
+        } else if (idx == widget.items.length) {
+          showNotifications(news);
         }
       },
       items: [
-        const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        widget.poolName == null
-            ? const BottomNavigationBarItem(
-                icon: Icon(Icons.settings), label: "Settings")
-            : const BottomNavigationBarItem(
-                icon: Icon(Icons.waves), label: "Pool"),
+        ...widget.items,
         BottomNavigationBarItem(
-            icon: Icon(count == 0
+            icon: Icon(news.isEmpty
                 ? Icons.notifications_none
                 : Icons.notifications_active),
-            label: count == 0 ? "No News" : "News ($count)")
+            label: news.isEmpty ? "No News" : "News (${news.length})")
       ],
     );
   }

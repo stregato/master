@@ -1,4 +1,3 @@
-import 'package:margarita/navigation/bar.dart';
 import 'package:flutter/material.dart';
 
 class AddCommunity extends StatelessWidget {
@@ -57,7 +56,7 @@ class AddCommunity extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const MainNavigationBar(null),
+      //bottomNavigationBar: const NewsNavigationBar(),
     );
   }
 }

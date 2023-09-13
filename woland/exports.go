@@ -44,6 +44,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 	"unsafe"
 
 	"github.com/sirupsen/logrus"
@@ -511,6 +512,24 @@ func getUsers(safeName *C.char) C.Result {
 		return cResult(nil, err)
 	}
 	return cResult(users, nil)
+}
+
+//export checkForUpdates
+func checkForUpdates(safeName, dir *C.char, after *C.char, depth C.int) C.Result {
+	s, ok := safes[C.GoString(safeName)]
+	if !ok {
+		return cResult(nil, ErrSafeNotFound)
+	}
+	a, err := time.Parse(time.RFC3339, C.GoString(after))
+	if core.IsErr(err, nil, "cannot parse time: %v") {
+		return cResult(nil, err)
+	}
+
+	updates, err := safe.CheckForUpdates(s, C.GoString(dir), a, int(depth))
+	if core.IsErr(err, nil, "cannot check for updates: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(updates, nil)
 }
 
 //export getIdentities

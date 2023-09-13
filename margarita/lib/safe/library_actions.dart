@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:intl/intl.dart';
 import 'package:margarita/common/file_access.dart' as fa;
@@ -28,20 +27,6 @@ class _LibraryActionsState extends State<LibraryActions> {
   @override
   void initState() {
     super.initState();
-  }
-
-  static _saveFile(String poolName, int id, String target) {
-    return Isolate.run(() {
-//TODO      sp.librarySave(poolName, id, target);
-      return true;
-    });
-  }
-
-  static _receiveFile(String poolName, int id, String target) {
-    return Isolate.run(() {
-//TODO      sp.libraryReceive(poolName, id, target);
-      return true;
-    });
   }
 
   String getNick(String id) {
@@ -159,7 +144,9 @@ class _LibraryActionsState extends State<LibraryActions> {
         action = "Update to";
       }
       // local is not sync, so any download will be replace
-      else if (syncFileId == 0) {
+      else if (!localExists) {
+        action = "Download";
+      } else if (syncFileId == 0) {
         action = "Replace with";
       } else {
         action = "Update to";
