@@ -160,3 +160,10 @@ func (w *WebDAV) Close() error {
 func (w *WebDAV) String() string {
 	return w.url
 }
+
+func (w *WebDAV) Describe() Description {
+	return Description{
+		ReadCost:  0,
+		WriteCost: 0,
+	}
+}

@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:margarita/common/common.dart';
 import 'package:margarita/common/profile.dart';
-import 'package:margarita/navigation/bar.dart';
-import 'package:margarita/navigation/news.dart';
+import 'package:margarita/common/news_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:uni_links/uni_links.dart';
 import 'package:flutter/services.dart' show PlatformException;
@@ -18,6 +17,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   static StreamSubscription<Uri?>? linkSub;
   Uri? _unilink;
+  // ignore: unused_field
   bool _refresh = false;
 
   @override
@@ -85,10 +85,14 @@ class _HomeState extends State<Home> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(children: [
+        title: // Your content here
+            const Row(children: [
           Icon(Icons.group), // Add the desired icon
           SizedBox(width: 8), // Add some spacing between icon and text
-          Text("My Communities"),
+          Text(
+            "My Communities",
+            overflow: TextOverflow.ellipsis,
+          ),
         ]),
         actions: [
           PopupMenuButton<String>(
@@ -136,17 +140,8 @@ class _HomeState extends State<Home> {
         padding: const EdgeInsets.all(8),
         children: widgets,
       ),
-      bottomNavigationBar: NewsNavigationBar(
-        onTap: (idx) {
-          switch (idx) {
-            case 0:
-              Navigator.of(context).popUntil((route) => route.isFirst);
-              break;
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        ],
+      bottomNavigationBar: const NewsNavigationBar(
+        items: [],
       ),
     );
   }

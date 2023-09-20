@@ -1,41 +1,9 @@
 package main
 
 /*
-typedef struct Result{
-    char* res;
-	char* err;
-} Result;
-
-typedef struct App {
-	void (*feed)(char* name, char* data, int eof);
-} App;
-
-typedef struct Reader {
-	void* fd;
-	int (*read)(void* fd, void* data, int size);
-	int (*seek)(void* fd, int offset, int whence);
-	int (*write)(void* fd, void* data, int size);
-} Reader;
-
-int callRead(Reader* r, void* data, int size) {
-	return r->read(r->fd, data, size);
-}
-int callSeek(Reader *r, int offset, int whence) {
-	return r->seek(r->fd, offset, whence);
-}
-
-typedef struct Writer {
-	void* fd;
-	int (*write)(void* fd, void* data, int size);
-} Writer;
-
-int callWrite(Writer *w, void* data, int size) {
-	return w->write(w->fd, data, size);
-}
-
+#include "cfunc.h"
 #include <stdlib.h>
 */
-//#cgo LDFLAGS: -Wl,--allow-multiple-definition
 import "C"
 import (
 	"bytes"
@@ -55,7 +23,7 @@ import (
 	"github.com/stregato/master/woland/sql"
 )
 
-var ErrSafeNotFound = fmt.Errorf("portal not found")
+var ErrSafeNotFound = fmt.Errorf("safe not opened yet")
 var safes = map[string]*safe.Safe{}
 
 func cResult(v any, err error) C.Result {
@@ -223,7 +191,7 @@ func createSafe(identity *C.char, token *C.char, createOptions *C.char) C.Result
 	}
 
 	s, err := safe.Create(i, C.GoString(token), CreateOptions)
-	if core.IsErr(err, nil, "cannot create portal: %v") {
+	if core.IsErr(err, nil, "cannot create safe: %v") {
 		return cResult(nil, err)
 	}
 	safes[s.Name] = s
@@ -244,7 +212,17 @@ func openSafe(identity *C.char, token *C.char, openOptions *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	s, err := safe.Open(i, C.GoString(token), OpenOptions)
+	var access = C.GoString(token)
+	name, _, _, _, err := safe.DecodeAccess(i, access)
+	if core.IsErr(err, nil, "cannot decode access: %v") {
+		return cResult(nil, err)
+	}
+	s, ok := safes[name]
+	if ok {
+		return cResult(s, nil)
+	}
+
+	s, err = safe.Open(i, access, OpenOptions)
 	if core.IsErr(err, nil, "cannot open portal: %v") {
 		return cResult(nil, err)
 	}

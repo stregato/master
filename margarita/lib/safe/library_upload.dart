@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:isolate';
+
 import 'package:margarita/common/file_access.dart';
+import 'package:margarita/common/io.dart';
 import 'package:margarita/woland/woland.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
 import 'package:margarita/woland/woland_def.dart';
+import 'package:path/path.dart';
 
 class LibraryUploadArgs {
   String safeName;
@@ -21,112 +26,23 @@ class LibraryUpload extends StatefulWidget {
 
 class _LibraryUploadState extends State<LibraryUpload> {
   final _formKey = GlobalKey<FormState>();
-  String _targetFolder = "";
   String _targetName = "";
   late String _safeName;
+  late String _folder;
   late FileSelection _selection;
   bool _copyLocally = false;
   bool _uploading = false;
-  final Map<String, List<String>> _virtualFolders = {};
-  final TextEditingController _createFolderController = TextEditingController();
 
-  Future<String?> _createFolderDialog(BuildContext context) async {
-    return showDialog<String>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Create Folder'),
-            content: TextField(
-              controller: _createFolderController,
-              decoration: const InputDecoration(hintText: "Name"),
-            ),
-            actions: [
-              ElevatedButton(
-                child: const Text('Confirm'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              )
-            ],
-          );
-        });
-  }
-
-  Widget _getFolderSelection(BuildContext context) {
-    var crumbs = <BreadCrumbItem>[
-      BreadCrumbItem(
-        content: Text(_safeName),
-        onTap: () {
-          setState(() {
-            _targetFolder = "";
-          });
-        },
-      ),
-    ];
-    var s = "";
-    _targetFolder.split("/").forEach((n) {
-      if (n.isNotEmpty) {
-        s = s.isEmpty ? n : "$s/$n";
-        crumbs.add(BreadCrumbItem(
-            content: Text(n),
-            onTap: () {
-              setState(() {
-                _targetFolder = s;
-              });
-            }));
+  static Future<String> _uploadFile(String safeName, String name,
+      FileSelection selection, PutOptions options) {
+    return Isolate.run<String>(() {
+      try {
+        putFile(safeName, name, selection.path, options);
+        return "";
+      } catch (e) {
+        return e.toString();
       }
     });
-
-    var ls = listDirs(_safeName, _targetFolder, ListDirsOptions());
-    var subfolders = (_virtualFolders[_targetFolder] ?? []) + ls;
-    var items = subfolders
-        .map((e) => ListTile(
-              leading: const Icon(Icons.folder),
-              title: Text(e),
-              onTap: () => setState(() {
-                _targetFolder = "$_targetFolder/$e";
-              }),
-            ))
-        .toList();
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            BreadCrumb(
-              items: crumbs,
-              divider: const Icon(Icons.chevron_right),
-            ),
-            const Spacer(),
-            IconButton(
-              onPressed: () {
-                _createFolderDialog(context).then((value) {
-                  var text = _createFolderController.text;
-                  if (text.isNotEmpty) {
-                    setState(() {
-                      if (_virtualFolders[_targetFolder] != null) {
-                        _virtualFolders[_targetFolder]?.add(text);
-                      } else {
-                        _virtualFolders[_targetFolder] = [text];
-                      }
-                      _createFolderController.clear();
-                      _targetFolder =
-                          _targetFolder.isEmpty ? text : "$_targetFolder/$text";
-                    });
-                  }
-                });
-              },
-              icon: const Icon(Icons.create_new_folder),
-            ),
-          ],
-        ),
-        ListView(
-          padding: const EdgeInsets.all(8.0),
-          shrinkWrap: true,
-          children: items,
-        )
-      ],
-    );
   }
 
   @override
@@ -136,6 +52,7 @@ class _LibraryUploadState extends State<LibraryUpload> {
 
     _selection = args["selection"] as FileSelection;
     _safeName = args["safeName"] as String;
+    _folder = args["folder"] as String;
     _targetName = _selection.name;
 
     var action = _uploading
@@ -143,16 +60,24 @@ class _LibraryUploadState extends State<LibraryUpload> {
         : ElevatedButton(
             onPressed: () {
               try {
-                var target = _targetFolder.isEmpty
-                    ? _targetName
-                    : "$_targetFolder/$_targetName";
-
                 setState(() {
                   _uploading = true;
                 });
                 var options = PutOptions();
-                putFile(_safeName, "library/$target", _selection.path, options);
-                Navigator.pop(context);
+                if (_copyLocally) {
+                  var localPath =
+                      join(documentsFolder, _safeName, _folder, _targetName);
+                  File(_selection.path).copySync(localPath);
+                  options.source = localPath;
+                }
+                _uploadFile(_safeName, "library/$_folder/$_targetName",
+                        _selection, options)
+                    .then((value) {
+                  setState(() {
+                    _uploading = false;
+                  });
+                  Navigator.pop(context);
+                });
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     backgroundColor: Colors.red,
@@ -175,9 +100,7 @@ class _LibraryUploadState extends State<LibraryUpload> {
             key: _formKey,
             child: Column(
               children: [
-                _getFolderSelection(context),
                 TextFormField(
-                  maxLines: 6,
                   decoration: const InputDecoration(labelText: 'Name'),
                   initialValue: _targetName,
                   onChanged: (val) => setState(() {

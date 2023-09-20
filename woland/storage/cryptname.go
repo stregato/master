@@ -103,6 +103,10 @@ func (s *encrypted) Close() error {
 	return nil
 }
 
+func (s *encrypted) Describe() Description {
+	return s.Store.Describe()
+}
+
 // String returns a human-readable representation of the storer (e.g. sftp://user@host/path)
 func (s *encrypted) String() string {
 	return fmt.Sprintf("%s,enc", s.Store)

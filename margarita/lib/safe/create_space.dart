@@ -125,7 +125,7 @@ class _CreateSpaceState extends State<CreateSpace> {
                                 "opening portal, please wait",
                                 _createSpace(community, name, {
                                   for (var e in _users) e.id: permissionRead
-                                }),
+                                }).then((_) => Navigator.pop(context)),
                                 successMessage:
                                     "Congrats! You successfully created $name",
                                 errorMessage: "Creation failed");

@@ -58,24 +58,41 @@ func Open(currentUser security.Identity, token string, options OpenOptions) (*Sa
 		return nil, err
 	}
 
+	for _, identity := range identities {
+		if _, ok := users[identity.Id]; !ok {
+			users[identity.Id] = PermissionWait
+		}
+	}
+
 	keyId, key, keys, _, err := readKeystores(store, name, currentUser, users)
 	if core.IsErr(err, nil, "cannot read keystores in %s: %v", name) {
 		return nil, err
 	}
 	keys[keyId] = key
 
+	size, err := getSafeSize(name)
+	if core.IsErr(err, nil, "cannot get size of %s: %v", name) {
+		return nil, err
+	}
+
 	s := Safe{
 		CurrentUser: currentUser,
 		Name:        name,
+		Permission:  users[currentUser.Id],
 		Description: manifest.Description,
 		CreatorId:   creatorId,
+		Storage:     stores[0].Describe(),
+		Quota:       manifest.Quota,
+		QuotaGroup:  manifest.QuotaGroup,
+		Size:        size,
 		users:       users,
 
-		keyId:            keyId,
-		keys:             keys,
-		identities:       identities,
-		stores:           stores,
-		newestChangeFile: newestChangeFile,
+		keyId:                keyId,
+		keys:                 keys,
+		identities:           identities,
+		stores:               stores,
+		newestChangeFile:     newestChangeFile,
+		lastIdentitiesUpdate: core.Now(),
 	}
 
 	return &s, nil

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:margarita/apps/chat/chat.dart';
 import 'package:margarita/common/news_navigation_bar.dart';
+import 'package:margarita/common/profile.dart';
 import 'package:margarita/safe/library.dart';
 
 class ZoneViewArgs {
@@ -11,24 +12,25 @@ class ZoneViewArgs {
 
 var currentPanelIdx = <String, int>{};
 
-class Space extends StatefulWidget {
-  const Space({Key? key}) : super(key: key);
+class WaitingRoom extends StatefulWidget {
+  const WaitingRoom({Key? key}) : super(key: key);
 
   @override
-  State<Space> createState() => _SpaceState();
+  State<WaitingRoom> createState() => _WaitingRoomState();
 }
 
-class _SpaceState extends State<Space> {
+class _WaitingRoomState extends State<WaitingRoom> {
   List<Widget> _panels = [];
   int _currentItem = 0;
 
   @override
   Widget build(BuildContext context) {
-    var safeName = ModalRoute.of(context)!.settings.arguments as String;
+    var community = ModalRoute.of(context)!.settings.arguments as Community;
+    var safeName = "${community.name}/welcome";
+
     if (_panels.isEmpty) {
       _panels = [Chat(safeName, ""), Library(safeName)];
     }
-    openSaves[safeName] = DateTime.now();
 
     _currentItem = currentPanelIdx[safeName] ?? 0;
     var title = safeName.split("/").reversed.join("@");

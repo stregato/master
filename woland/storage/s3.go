@@ -234,16 +234,38 @@ func (s *S3) Stat(name string) (fs.FileInfo, error) {
 		Bucket: &s.bucket,
 		Key:    &name,
 	})
-	if err != nil {
-		return nil, s.mapError(err)
+	if err == nil {
+		return simpleFileInfo{
+			name:    path.Base(name),
+			size:    feed.ContentLength,
+			isDir:   strings.HasSuffix(name, "/"),
+			modTime: *feed.LastModified,
+		}, nil
+	}
+	err = s.mapError(err)
+	if !os.IsNotExist(err) {
+		return simpleFileInfo{}, err
 	}
 
-	return simpleFileInfo{
-		name:    path.Base(name),
-		size:    feed.ContentLength,
-		isDir:   strings.HasSuffix(name, "/"),
-		modTime: *feed.LastModified,
-	}, nil
+	name = path.Clean(name)
+	result, err := s.client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+		Bucket:    aws.String(s.bucket),
+		Prefix:    aws.String(name),
+		Delimiter: aws.String("/"),
+	})
+	if core.IsErr(err, nil, "cannot list %s/%s: %v", s.String(), name) {
+		return simpleFileInfo{}, s.mapError(err)
+	}
+
+	for _, item := range result.CommonPrefixes {
+		if *item.Prefix == name+"/" {
+			return simpleFileInfo{
+				name:  path.Base(name),
+				isDir: true,
+			}, nil
+		}
+	}
+	return simpleFileInfo{}, os.ErrNotExist
 }
 
 func (s *S3) Rename(old, new string) error {
@@ -256,6 +278,7 @@ func (s *S3) Rename(old, new string) error {
 }
 
 func (s *S3) Delete(name string) error {
+
 	input := &s3.ListObjectsInput{
 		Bucket: aws.String(s.bucket),
 		Prefix: aws.String(name + "/"),
@@ -272,15 +295,19 @@ func (s *S3) Delete(name string) error {
 			if core.IsErr(err, nil, "cannot delete %s: %v", item.Key) {
 				return s.mapError(err)
 			}
+			core.Info("deleted %s in S3 bucket %s", *item.Key, s.bucket)
 		}
 	} else {
 		_, err = s.client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
 			Bucket: &s.bucket,
 			Key:    &name,
 		})
+		if core.IsErr(err, nil, "cannot delete %s: %v", name) {
+			return s.mapError(err)
+		}
+		core.Info("deleted %s in S3 bucket %s", name, s.bucket)
 	}
 
-	core.IsErr(err, nil, "cannot delete %s: %v", name)
 	return s.mapError(err)
 }
 
@@ -290,4 +317,12 @@ func (s *S3) Close() error {
 
 func (s *S3) String() string {
 	return s.url
+}
+
+// Describe implements Store.
+func (*S3) Describe() Description {
+	return Description{
+		ReadCost:  0.0000004,
+		WriteCost: 0.000005,
+	}
 }

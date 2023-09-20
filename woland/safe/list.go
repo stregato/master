@@ -2,6 +2,7 @@ package safe
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -165,15 +166,19 @@ func ListDirs(s *Safe, dir string, options ListDirsOptions) ([]string, error) {
 func synchorize(currentUser security.Identity, store storage.Store, safeName, hashedDir string, depth int, keys map[uint64][]byte) (newFiles int, err error) {
 	var touch time.Time
 
-	_, i, _, ok := sql.GetConfig("SAFE_DIR_MODTIME", hashedDir)
+	var touchConfigKey = fmt.Sprintf("%s//%s", safeName, hashedDir)
+	last, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchConfigKey)
 	if ok {
 		touch, err = GetTouch(store, hashedDir)
 		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 			return 0, err
 		}
-		if time.Unix(i, 0) == touch {
-			core.Info("safe '%s' is up to date", safeName)
+		var diff = touch.Unix() - modTime
+		if diff < 2 {
+			core.Info("safe '%s' is up to date: touch %v is %d seconds older", safeName, touch, diff)
 			return 0, nil
+		} else {
+			core.Info("safe '%s' is outdated: touch %v is %d seconds older", safeName, touch, diff)
 		}
 	}
 
@@ -182,20 +187,19 @@ func synchorize(currentUser security.Identity, store storage.Store, safeName, ha
 		return 0, err
 	}
 
-	s, _, _, _ := sql.GetConfig("SAFE_DIR_LAST", hashedDir)
-
-	var last = s
+	var newLast = last
 	for _, l := range ls {
-		if l.Name() <= s {
+		name := l.Name()
+		if name <= last {
 			continue
 		}
 
-		headers, _, err := readHeaders(store, safeName, hashedDir, l.Name(), keys)
+		headers, _, err := readHeaders(store, safeName, hashedDir, name, keys)
 		if err != nil {
 			continue
 		}
-		if last == "" || last < l.Name() {
-			last = l.Name()
+		if newLast == "" || newLast < name {
+			newLast = name
 		}
 
 		for _, header := range headers {
@@ -219,16 +223,16 @@ func synchorize(currentUser security.Identity, store storage.Store, safeName, ha
 			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}
-	err = sql.SetConfig("SAFE_DIR_LAST", hashedDir, last, 0, nil)
+	touch, err = SetTouch(store, hashedDir)
+	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
+		return 0, err
+	}
+
+	err = sql.SetConfig("SAFE_TOUCH", touchConfigKey, newLast, touch.Unix(), nil)
 	if core.IsErr(err, nil, "cannot set safe touch file: %v", err) {
 		return 0, err
 	}
-	core.Info("saved last header %s", last)
-
-	err = sql.SetConfig("SAFE_DIR_MODTIME", hashedDir, "", touch.Unix(), nil)
-	if core.IsErr(err, nil, "cannot set zone touch: %v", err) {
-		return 0, err
-	}
+	core.Info("saved touch information: %v and %s", touch, newLast)
 
 	if depth != 0 {
 		ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{OnlyFolders: true})

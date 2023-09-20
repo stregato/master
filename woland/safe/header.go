@@ -146,6 +146,7 @@ func insertHeaderOrIgnoreToDB(safeName string, header Header) error {
 	r, err := sql.Exec("INSERT_HEADER", sql.Args{
 		"safe":         safeName,
 		"name":         header.Name,
+		"size":         header.Size,
 		"fileId":       header.FileId,
 		"base":         path.Base(header.Name),
 		"dir":          getDir(header.Name),

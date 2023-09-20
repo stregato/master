@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'dart:typed_data';
 
 import 'package:margarita/common/common.dart';
+import 'package:margarita/common/news_navigation_bar.dart';
 import 'package:snowflake_dart/snowflake_dart.dart';
 
 import 'package:margarita/common/image.dart';
@@ -33,11 +35,12 @@ class Chat extends StatefulWidget {
 }
 
 class _ChatState extends State<Chat> {
-  final List<types.Message> _messages = [];
+  List<types.Message> _messages = [];
   DateTime _from = DateTime.now().add(-const Duration(days: 1));
   DateTime _to = DateTime.now();
-  Timer? timer;
-  DateTime _lastMessage = DateTime.now();
+  Timer? _timer;
+  DateTime _nextRefresh = DateTime(0);
+  DateTime _lastMessage = DateTime(0);
   late types.User _currentUser;
   final Map<String, types.User> _users = {};
   final Set<String> _loaded = {};
@@ -47,15 +50,29 @@ class _ChatState extends State<Chat> {
   @override
   void initState() {
     super.initState();
-    timer = Timer.periodic(
-      const Duration(seconds: 30),
-      (Timer t) {
-        var diff = DateTime.now().difference(_lastMessage).inSeconds;
-        if (diff < 20 || diff > 50) {
-          _loadMoreMessages();
-        }
-      },
-    );
+    _timer = Timer.periodic(const Duration(seconds: 5), _refresh);
+    _loadMoreMessages();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _refresh(Timer timer) async {
+    if (mounted && DateTime.now().isAfter(_nextRefresh)) {
+      await _loadMoreMessages();
+      openSaves[widget.safeName] = DateTime.now();
+
+      var secs = DateTime.now().difference(_lastMessage).inSeconds / 4;
+      secs = min(secs, 30);
+      if (mounted) {
+        setState(() {
+          _nextRefresh = DateTime.now().add(Duration(seconds: secs.toInt()));
+        });
+      }
+    }
   }
 
   void _setUsers() {
@@ -71,13 +88,6 @@ class _ChatState extends State<Chat> {
       Identity i = getCachedIdentity(id);
       _users[id] = types.User(id: id, firstName: i.nick, lastName: i.email);
     }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    timer?.cancel();
-    timer = null;
   }
 
   types.Message _convertHtml(Header h, types.User user) {
@@ -184,9 +194,6 @@ class _ChatState extends State<Chat> {
   }
 
   _loadMoreMessages([bool showProgress = false]) async {
-    if (timer == null) {
-      return;
-    }
     _to = DateTime.now();
     var headers = showProgress
         // ignore: use_build_context_synchronously
@@ -200,22 +207,24 @@ class _ChatState extends State<Chat> {
 
     headers = headers.reversed.toList();
 
-    setState(() {
-      for (var header in headers) {
-        if (!_loaded.contains(header.name)) {
-          _messages.insert(0, _convert(header));
-          _loaded.add(header.name);
-        }
+    for (var header in headers) {
+      if (!_loaded.contains(header.name)) {
+        _messages.insert(0, _convert(header));
+        _loaded.add(header.name);
       }
+    }
 
-      _isLastPage =
-          _from.millisecondsSinceEpoch == 0 && headers.length < _pageThresold;
-      if (_from.microsecondsSinceEpoch == 0) {
-        _from = headers.first.modTime;
-      }
-      _from = headers.last.modTime;
-      _lastMessage = DateTime.now();
-    });
+    _isLastPage =
+        _from.millisecondsSinceEpoch == 0 && headers.length < _pageThresold;
+    _from = headers.last.modTime;
+    if (_from.isAfter(_lastMessage)) {
+      _lastMessage = _from;
+    }
+    if (mounted) {
+      setState(() {
+        _messages = _messages;
+      });
+    }
   }
 
   Widget _customMessageBuilder(types.CustomMessage message,
@@ -502,8 +511,6 @@ class _ChatState extends State<Chat> {
   Widget build(BuildContext context) {
     if (_users.isEmpty) {
       _setUsers();
-      Future.delayed(
-          const Duration(milliseconds: 10), () => _loadMoreMessages(true));
     }
 
     return Column(

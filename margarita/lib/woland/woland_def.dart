@@ -75,23 +75,48 @@ class DecodedToken {
       };
 }
 
+class StorageDesc {
+  double readCost;
+  double writeCost;
+
+  StorageDesc({this.readCost = 0.0, this.writeCost = 0.0});
+
+  Map<String, dynamic> toJson() => {
+        'readCost': readCost,
+        'writeCost': writeCost,
+      };
+
+  StorageDesc.fromJson(Map<String, dynamic> json)
+      : readCost = json['readCost'] ?? 0.0,
+        writeCost = json['writeCost'] ?? 0.0;
+}
+
 class Safe {
   Identity currentUser;
   String creatorId = "";
   String name = "";
   String description = "";
+  StorageDesc storage = StorageDesc();
+  int quota = 0;
+  String quotaGroup = "";
 
   Safe.fromJson(Map<String, dynamic> json)
       : name = json['name'],
         currentUser = Identity.fromJson(json['currentUser']),
         creatorId = json['creatorId'],
-        description = json['description'];
+        description = json['description'],
+        storage = StorageDesc.fromJson(json['storage']),
+        quota = json['quota'] ?? 0,
+        quotaGroup = json['quotaGroup'] ?? "";
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'currentUser': currentUser.toJson(),
         'creatorId': creatorId,
         'description': description,
+        'storage': storage.toJson(),
+        'quota': quota,
+        'quotaGroup': quotaGroup,
       };
 }
 
@@ -173,12 +198,17 @@ class CreateOptions {
   String description;
   int changeLogWatch;
   int replicaWatch;
+  int quota;
+  String quotaGroup;
 
-  CreateOptions()
-      : wipe = false,
-        description = "",
-        changeLogWatch = 0,
-        replicaWatch = 0;
+  CreateOptions({
+    this.wipe = false,
+    this.description = '',
+    this.changeLogWatch = 0,
+    this.replicaWatch = 0,
+    this.quota = 0,
+    this.quotaGroup = '',
+  });
 
   Map<String, dynamic> toJson() => {
         'wipe': wipe,
@@ -351,7 +381,8 @@ class SetUsersOptions {
 typedef Permission = int;
 typedef Users = Map<String, Permission>;
 
-var permissionRead = 1;
-var permissionWrite = 2;
+var permissionWait = 1;
+var permissionRead = 2;
+var permissionWrite = 4;
 var permissionAdmin = 16;
 var permissionSuperAdmin = 32;

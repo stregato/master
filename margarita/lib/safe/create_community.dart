@@ -1,4 +1,5 @@
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:margarita/common/profile.dart';
 import 'package:margarita/common/progress.dart';
@@ -21,27 +22,59 @@ const validSchemas = ["s3", "sftp", "file"];
 class _CreateCommunityState extends State<CreateCommunity> {
   final _formKey = GlobalKey<FormState>();
 
-  String name = "";
-  List<String> urls = [];
+  String _name = "";
+  String _description = "";
+  List<String> _urls = [];
+  String? _sameStorageAs;
+  double _sliderValue = 1;
+  bool _wipe = false;
 
   bool _validConfig() {
-    return name.isNotEmpty && urls.isNotEmpty;
+    return _name.isNotEmpty && _urls.isNotEmpty;
   }
 
-  _createCommunity(String name, List<String> urls) {
+  _createCommunity(
+      String name, List<String> urls, CreateOptions options) async {
     return Isolate.run<Profile>(() {
       var p = Profile.current();
       var token = encodeAccess(
           p.identity.id, "$name/$welcomeSpace", p.identity.id, "", urls);
-      createSafe(p.identity, token, CreateOptions());
+      createSafe(p.identity, token, options);
       p.communities[name] = Community(name, {welcomeSpace: token});
       p.save();
       return p;
     });
   }
 
+  int _mapSliderToValue(double sliderValue) {
+    if (sliderValue == 1) {
+      return 0;
+    }
+    // Map the slider's logarithmic value (0-1) to the desired byte range
+    const double minValue = 1e7; // 10 MB in bytes
+    const double maxValue = 1.1e11; // 100 GB in bytes
+    var value = minValue * pow(maxValue / minValue, sliderValue).truncate();
+    return value < 1e9
+        ? value.toInt()
+        : ((value / 1e9).truncate() * 1e9).toInt();
+  }
+
+  String _getDisplayValue(int value) {
+    if (value == 0) {
+      return 'Unlimited';
+    } else if (value >= 1e9) {
+      // Display in GB if greater than or equal to 1 GB
+      return '${(value / 1e9).toStringAsFixed(2)} GB';
+    } else {
+      // Display in MB if less than 1 GB
+      return '${(value / 1e6).toStringAsFixed(2)} MB';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    var profile = Profile.current();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Create Community"),
@@ -62,8 +95,16 @@ class _CreateCommunityState extends State<CreateCommunity> {
                   validator: (value) {
                     return null;
                   },
-                  onChanged: (val) => setState(() => name = val),
+                  onChanged: (val) => setState(() => _name = val),
                 ),
+                TextFormField(
+                  decoration: const InputDecoration(labelText: 'Description'),
+                  validator: (value) {
+                    return null;
+                  },
+                  onChanged: (val) => setState(() => _description = val),
+                ),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     const Text(
@@ -79,7 +120,7 @@ class _CreateCommunityState extends State<CreateCommunity> {
                             .then((value) {
                           if (value is Storage) {
                             setState(() {
-                              urls.add(value.url);
+                              _urls.add(value.url);
                             });
                           }
                         });
@@ -91,25 +132,101 @@ class _CreateCommunityState extends State<CreateCommunity> {
                 ListView.builder(
                   scrollDirection: Axis.vertical,
                   shrinkWrap: true,
-                  itemCount: urls.length,
+                  itemCount: _urls.length,
                   itemBuilder: (context, index) => ListTile(
                     leading: const Icon(Icons.share),
                     trailing: IconButton(
                         icon: const Icon(Icons.delete),
                         onPressed: () {
                           setState(() {
-                            urls.removeAt(index);
+                            _urls.removeAt(index);
                           });
                         }),
-                    title: Text(urls[index]),
+                    title: Text(_urls[index]),
                   ),
                 ),
                 const SizedBox(
                   height: 20,
                 ),
+                Row(
+                  children: [
+                    const Text(
+                      "Same storage as",
+                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: // Replace with your label
+                          DropdownButton<String>(
+                        value: _sameStorageAs,
+                        items: profile.communities.keys
+                            .map((e) =>
+                                DropdownMenuItem(value: e, child: Text(e)))
+                            .toList(),
+                        onChanged: (name) {
+                          var c = profile.communities[name];
+                          var access = c?.spaces["welcome"]!;
+                          var d = decodeAccess(profile.identity, access!);
+
+                          setState(() {
+                            _urls = d.urls;
+                            _sameStorageAs = name;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
                 const Text(
-                  "Services",
+                  "Limit storage",
                   style: TextStyle(color: Colors.black54, fontSize: 14),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Text(_getDisplayValue(_mapSliderToValue(_sliderValue))),
+                    Slider(
+                      min: 0.0,
+                      max: 1.0,
+                      value: _sliderValue,
+                      onChanged: (value) {
+                        setState(() {
+                          _sliderValue = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                Row(
+                  children: [
+                    const Text(
+                      "Wipe (danger)",
+                      style: TextStyle(color: Colors.red, fontSize: 14),
+                    ),
+                    const Spacer(),
+                    Switch(
+                      value: _wipe,
+                      onChanged: (value) {
+                        setState(() {
+                          _wipe = value;
+                        });
+                        if (value) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Danger: wipe will delete all data in the community'),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -120,9 +237,16 @@ class _CreateCommunityState extends State<CreateCommunity> {
                             await progressDialog(
                                 context,
                                 "opening portal, please wait",
-                                _createCommunity(name, urls),
+                                _createCommunity(
+                                    _name,
+                                    _urls,
+                                    CreateOptions(
+                                        wipe: _wipe,
+                                        description: _description,
+                                        quota: _mapSliderToValue(_sliderValue),
+                                        quotaGroup: "$_name/")),
                                 successMessage:
-                                    "Congrats! You successfully created $name",
+                                    "Congrats! You successfully created $_name",
                                 errorMessage: "Creation failed");
                             // ignore: use_build_context_synchronously
                             Navigator.popUntil(

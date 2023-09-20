@@ -61,9 +61,11 @@ class _InviteState extends State<Invite> {
   }
 
   _add() {
-    var d =
-        decodeAccess(Profile.current().identity, _community.spaces['welcome']!);
+    var profile = Profile.current();
+    var access = _community.spaces['welcome']!;
+    var d = decodeAccess(profile.identity, access);
     if (_id.isNotEmpty) {
+      openSafe(profile.identity, access, OpenOptions());
       setUsers(
           d.safeName,
           {_id: permissionRead + permissionWrite + permissionAdmin},

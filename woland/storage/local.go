@@ -132,6 +132,13 @@ func (l *Local) Close() error {
 	return nil
 }
 
+func (l *Local) Describe() Description {
+	return Description{
+		ReadCost:  0.0000000001,
+		WriteCost: 0.0000000001,
+	}
+}
+
 func (l *Local) String() string {
 	return l.url
 }

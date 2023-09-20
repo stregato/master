@@ -59,3 +59,7 @@ func (s *sub) Close() error {
 func (s *sub) String() string {
 	return fmt.Sprintf("%s/%s", s.Store, s.Base)
 }
+
+func (s *sub) Describe() Description {
+	return s.Store.Describe()
+}

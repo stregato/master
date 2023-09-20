@@ -224,3 +224,11 @@ func (s *SFTP) Close() error {
 func (s *SFTP) String() string {
 	return s.url
 }
+
+// Describe implements Store.
+func (*SFTP) Describe() Description {
+	return Description{
+		ReadCost:  0.000000001,
+		WriteCost: 0.000000001,
+	}
+}

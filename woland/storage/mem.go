@@ -150,6 +150,13 @@ func (m *Memory) Close() error {
 	return nil
 }
 
+func (m *Memory) Describe() Description {
+	return Description{
+		ReadCost:  0.0000000001,
+		WriteCost: 0.0000000001,
+	}
+}
+
 func (m *Memory) String() string {
 	return m.url
 }

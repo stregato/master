@@ -14,7 +14,6 @@ import 'package:margarita/apps/chat/theme.dart';
 import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
 import 'package:margarita/common/file_access.dart' as fa;
 import 'package:file_icon/file_icon.dart';
-import 'package:open_file_plus/open_file_plus.dart';
 import 'dart:collection';
 import 'package:path/path.dart' as path;
 
@@ -110,6 +109,39 @@ class _LibraryState extends State<Library> {
     return t;
   }
 
+  Future<void> _newFolderDialog(BuildContext context) async {
+    var textController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enter folder name'),
+          content: TextField(
+            controller: textController,
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+            TextButton(
+              child: const Text('Create'),
+              onPressed: () {
+                var d = path.join(documentsFolder, widget.safeName, _folder,
+                    textController.text);
+                Directory(d).createSync(recursive: true);
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   _refreshIfNeeded(BuildContext context) {
     if (_reload) {
       _reload = false;
@@ -133,7 +165,7 @@ class _LibraryState extends State<Library> {
         }
 
         dirs = dirs ?? [];
-        var d = Directory(path.join(documentsFolder, widget.safeName));
+        var d = Directory(path.join(documentsFolder, widget.safeName, _folder));
         if (!d.existsSync()) {
           d.createSync(recursive: true);
         }
@@ -248,31 +280,41 @@ class _LibraryState extends State<Library> {
           const SizedBox(height: 10),
           Row(
             children: [
-              ElevatedButton(
-                child: const Text("Open Folder"),
-                onPressed: () => fa.openFile(
-                    context, "$documentsFolder/${widget.safeName}/$_folder"),
+              Expanded(
+                child: ElevatedButton(
+                  child: const Text("Open Folder"),
+                  onPressed: () => fa.openFile(
+                      context, "$documentsFolder/${widget.safeName}/$_folder"),
+                ),
               ),
-              const Spacer(),
-              ElevatedButton(
-                child: const Text("New Folder"),
-                onPressed: () => fa.openFile(
-                    context, "$documentsFolder/${widget.safeName}/$_folder"),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                  child: const Text("Upload"),
-                  onPressed: () {
-                    fa.getFile(context).then((selection) {
-                      if (selection.valid) {
-                        Navigator.pushNamed(context, "/library/upload",
-                            arguments: {
-                              'safeName': widget.safeName,
-                              'selection': selection,
-                            }).then(_refresh);
-                      }
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  child: const Text("New Folder"),
+                  onPressed: () => _newFolderDialog(context).then((value) {
+                    setState(() {
+                      _reload = true;
                     });
                   }),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                    child: const Text("Upload"),
+                    onPressed: () {
+                      fa.getFile(context).then((selection) {
+                        if (selection.valid) {
+                          Navigator.pushNamed(context, "/library/upload",
+                              arguments: {
+                                'safeName': widget.safeName,
+                                'selection': selection,
+                                'folder': _folder,
+                              }).then(_refresh);
+                        }
+                      });
+                    }),
+              ),
             ],
           ),
           const SizedBox(height: 10),

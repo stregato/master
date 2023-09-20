@@ -56,6 +56,7 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 
 		if identity, ok := m[userId]; ok && identity.ModTime.Before(l.ModTime()) {
 			identities = append(identities, *identity)
+			core.Info("identity '%s' is up to date", userId)
 			continue
 		}
 
@@ -78,6 +79,7 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 			continue
 		}
 		identities = append(identities, identity)
+		core.Info("identity '%s' has been updated", userId)
 	}
 
 	return identities, nil

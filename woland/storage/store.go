@@ -44,6 +44,11 @@ type Filter struct {
 	Function    func(fs.FileInfo) bool //Function filters on a custom function
 }
 
+type Description struct {
+	ReadCost  float64 //ReadCost is the cost of reading 1 byte in CHF as per 2023
+	WriteCost float64 //WriteCost is the cost of writing 1 byte in CHF as per 2023
+}
+
 // Store is a low level interface to storage services such as S3 or SFTP
 type Store interface {
 	//ReadDir returns the entries of a folder content
@@ -66,6 +71,8 @@ type Store interface {
 
 	// String returns a human-readable representation of the storer (e.g. sftp://user@host.cc/path)
 	String() string
+
+	Describe() Description
 }
 
 // Open creates a new exchanger giving a provided configuration

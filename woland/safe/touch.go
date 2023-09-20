@@ -22,13 +22,14 @@ func GetTouch(store storage.Store, filePath string) (time.Time, error) {
 }
 
 // SetTouch creates an empty file at the specified path using the provided Store implementation.
-func SetTouch(store storage.Store, filePath string) error {
+func SetTouch(store storage.Store, filePath string) (time.Time, error) {
 	emptyData := []byte{} // Empty data to write
 
 	err := store.Write(filePath, core.NewBytesReader(emptyData), nil)
 	if err != nil {
-		return err
+		return time.Time{}, err
 	}
 
-	return nil
+	return GetTouch(store, filePath)
+
 }

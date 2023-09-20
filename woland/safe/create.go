@@ -2,7 +2,6 @@ package safe
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/sql"
 )
 
 type CreateOptions struct {
@@ -17,6 +17,8 @@ type CreateOptions struct {
 	Description    string        `json:"description"`    // Description of the safe
 	ChangeLogWatch time.Duration `json:"changeLogWatch"` // ChangeLogWatch is the period for watching changes in the change log
 	ReplicaWatch   time.Duration `json:"replicaWatch"`   // ReplicaWatch is the period for synchronizing replicas
+	Quota          int64         `json:"quota"`          // Quota is the maximum size of the safe in bytes
+	QuotaGroup     string        `json:"quotaGroup"`     // QuotaGroup is the common prefix for the safes that share the quota
 }
 
 const (
@@ -45,13 +47,17 @@ func Create(currentUser security.Identity, access string, options CreateOptions)
 
 	for _, store := range stores {
 		_, err = store.Stat("")
-		if !os.IsNotExist(err) {
+		if err == nil {
 			if options.Wipe {
+				core.Info("wiping safe: name %s", name)
 				store.Delete("")
 			} else {
 				return nil, fmt.Errorf("safe already exist: name %s", name)
 			}
 		}
+	}
+	if options.Wipe {
+		sql.Exec("DELETE_SAFE", sql.Args{"safe": name})
 	}
 
 	keyId := snowflake.ID()
@@ -71,6 +77,8 @@ func Create(currentUser security.Identity, access string, options CreateOptions)
 		Description:    options.Description,
 		ChangeLogWatch: options.ChangeLogWatch,
 		ReplicaWatch:   options.ReplicaWatch,
+		Quota:          options.Quota,
+		QuotaGroup:     options.QuotaGroup,
 	})
 	if core.IsErr(err, nil, "cannot write manifest file in %s: %v", name) {
 		return nil, err
@@ -86,11 +94,18 @@ func Create(currentUser security.Identity, access string, options CreateOptions)
 		return nil, err
 	}
 
+	core.Info("safe created: name %s, creator %s, description %s, quota %d", name, currentUser.Id,
+		options.Description, options.Quota)
+
 	return &Safe{
 		CurrentUser: currentUser,
 		CreatorId:   creatorId,
 		Name:        name,
 		Description: options.Description,
+		Storage:     stores[0].Describe(),
+		Quota:       options.Quota,
+		QuotaGroup:  options.QuotaGroup,
+		Size:        0,
 		users:       users,
 		keyId:       keyId,
 		keys:        keys,

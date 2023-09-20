@@ -54,7 +54,9 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		return Header{}, fmt.Errorf(ErrInvalidName, name)
 	}
 
-	dir := hashPath(getDir(name))
+	applyQuota(0.97, s.QuotaGroup, s.stores, s.Size, s.Quota, true)
+
+	hashedDir := hashPath(getDir(name))
 	now := core.Now()
 	id := snowflake.ID()
 	var secondaryKey []byte
@@ -79,7 +81,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 
 	hsr := hashSizeReader(r, hash, options.Progress)
 	var r2 io.ReadSeeker = hsr
-	bodyFile := path.Join(DataFolder, dir, fmt.Sprintf("%d.b", id))
+	bodyFile := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", id))
 	if options.Zip {
 		r2, err = gzipStream(r2)
 		if core.IsErr(err, nil, "cannot compress data: %v", err) {
@@ -122,7 +124,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 
 	var deletables []Header
 	if options.Replace {
-		homonyms, err := ListFiles(s, dir, ListOptions{Name: name})
+		homonyms, err := ListFiles(s, hashedDir, ListOptions{Name: name})
 		if core.IsErr(err, nil, "cannot list homonyms: %v", err) {
 			store.Delete(bodyFile)
 			return Header{}, err
@@ -131,7 +133,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		core.Info("Replacing %d files with name %s", len(homonyms), name)
 	}
 	if options.ReplaceID != 0 {
-		replaceable, err := ListFiles(s, dir, ListOptions{FileId: options.ReplaceID})
+		replaceable, err := ListFiles(s, hashedDir, ListOptions{FileId: options.ReplaceID})
 		if core.IsErr(err, nil, "cannot list replaceable: %v", err) {
 			store.Delete(bodyFile)
 			return Header{}, err
@@ -169,18 +171,23 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		encryptedHeader.EncryptedAttributes = encryptedAttributes
 		encryptedHeader.BodyKey = nil
 		encryptedHeader.Attributes = Attributes{}
-		err = writeHeaders(store, s.Name, dir, s.keyId, s.keys, []Header{encryptedHeader})
+		err = writeHeaders(store, s.Name, hashedDir, s.keyId, s.keys, []Header{encryptedHeader})
 	} else {
-		err = writeHeaders(store, s.Name, dir, s.keyId, s.keys, []Header{header})
+		err = writeHeaders(store, s.Name, hashedDir, s.keyId, s.keys, []Header{header})
 	}
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
 		store.Delete(bodyFile)
 		return Header{}, err
 	}
 	core.Info("Wrote header for %s[%d]", header.Name, header.FileId)
+	_, err = SetTouch(store, hashedDir)
+	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
+		return Header{}, err
+	}
 
 	for _, file := range deletables {
-		deleteFile(store, s.Name, file)
+		hashedDir := hashPath(getDir(file.Name))
+		deleteFile(s.stores, s.Name, hashedDir, file.FileId)
 		core.Info("Deleted %s[%d]", file.Name, file.FileId)
 	}
 
@@ -195,6 +202,9 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 	err = insertHeaderOrIgnoreToDB(s.Name, header)
 	core.IsErr(err, nil, "cannot insert header: %v", err)
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
+
+	s.Size += header.Size
+	applyQuota(0.95, s.QuotaGroup, s.stores, s.Size, s.Quota, false)
 
 	return header, nil
 }
@@ -242,17 +252,16 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 	}
 }
 
-func deleteFile(store storage.Store, safeName string, header Header) error {
-	fullName := path.Join(DataFolder, fmt.Sprintf("%d.b", header.FileId))
-	err := store.Delete(fullName)
-	if core.IsErr(err, nil, "cannot delete file: %v", err) {
-		return err
+func deleteFile(stores []storage.Store, safeName string, hashedDir string, fileId uint64) error {
+	fullName := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", fileId))
+	for _, store := range stores {
+		err := store.Delete(fullName)
+		core.IsErr(err, nil, "cannot delete file: %v", err)
 	}
 
-	_, err = sql.Exec("SET_DELETED_FILE", sql.Args{
+	_, err := sql.Exec("SET_DELETED_FILE", sql.Args{
 		"safe":   safeName,
-		"name":   header.Name,
-		"fileId": header.FileId,
+		"fileId": fileId,
 	})
 	if core.IsErr(err, nil, "cannot set deleted file: %v", err) {
 		return err

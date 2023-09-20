@@ -3,6 +3,7 @@ package safe
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/storage"
@@ -28,17 +29,23 @@ const KeySize = 32
 type Keys map[uint64][]byte
 
 type Safe struct {
-	CurrentUser security.Identity `json:"currentUser"`
-	CreatorId   string            `json:"creatorId"`
-	Name        string            `json:"name"`        // Name of the box including the path
-	Description string            `json:"description"` // Description of the box
+	CurrentUser security.Identity   `json:"currentUser"`
+	CreatorId   string              `json:"creatorId"`
+	Name        string              `json:"name"`        // Name of the box including the path
+	Permission  Permission          `json:"permission"`  // Permission of the current user
+	Description string              `json:"description"` // Description of the box
+	Storage     storage.Description `json:"storage"`     // Information about the store
+	Quota       int64               `json:"quota"`       // Quota of the safe in bytes
+	QuotaGroup  string              `json:"quotaGroup"`  // QuotaGroup is the common prefix for the safes that share the quota
+	Size        int64               `json:"size"`        // Size of the safe in bytes
 
-	users            Users // Users and their permissions
-	keyId            uint64
-	keys             Keys
-	identities       []security.Identity
-	stores           []storage.Store
-	newestChangeFile string
+	users                Users // Users and their permissions
+	keyId                uint64
+	keys                 Keys
+	identities           []security.Identity
+	stores               []storage.Store
+	newestChangeFile     string
+	lastIdentitiesUpdate time.Time
 }
 
 // Admins defines the users who are administrators of a box and for each those that have level2, i.e. can add or remove other administrators

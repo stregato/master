@@ -11,10 +11,12 @@ import (
 )
 
 type manifestFile struct {
-	CreatorId      string        `json:"creatorId"`
-	Description    string        `json:"description"`
-	ChangeLogWatch time.Duration `json:"changeLogWatch"`
-	ReplicaWatch   time.Duration `json:"replicaWatch"`
+	CreatorId      string        `json:"creatorId"`      // CreatorId is the id of the creator of the safe
+	Description    string        `json:"description"`    // Description of the safe
+	ChangeLogWatch time.Duration `json:"changeLogWatch"` // ChangeLogWatch is the period for watching changes in the change log
+	ReplicaWatch   time.Duration `json:"replicaWatch"`   // ReplicaWatch is the period for synchronizing replicas
+	Quota          int64         `json:"quota"`          // Quota is the maximum size of the safe in bytes
+	QuotaGroup     string        `json:"quotaGroup"`     // QuotaGroup is the common prefix for the safes that share the quota
 }
 
 func readManifestFile(s storage.Store, creatorId string) (manifestFile, error) {

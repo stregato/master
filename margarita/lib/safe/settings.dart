@@ -1,5 +1,7 @@
 import 'package:margarita/common/profile.dart';
 import 'package:flutter/material.dart';
+import 'package:margarita/woland/woland.dart';
+import 'package:margarita/woland/woland_def.dart';
 
 class CommunitySettings extends StatefulWidget {
   const CommunitySettings({super.key});
@@ -13,9 +15,19 @@ class _CommunitySettingsState extends State<CommunitySettings> {
   Widget build(BuildContext context) {
     final community = ModalRoute.of(context)!.settings.arguments as Community;
 
+    var identity = Profile.current().identity;
+    var access = community.spaces["welcome"]!;
+    var safe = openSafe(identity, access, OpenOptions());
+
     final buttonStyle = ButtonStyle(
       padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(20)),
     );
+
+    var quota = safe.quota == 0
+        ? "unlimited"
+        : safe.quota < 1e9
+            ? "${safe.quota / 1e6}MB"
+            : "${safe.quota / 1e9}GB";
 
     return Scaffold(
       appBar: AppBar(
@@ -26,6 +38,11 @@ class _CommunitySettingsState extends State<CommunitySettings> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text("Description: ${safe.description}"),
+            const SizedBox(height: 20),
+            Text("Quota: $quota"),
+            const SizedBox(height: 20),
+            Text("Quota Group: ${safe.quotaGroup}"),
             const SizedBox(height: 20),
             const Text("Danger Zone",
                 textAlign: TextAlign.center,

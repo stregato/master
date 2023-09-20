@@ -38,8 +38,9 @@ type Permission int
 
 const (
 	PermissionNone       Permission = 0
-	PermissionRead       Permission = 1
-	PermissionWrite      Permission = 2
+	PermissionWait       Permission = 1
+	PermissionRead       Permission = 2
+	PermissionWrite      Permission = 4
 	PermissionAdmin      Permission = 16
 	PermissionSuperAdmin Permission = 32
 )

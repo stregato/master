@@ -66,6 +66,7 @@ DELETE FROM Zone WHERE portal=:portal AND name=:name
 CREATE TABLE IF NOT EXISTS Header (
   safe TEXT NOT NULL,
   name TEXT NOT NULL,
+  size INTEGER NOT NULL,
   fileId INTEGER NOT NULL,
   base TEXT NOT NULL,
   dir TEXT,
@@ -82,16 +83,19 @@ CREATE TABLE IF NOT EXISTS Header (
   PRIMARY KEY (safe, name, fileId)
 );
 
+-- INIT
+CREATE INDEX IF NOT EXISTS modTimeIndex ON Header (modTime);
+
 -- INSERT_HEADER
-INSERT INTO Header (safe, name, fileId, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, cacheExpires, header)
-VALUES (:safe, :name, :fileId, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :cacheExpires, :header)
+INSERT INTO Header (safe, name, size, fileId, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, cacheExpires, header)
+VALUES (:safe, :name, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :cacheExpires, :header)
 ON CONFLICT (safe, name, fileId)  DO NOTHING;
 
 -- UPDATE_HEADER
 UPDATE Header SET header = :header, cacheExpires=:cacheExpires WHERE safe = :safe AND fileId = :fileId
 
 -- SET_DELETED_FILE
-UPDATE Header SET deleted = 1 WHERE safe = :safe AND name = :name AND fileId = :fileId
+UPDATE Header SET deleted = 1 WHERE safe = :safe AND fileId = :fileId
 
 -- GET_FILES
 SELECT header FROM Header
@@ -135,3 +139,15 @@ SELECT header FROM Header
 WHERE cacheExpires > 0
 ORDER BY cacheExpires ASC
 LIMIT 1;
+
+-- GET_SAFE_SIZE
+SELECT IFNULL(SUM(size), 0) FROM Header WHERE safe LIKE :quoteGroup || '%' AND deleted = 0;
+
+-- GET_OLDEST_FILE
+SELECT safe, fileId, dir, size  FROM Header
+WHERE safe LIKE :quoteGroup || '%' AND deleted = 0
+ORDER BY modTime ASC
+LIMIT 1;
+
+-- DELETE_SAFE
+DELETE FROM Header WHERE safe = :safe
