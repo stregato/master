@@ -22,14 +22,13 @@
 
 /* Begin PBXBuildFile section */
 		131EA0B429FD02BB009B47DF /* libwoland.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 131EA0B229FD0288009B47DF /* libwoland.dylib */; };
-		131EA0B729FD0389009B47DF /* libwoland.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 131EA0B629FD0388009B47DF /* libwoland.dylib */; settings = {ATTRIBUTES = (Weak, ); }; };
-		131EA0B829FD039F009B47DF /* libwoland.dylib in Embed Libraries */ = {isa = PBXBuildFile; fileRef = 131EA0B629FD0388009B47DF /* libwoland.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
 		33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC10F02044A3C60003C045 /* AppDelegate.swift */; };
 		33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F22044A3C60003C045 /* Assets.xcassets */; };
 		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		35AB26862A4F90DE18672A6E /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AB5B8136D35E477538B908F3 /* Pods_Runner.framework */; };
+		35FD392D2ABB8ECF009EE38A /* libwoland.dylib in Embed Libraries */ = {isa = PBXBuildFile; fileRef = 35FD39272ABB8D7E009EE38A /* libwoland.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,7 +48,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				131EA0B829FD039F009B47DF /* libwoland.dylib in Embed Libraries */,
+				35FD392D2ABB8ECF009EE38A /* libwoland.dylib in Embed Libraries */,
 			);
 			name = "Embed Libraries";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -57,8 +56,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		131EA0B229FD0288009B47DF /* libwoland.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libwoland.dylib; path = /Users/francesco/Github/master/margarita/macos/libwoland.dylib; sourceTree = "<absolute>"; };
-		131EA0B629FD0388009B47DF /* libwoland.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libwoland.dylib; sourceTree = "<group>"; };
+		131EA0B229FD0288009B47DF /* libwoland.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libwoland.dylib; path = libwoland.dylib; sourceTree = "<group>"; };
 		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
 		335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GeneratedPluginRegistrant.swift; sourceTree = "<group>"; };
 		33CC10ED2044A3C60003C045 /* margarita.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = margarita.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -73,6 +71,7 @@
 		33E51913231747F40026EE4D /* DebugProfile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DebugProfile.entitlements; sourceTree = "<group>"; };
 		33E51914231749380026EE4D /* Release.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = Release.entitlements; sourceTree = "<group>"; };
 		33E5194F232828860026EE4D /* AppInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppInfo.xcconfig; sourceTree = "<group>"; };
+		35FD39272ABB8D7E009EE38A /* libwoland.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libwoland.dylib; sourceTree = "<group>"; };
 		40CB402937A5AA7578CF0F95 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		923105CE157C02A21F33F8F4 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
@@ -87,7 +86,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				35AB26862A4F90DE18672A6E /* Pods_Runner.framework in Frameworks */,
-				131EA0B729FD0389009B47DF /* libwoland.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -181,7 +179,7 @@
 		D73912EC22F37F3D000D13A0 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				131EA0B629FD0388009B47DF /* libwoland.dylib */,
+				35FD39272ABB8D7E009EE38A /* libwoland.dylib */,
 				AB5B8136D35E477538B908F3 /* Pods_Runner.framework */,
 			);
 			name = Frameworks;
@@ -219,7 +217,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0920;
-				LastUpgradeCheck = 1300;
+				LastUpgradeCheck = 1430;
 				ORGANIZATIONNAME = "";
 				TargetAttributes = {
 					33CC10EC2044A3C60003C045 = {
