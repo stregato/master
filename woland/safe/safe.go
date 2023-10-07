@@ -29,11 +29,12 @@ const KeySize = 32
 type Keys map[uint64][]byte
 
 type Safe struct {
-	CurrentUser security.Identity   `json:"currentUser"`
-	CreatorId   string              `json:"creatorId"`
-	Name        string              `json:"name"`        // Name of the box including the path
+	CurrentUser security.Identity   `json:"currentUser"` // Current user
+	Access      string              `json:"access"`      // Access token
+	CreatorId   string              `json:"creatorId"`   // Creator of the safe
+	Name        string              `json:"name"`        // Name of the safe including the path
 	Permission  Permission          `json:"permission"`  // Permission of the current user
-	Description string              `json:"description"` // Description of the box
+	Description string              `json:"description"` // Description of the safe
 	Storage     storage.Description `json:"storage"`     // Information about the store
 	Quota       int64               `json:"quota"`       // Quota of the safe in bytes
 	QuotaGroup  string              `json:"quotaGroup"`  // QuotaGroup is the common prefix for the safes that share the quota

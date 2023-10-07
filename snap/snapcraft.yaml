@@ -1,16 +1,16 @@
-name: margarita
+name: behemoth
 version: 0.1.0
 summary: Linux UI for Woland
 description: App to access and use woland portals
-icon: snap/gui/margarita.png
+icon: snap/gui/behemoth.png
 confinement: strict
 base: core22
 grade: stable
     
 
 apps:
-  margarita:
-    command: margarita
+  behemoth:
+    command: behemoth
     extensions: [gnome]
     plugs:
     - network
@@ -26,6 +26,8 @@ parts:
     source: woland
     build-packages:
       - build-essential 
+      - libglib2.0-0
+      - libglib2.0-dev
       - pkg-config
       - libavcodec-dev
       - libavutil-dev
@@ -35,18 +37,25 @@ parts:
       - go
     plugin: go
     override-build: | 
-      go build -buildmode=c-shared -tags linux -o $SNAPCRAFT_PART_INSTALL/usr/lib/libwoland.so
+      go build -buildmode=c-shared -tags linux -o $CRAFT_PART_BUILD/lib/libwoland.so
+      chmod +x $CRAFT_PART_BUILD/lib/libwoland.so 
     stage-packages: 
+      - libglib2.0-0
+      - libglib2.0-dev
       - libavcodec-dev
       - libavutil-dev
       - libavformat-dev
       - libswscale-dev
 
-  margarita:
+  behemoth:
     after: [woland]
-    source: margarita
+    source: behemoth
     plugin: flutter
     flutter-channel: stable
+    override-pull: |
+      set -eux
+      rm -rf $CRAFT_PROJECT_DIR/behemoth/build
+      craftctl default
     build-packages:
       - build-essential 
       - pkg-config

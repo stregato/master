@@ -31,8 +31,8 @@ type OpenOptions struct {
 	Notification chan Header
 }
 
-func Open(currentUser security.Identity, token string, options OpenOptions) (*Safe, error) {
-	name, creatorId, aesKey, urls, err := DecodeAccess(currentUser, token)
+func Open(currentUser security.Identity, access string, options OpenOptions) (*Safe, error) {
+	name, creatorId, aesKey, urls, err := DecodeAccess(currentUser, access)
 	if core.IsErr(err, nil, "invalid access token 'account'") {
 		return nil, err
 	}
@@ -77,6 +77,7 @@ func Open(currentUser security.Identity, token string, options OpenOptions) (*Sa
 
 	s := Safe{
 		CurrentUser: currentUser,
+		Access:      access,
 		Name:        name,
 		Permission:  users[currentUser.Id],
 		Description: manifest.Description,

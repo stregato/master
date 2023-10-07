@@ -59,9 +59,9 @@ The safe can be replicated on multiple storage services. The replicas are identi
 3. The process compares the data and metadata of each replica across the hierarchical structure. For each node in the structure, the process copies the data files that may be missing. Metadata records instead are merged and  a new file is created with them. Other metadata files are deleted.
 
 ## Implementation
-The concepts described above are implemented in a library called woland with reference to the famous novel "The master and margarita". The library is written in Go but can be used from any language that supports dynamic libraries. The library is available on GitHub at http://github.com/stregato/master/woland.
+The concepts described above are implemented in a library called woland with reference to the famous novel "The master and behemoth. The library is written in Go but can be used from any language that supports dynamic libraries. The library is available on GitHub at http://github.com/stregato/master/woland.
 
-At the same GitHub location there is a sample application that uses the library to implement a simple chat application. The application is called Margarita and it is available at http://github.com/stregato/master/margarita.
+At the same GitHub location there is a sample application that uses the library to implement a simple chat application. The application is called Behemoth and it is available at http://github.com/stregato/master/behemoth
 
 ### Access
 Woland supports multiple storage services, including S3, WebDAV. SFTP and local file system. The storage service is abstracted by an interface and can be easily extended to support other services. 
@@ -159,14 +159,14 @@ GetUsers (safe safe) (users [string]Level, err error)
 
 ## Sample application
 A demonstration application highlights effective patterns to use Woland.
-The application is called Margarita and similar to Microsoft Teams, it includes chat rooms and file sharing. The application is written in flutter and runs on Android, iOS, Windows, Mac and Linux. Both the binary and the source code are available at http://github.com/stregato/master/margarita. For Linux a snap package is available at http://snapcraft.io/margarita.
+The application is called Behemoth and similar to Microsoft Teams, it includes chat rooms and file sharing. The application is written in flutter and runs on Android, iOS, Windows, Mac and Linux. Both the binary and the source code are available at http://github.com/stregato/master/behemoth For Linux a snap package is available at http://snapcraft.io/bbehemoth
 
 The application is built on the concept of community. Each community has a main space called _welcome_ and users can create new spaces as needed. Each space has a chat room and a file sharing area. The chat room is a simple chat with text messages and images. The file sharing area is a hierarchical structure of folders and files.
 
-In the design of the application, the first step is to define how communities and spaces are represented. Margarita uses a safe for each space. Initially only a space _welcome_ is available. 
-As an example let's assume a community for people living in New York whose storage is available at https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/margarita. The first space would be _welcome_ and the related safe would be named new_york_city/welcome.
+In the design of the application, the first step is to define how communities and spaces are represented. Behemoth uses a safe for each space. Initially only a space _welcome_ is available. 
+As an example let's assume a community for people living in New York whose storage is available at https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/behemoth The first space would be _welcome_ and the related safe would be named new_york_city/welcome.
 The access token would be built from:
-- URL: https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/margarita
+- URL: https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/behemoth
 - name: new_york_city/welcome
 - creator: the public key of the person that creates the community
 

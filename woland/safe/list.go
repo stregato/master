@@ -183,7 +183,7 @@ func synchorize(currentUser security.Identity, store storage.Store, safeName, ha
 	}
 
 	ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{Suffix: ".h"})
-	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
+	if os.IsNotExist(err) || core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
 		return 0, err
 	}
 

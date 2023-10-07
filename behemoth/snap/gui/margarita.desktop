@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Behemoth
+Comment=Linux UI for Woland
+Exec=behemoth %u
+Icon=${SNAP}/meta/gui/behemoth.png
+Terminal=false
+Type=Application
+Categories=social;
+MimeType=x-scheme-handler/mg;

@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Margarita
+Name=Behemoth
 Comment=Linux UI for Woland
-Exec=margarita %u
-Icon=${SNAP}/meta/gui/margarita.png
+Exec=behemoth %u
+Icon=${SNAP}/meta/gui/behemoth.png
 Terminal=false
 Type=Application
 Categories=social;

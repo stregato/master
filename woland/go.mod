@@ -11,6 +11,7 @@ require (
 	github.com/ecies/go/v2 v2.0.6
 	github.com/google/uuid v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.17
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/sftp v1.10.1
 	github.com/stretchr/testify v1.8.2
 	github.com/studio-b12/gowebdav v0.0.0-20230203202212-3282f94193f2

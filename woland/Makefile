@@ -1,6 +1,6 @@
 
 OUT=$(PWD)/dist
-MARGARITA=$(PWD)/../margarita
+MARGARITA=$(PWD)/../behemoth
 
 linux-x86_64:
 	CGO_ENABLED=1 \
@@ -69,7 +69,7 @@ ios: ios-arm64 ios-x86_64
 
 apple: macos ios
 
-ANDROID_OUT=../margarita/android/app/src/main/jniLibs
+ANDROID_OUT=../behemothandroid/app/src/main/jniLibs
 ANDROID_SDK=$(HOME)/Android/Sdk
 NDK_VERSION=25.1.8937393
 NDK_BUILD=linux-x86_64
@@ -118,7 +118,7 @@ snap:
 clean: 
 	rm -rf $(OUT)
 
-margarita:
+behemoth
 	test -e $(MARGARITA) && cp -rf $(OUT)/* $(MARGARITA)
 
 	
