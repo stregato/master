@@ -1,6 +1,7 @@
+import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/woland/woland.dart';
-import 'package:behemoth/woland/woland_def.dart';
+import 'package:behemoth/woland/types.dart';
 
 class AddPerson extends StatefulWidget {
   const AddPerson({super.key});
@@ -10,28 +11,25 @@ class AddPerson extends StatefulWidget {
 }
 
 class _AddPersonState extends State<AddPerson> {
-  late String _safeName;
+  late Safe _safe;
   late String _covenName;
   late String _roomName;
 
-  _addPerson(Identity identity) {
-    setUsers(
-        _safeName,
+  _addPerson(Identity identity) async {
+    await _safe.setUsers(
         {identity.id: permissionRead + permissionWrite + permissionAdmin},
         SetUsersOptions());
-    setState(() {
-      _safeName = "";
-    });
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    _safeName = ModalRoute.of(context)!.settings.arguments as String;
-    var lastSlash = _safeName.lastIndexOf("/");
+    _safe = ModalRoute.of(context)!.settings.arguments as Safe;
+    var lastSlash = _safe.name.lastIndexOf("/");
 
-    _covenName = _safeName.substring(0, lastSlash - 1);
-    _roomName = _safeName.substring(lastSlash + 1);
-    var identities2 = getIdentities(_safeName);
+    _covenName = _safe.name.substring(0, lastSlash - 1);
+    _roomName = _safe.name.substring(lastSlash + 1);
+    var identities2 = getIdentities(_safe.name);
     var identities = getIdentities("$_covenName/lounge")
         .where((e) => !identities2.contains(e));
 

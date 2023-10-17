@@ -1,10 +1,9 @@
-import 'dart:isolate';
-
 import 'package:behemoth/common/copy_field.dart';
 import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/common/progress.dart';
+import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/material.dart';
-import 'package:behemoth/woland/woland_def.dart';
 
 class Add extends StatefulWidget {
   const Add({super.key});
@@ -16,14 +15,12 @@ class Add extends StatefulWidget {
 class _AddState extends State<Add> {
   String? _errorText;
   String _name = "";
-  String _space = "";
   String _access = "";
   List<String> accessPrefixes = ['https://behemoth.cool/a/', 'mg://a/'];
   final TextEditingController _linkController = TextEditingController();
 
   _AddState() {
-    _linkController.addListener(() {
-      var profile = Profile.current();
+    _linkController.addListener(() async {
       var link = _linkController.text.trim();
       _access = "";
       if (link.isEmpty) {
@@ -40,33 +37,22 @@ class _AddState extends State<Add> {
       }
 
       _access = f.first;
-      var name = "";
-      var space = "";
-      try {
-        var d = decodeAccess(profile.identity, _access);
-        name = d.safeName.substring(0, d.safeName.lastIndexOf('/'));
-        space = d.safeName.substring(name.length + 1);
 
-        testOpen(_access);
+      var name = "";
+      try {
+        var d = decodeAccess(Profile.current().identity, _access);
         setState(() {
           _errorText = null;
-          _name = name;
-          _space = space;
+          _name = Safe.pretty(d.safeName);
         });
       } catch (e) {
         setState(() {
           _errorText =
               name.isEmpty ? "invalid link" : "cannot access $name: $e";
           _name = name;
-          _space = space;
         });
       }
     });
-  }
-
-  static testOpen(String access) {
-    Isolate.run(
-        () => openSafe(Profile.current().identity, access, OpenOptions()));
   }
 
   @override
@@ -101,18 +87,16 @@ class _AddState extends State<Add> {
       const SizedBox(height: 20),
       ElevatedButton(
         onPressed: (_name.isNotEmpty && _errorText == null)
-            ? () {
-                var p = Profile.current();
-                var c = p.covens.putIfAbsent(_name, () => Coven(_name, {}));
-                c.rooms[_space] = _access;
-                p.save();
+            ? () async {
+                var task = Coven.join(_access);
+                await progressDialog(context, "Joining $_name", task,
+                    successMessage: "Joined $_name",
+                    errorMessage: "Failed to join $_name");
+                if (!mounted) return;
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    backgroundColor: Colors.green,
-                    content: Text("Joined $_name")));
               }
             : null,
-        child: Text("Join $_space@$_name"),
+        child: Text("Join $_name"),
       )
     ];
 

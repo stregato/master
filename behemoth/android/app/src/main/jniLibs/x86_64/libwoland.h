@@ -21,40 +21,8 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 
 #line 3 "exports.go"
 
-typedef struct Result{
-    char* res;
-	char* err;
-} Result;
-
-typedef struct App {
-	void (*feed)(char* name, char* data, int eof);
-} App;
-
-typedef struct Reader {
-	void* fd;
-	int (*read)(void* fd, void* data, int size);
-	int (*seek)(void* fd, int offset, int whence);
-	int (*write)(void* fd, void* data, int size);
-} Reader;
-
-int callRead(Reader* r, void* data, int size) {
-	return r->read(r->fd, data, size);
-}
-int callSeek(Reader *r, int offset, int whence) {
-	return r->seek(r->fd, offset, whence);
-}
-
-typedef struct Writer {
-	void* fd;
-	int (*write)(void* fd, void* data, int size);
-} Writer;
-
-int callWrite(Writer *w, void* data, int size) {
-	return w->write(w->fd, data, size);
-}
-
+#include "cfunc.h"
 #include <stdlib.h>
-
 
 #line 1 "cgo-generated-wrapper"
 
@@ -122,21 +90,22 @@ extern Result setIdentity(char* identity);
 extern Result getIdentity(char* id);
 extern Result encodeAccess(char* userId, char* safeName, char* creatorId, char* aesKey, char* urls);
 extern Result decodeAccess(char* identity, char* token);
-extern Result createSafe(char* identity, char* token, char* createOptions);
+extern Result createSafe(char* creator, char* token, char* users, char* createOptions);
 extern Result openSafe(char* identity, char* token, char* openOptions);
-extern Result closeSafe(char* safeName);
-extern Result listFiles(char* safeName, char* dir, char* listOptions);
-extern Result listDirs(char* safeName, char* dir, char* listDirsOptions);
-extern Result putData(char* safeName, char* name, Reader* r, char* putOptions);
-extern Result putCString(char* safeName, char* name, char* data, char* putOptions);
-extern Result putFile(char* safeName, char* name, char* sourceFile, char* putOptions);
-extern Result getData(char* safeName, char* name, Writer* w, char* getOptions);
-extern Result getCString(char* safeName, char* name, char* getOptions);
-extern Result getFile(char* safeName, char* name, char* destFile, char* getOptions);
-extern Result setUsers(char* safeName, char* users, char* setUsersOptions);
-extern Result getUsers(char* safeName);
-extern Result checkForUpdates(char* safeName, char* dir, char* after, int depth);
-extern Result getIdentities(char* safeName);
+extern Result closeSafe(int hnd);
+extern Result listFiles(int hnd, char* dir, char* listOptions);
+extern Result listDirs(int hnd, char* dir, char* listDirsOptions);
+extern Result putData(int hnd, char* name, Reader* r, char* putOptions);
+extern Result putCString(int hnd, char* name, char* data, char* putOptions);
+extern Result putFile(int hnd, char* name, char* sourceFile, char* putOptions);
+extern Result getData(int hnd, char* name, Writer* w, char* getOptions);
+extern Result getCString(int hnd, char* name, char* getOptions);
+extern Result getFile(int hnd, char* name, char* destFile, char* getOptions);
+extern Result setUsers(int hnd, char* users, char* setUsersOptions);
+extern Result getUsers(int hnd);
+extern Result checkForUpdates(int hnd, char* dir, char* after, int depth);
+extern Result getIdentities(int hnd);
+extern Result getAllIdentities();
 extern Result getLogs();
 extern Result setLogLevel(int level);
 

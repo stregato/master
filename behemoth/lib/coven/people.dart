@@ -1,3 +1,4 @@
+import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 
 import 'package:behemoth/woland/woland.dart';
@@ -5,8 +6,8 @@ import 'package:behemoth/woland/woland.dart';
 var currentPanelIdx = <String, int>{};
 
 class People extends StatefulWidget {
-  final String safeName;
-  const People(this.safeName, {Key? key}) : super(key: key);
+  final Safe safe;
+  const People(this.safe, {Key? key}) : super(key: key);
 
   @override
   State<People> createState() => _PeopleState();
@@ -15,9 +16,9 @@ class People extends StatefulWidget {
 class _PeopleState extends State<People> {
   @override
   Widget build(BuildContext context) {
-    var safeName = widget.safeName;
+    var safe = widget.safe;
 
-    var users = getUsers(safeName);
+    var users = safe.getUsersSync();
     var items = users.entries.map((e) {
       var identity = getIdentity(e.key);
       var nick = identity.nick;
@@ -48,18 +49,18 @@ class _PeopleState extends State<People> {
                   MainAxisAlignment.center, // Center horizontally
               children: [
                 Expanded(
-                  child: safeName.endsWith("/lounge")
+                  child: safe.name.endsWith("/lounge")
                       ? ElevatedButton(
                           child: const Text("Invite"),
                           onPressed: () {
                             Navigator.pushNamed(context, "/invite",
-                                arguments: safeName);
+                                arguments: safe);
                           })
                       : ElevatedButton(
                           child: const Text("Add"),
                           onPressed: () {
                             Navigator.pushNamed(context, "/coven/add_person",
-                                arguments: safeName);
+                                arguments: safe);
                           }),
                 )
               ],

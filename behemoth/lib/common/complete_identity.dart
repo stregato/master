@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:behemoth/woland/woland_def.dart';
+import 'package:behemoth/woland/types.dart';
 
 class AutocompleteIdentity extends StatelessWidget {
   final List<Identity> identities;

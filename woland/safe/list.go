@@ -50,13 +50,13 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 		return nil, err
 	}
 
-	var fromDepth = strings.Count(dir, "/")
+	var fromDepth = strings.Count(dir, "/") + 1
 	var toDepth int
 	if listOptions.Depth >= 0 {
 		toDepth = fromDepth + listOptions.Depth
 	}
 
-	rows, err := sql.Query("GET_FILES", sql.Args{
+	args := sql.Args{
 		"safe":           s.Name,
 		"name":           listOptions.Name,
 		"fileId":         listOptions.FileId,
@@ -76,7 +76,8 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 		"limit":          listOptions.Limit,
 		"fromDepth":      fromDepth,
 		"toDepth":        toDepth,
-	})
+	}
+	rows, err := sql.Query("GET_FILES", args)
 	if core.IsErr(err, nil, "cannot query files: %v", err) {
 		return nil, err
 	}
@@ -113,6 +114,7 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 		}()
 	}
 
+	core.Info("found %d headers in %s/%s args %v", len(headers), s.Name, dir, args)
 	return headers, nil
 }
 
@@ -169,7 +171,7 @@ func synchorize(currentUser security.Identity, store storage.Store, safeName, ha
 	var touchConfigKey = fmt.Sprintf("%s//%s", safeName, hashedDir)
 	last, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchConfigKey)
 	if ok {
-		touch, err = GetTouch(store, hashedDir)
+		touch, err = GetTouch(store, DataFolder, hashedDir, ".touch")
 		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 			return 0, err
 		}
@@ -217,13 +219,13 @@ func synchorize(currentUser security.Identity, store storage.Store, safeName, ha
 				header.BodyKey = key
 			}
 
-			core.Info("saving header %s: %v", header.Name, header)
+			core.Info("saving header %s", header.Name)
 			newFiles++
 			err = insertHeaderOrIgnoreToDB(safeName, header)
 			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}
-	touch, err = SetTouch(store, hashedDir)
+	touch, err = SetTouch(store, DataFolder, hashedDir, ".touch")
 	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 		return 0, err
 	}

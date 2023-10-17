@@ -3,9 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  bitsdojo_window_windows
   connectivity_plus
   desktop_drop
+  emoji_picker_flutter
   file_selector_windows
   share_plus
   uni_links_desktop

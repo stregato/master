@@ -37,8 +37,9 @@ parts:
       - go
     plugin: go
     override-build: | 
-      go build -buildmode=c-shared -tags linux -o $CRAFT_PART_BUILD/lib/libwoland.so
-      chmod +x $CRAFT_PART_BUILD/lib/libwoland.so 
+      go build -buildmode=c-shared -tags linux -o libwoland.so
+      cp libwoland.so $CRAFT_PART_INSTALL/lib/libwoland.so
+      chmod +x $CRAFT_PART_INSTALL/lib/libwoland.so 
     stage-packages: 
       - libglib2.0-0
       - libglib2.0-dev

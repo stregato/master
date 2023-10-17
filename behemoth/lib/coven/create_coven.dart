@@ -1,12 +1,12 @@
-import 'dart:isolate';
 import 'dart:math';
 
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/coven/addstorage.dart';
 import 'package:behemoth/coven/coven.dart';
+import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/woland.dart';
-import 'package:behemoth/woland/woland_def.dart';
+import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 
 class CreateCoven extends StatefulWidget {
@@ -31,18 +31,6 @@ class _CreateCovenState extends State<CreateCoven> {
 
   bool _validConfig() {
     return _name.isNotEmpty && _urls.isNotEmpty;
-  }
-
-  _createCoven(String name, List<String> urls, CreateOptions options) async {
-    return Isolate.run<Profile>(() {
-      var p = Profile.current();
-      var token = encodeAccess(
-          p.identity.id, "$name/$welcomeSpace", p.identity.id, "", urls);
-      createSafe(p.identity, token, options);
-      p.covens[name] = Coven(name, {welcomeSpace: token});
-      p.save();
-      return p;
-    });
   }
 
   int _mapSliderToValue(double sliderValue) {
@@ -236,7 +224,7 @@ class _CreateCovenState extends State<CreateCoven> {
                             await progressDialog(
                                 context,
                                 "opening portal, please wait",
-                                _createCoven(
+                                Coven.create(
                                     _name,
                                     _urls,
                                     CreateOptions(

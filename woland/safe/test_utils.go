@@ -41,7 +41,7 @@ func GetTestSafe(t *testing.T, storeUrl string, createFirst bool) *Safe {
 	core.TestErr(t, err, "cannot encode token: %v")
 
 	if createFirst {
-		s, err := Create(TestIdentity, access, CreateOptions{Wipe: true})
+		s, err := Create(TestIdentity, access, Users{}, CreateOptions{Wipe: true})
 		core.TestErr(t, err, "cannot wipe safe: %v")
 		Close(s)
 	}

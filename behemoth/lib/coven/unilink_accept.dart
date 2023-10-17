@@ -1,7 +1,8 @@
+import 'package:behemoth/common/progress.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/woland/woland.dart';
-import 'package:behemoth/woland/woland_def.dart';
+import 'package:behemoth/woland/types.dart';
 
 class UnilinkAccept extends StatefulWidget {
   const UnilinkAccept({super.key});
@@ -16,39 +17,34 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
     var args =
         ModalRoute.of(context)?.settings.arguments as Map<String, String>;
     var access = args["access"] ?? "";
-    var current = Profile.current();
+    var p = Profile.current();
     String title;
     Widget body;
 
     try {
-      var safe = openSafe(current.identity, access, OpenOptions());
-      var identities = getIdentities(safe.name);
-      title = "Access to ${safe.name}";
+      var d = decodeAccess(p.identity, access);
+      var names = covenAndRoom(d.safeName);
 
-      var creatorIdentity = identities.where((e) => e.id == safe.creatorId);
-      var creatorNick = creatorIdentity.isNotEmpty
-          ? creatorIdentity.first.nick
-          : safe.creatorId;
+      title = "Join ${names[0]}";
       body = Column(
         children: [
-          Text("You have been invited to join ${safe.name} by $creatorNick"),
+          Text("You have been invited to join ${names[0]}"),
+          const SizedBox(height: 20),
           ElevatedButton(
               child: const Text("Accept"),
-              onPressed: () {
-                var parts = safe.name.split('/');
-                var space = parts.removeLast();
-                var name = parts.join('/');
-                var communities = current.covens;
-                var community =
-                    communities.putIfAbsent(name, () => Coven(name, {}));
-                community.rooms[space] = access;
-                current.save();
-                Navigator.popUntil(context, (route) => route.isFirst);
+              onPressed: () async {
+                await progressDialog<Coven>(
+                    context, "Connect to ${names[0]}", Coven.join(access),
+                    successMessage: "Successfully connected to ${names[0]}",
+                    errorMessage: "Failed to connect to ${names[0]}");
+                if (mounted) {
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                }
               }),
         ],
       );
     } catch (e) {
-      title = "No access to community";
+      title = "Invalid access link";
       body = Text(
           "cannot access to the community with the provided link: ${e.toString()}");
     }
@@ -59,7 +55,6 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
         title: Text(title),
       ),
       body: body,
-//      bottomNavigationBar: MainNavigationBar(safeName),
     );
   }
 }

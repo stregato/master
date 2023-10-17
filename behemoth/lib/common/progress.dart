@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:behemoth/woland/woland.dart';
+import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:flutter/material.dart';
 
 Future<T?> progressDialog<T>(
@@ -11,47 +11,70 @@ Future<T?> progressDialog<T>(
     bool catchException = true}) async {
   return showDialog(
       context: context,
-      builder: (_) => FutureBuilder(
+      builder: (_) => FutureBuilder<T>(
             builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                Navigator.pop(context, snapshot.data);
-                return Container();
-              } else if (snapshot.hasError) {
-                Navigator.pop(context, snapshot.error);
-                return Container();
-              } else if (snapshot.connectionState == ConnectionState.done) {
-                Navigator.pop(context);
-                return Container();
-              } else {
-                return ProgressDialog(message, getProgress);
+              if (snapshot.connectionState == ConnectionState.done) {
+                if (successMessage != null) {
+                  Future.delayed(Duration.zero, () {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        backgroundColor: Colors.green,
+                        content: Text(successMessage)));
+                    Navigator.pop(context, snapshot.data);
+                  });
+                }
               }
+              if (snapshot.hasError) {
+                if (errorMessage != null) {
+                  Future.delayed(Duration.zero, () {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        backgroundColor: Colors.red,
+                        content: Text("$errorMessage: ${snapshot.error}")));
+                    Navigator.pop(context, snapshot.error);
+                  });
+                }
+              }
+              //return const Text("Waiting dialog");
+              return const CatProgressIndicator("Loading...");
+
+              // if (snapshot.hasData) {
+              //   return Container();
+              // } else if (snapshot.hasError) {
+              //   Navigator.pop(context, snapshot.error);
+              //   return Container();
+              // } else if (snapshot.connectionState == ConnectionState.done) {
+              //   Navigator.pop(context);
+              //   return Container();
+              // } else {
+              //   return ProgressDialog(message, getProgress);
+              // }
             },
             future: task,
-          )).onError((error, stackTrace) {
-    if (successMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: Colors.green, content: Text(successMessage)));
-    }
-    return null;
-  }).then((value) {
-    if (value is CException || value is Error) {
-      if (errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text("$errorMessage: $value")));
-      }
-      if (catchException) {
-        return null;
-      } else {
-        throw value;
-      }
-    }
-    if (successMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: Colors.green, content: Text(successMessage)));
-    }
-    return value;
-  });
+          ));
+  //         .onError((error, stackTrace) {
+  //   if (successMessage != null) {
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //         backgroundColor: Colors.green, content: Text(successMessage)));
+  //   }
+  //   return null;
+  // }).then((value) {
+  //   if (value is CException || value is Error) {
+  //     if (errorMessage != null) {
+  //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //           backgroundColor: Colors.red,
+  //           content: Text("$errorMessage: $value")));
+  //     }
+  //     if (catchException) {
+  //       return null;
+  //     } else {
+  //       throw value;
+  //     }
+  //   }
+  //   if (successMessage != null) {
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  //         backgroundColor: Colors.green, content: Text(successMessage)));
+  //   }
+  //   return value;
+  //});
 }
 
 class ProgressDialog extends StatefulWidget {
@@ -99,18 +122,7 @@ class ProgressState extends State<ProgressDialog> {
       backgroundColor: Colors.white,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // The loading indicator
-            CircularProgressIndicator(value: _progress),
-            const SizedBox(
-              height: 15,
-            ),
-            // Some text
-            Text(widget.message)
-          ],
-        ),
+        child: CatProgressIndicator(widget.message),
       ),
     );
   }

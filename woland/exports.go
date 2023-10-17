@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 	"unsafe"
 
-	"github.com/patrickmn/go-cache"
 	"github.com/sirupsen/logrus"
 
 	"github.com/stregato/master/woland/core"
@@ -26,9 +26,8 @@ import (
 
 var ErrSafeNotFound = fmt.Errorf("safe not opened yet")
 
-// var safes = map[string]*safe.Safe{}
-// var safesLock sync.RWMutex
-var safes *cache.Cache
+var safes = map[int]*safe.Safe{}
+var safesSync sync.Mutex
 
 func cResult(v any, err error) C.Result {
 	var res []byte
@@ -70,12 +69,6 @@ func start(dbPath, appPath *C.char) C.Result {
 	if core.IsErr(err, nil, "cannot start: %v") {
 		return cResult(nil, err)
 	}
-
-	safes = cache.New(30*time.Minute, 60*time.Minute)
-	safes.OnEvicted(func(key string, value interface{}) {
-		safe.Close(value.(*safe.Safe))
-		core.Info("safe %s closed for eviction", key)
-	})
 
 	return cResult(nil, nil)
 }
@@ -188,7 +181,7 @@ func decodeAccess(identity *C.char, token *C.char) C.Result {
 }
 
 //export createSafe
-func createSafe(identity *C.char, token *C.char, createOptions *C.char) C.Result {
+func createSafe(creator *C.char, token *C.char, users *C.char, createOptions *C.char) C.Result {
 	var CreateOptions safe.CreateOptions
 	err := cUnmarshal(createOptions, &CreateOptions)
 	if core.IsErr(err, nil, "cannot unmarshal createOptions: %v") {
@@ -196,17 +189,23 @@ func createSafe(identity *C.char, token *C.char, createOptions *C.char) C.Result
 	}
 
 	var i security.Identity
-	err = cUnmarshal(identity, &i)
+	err = cUnmarshal(creator, &i)
 	if core.IsErr(err, nil, "cannot unmarshal identity: %v") {
 		return cResult(nil, err)
 	}
 
-	s, err := safe.Create(i, C.GoString(token), CreateOptions)
+	var u safe.Users
+	err = cUnmarshal(users, &u)
+	if core.IsErr(err, nil, "cannot unmarshal users: %v") {
+		return cResult(nil, err)
+	}
+
+	s, err := safe.Create(i, C.GoString(token), u, CreateOptions)
 	if core.IsErr(err, nil, "cannot create safe: %v") {
 		return cResult(nil, err)
 	}
-	safes.Add(s.Name, s, cache.DefaultExpiration)
-	return cResult(s, err)
+	safe.Close(s)
+	return cResult(nil, err)
 }
 
 //export openSafe
@@ -224,43 +223,38 @@ func openSafe(identity *C.char, token *C.char, openOptions *C.char) C.Result {
 	}
 
 	var access = C.GoString(token)
-	name, _, _, _, err := safe.DecodeAccess(i, access)
-	if core.IsErr(err, nil, "cannot decode access: %v") {
-		return cResult(nil, err)
-	}
-
-	s, ok := safes.Get(name)
-	if ok {
-		return cResult(s, nil)
-	}
-
-	s, err = safe.Open(i, access, OpenOptions)
+	s, err := safe.Open(i, access, OpenOptions)
 	if core.IsErr(err, nil, "cannot open portal: %v") {
 		return cResult(nil, err)
 	}
-	safes.Add(name, s, cache.DefaultExpiration)
+	safesSync.Lock()
+	safes[s.Hnd] = s
+	safesSync.Unlock()
+
 	return cResult(s, err)
 }
 
 //export closeSafe
-func closeSafe(safeName *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func closeSafe(hnd C.int) C.Result {
+	safesSync.Lock()
+	defer safesSync.Unlock()
+	s, ok := safes[int(hnd)]
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 	safe.Close(s)
-	safes.Delete(C.GoString(safeName))
+	delete(safes, int(hnd))
 	return cResult(nil, nil)
 }
 
 //export listFiles
-func listFiles(safeName, dir, listOptions *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func listFiles(hnd C.int, dir, listOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 	var options safe.ListOptions
 	err := cUnmarshal(listOptions, &options)
 	if core.IsErr(err, nil, "cannot unmarshal listOptions %s: %v", C.GoString(listOptions)) {
@@ -272,12 +266,13 @@ func listFiles(safeName, dir, listOptions *C.char) C.Result {
 }
 
 //export listDirs
-func listDirs(safeName, dir *C.char, listDirsOptions *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func listDirs(hnd C.int, dir *C.char, listDirsOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 	var options safe.ListDirsOptions
 	err := cUnmarshal(listDirsOptions, &options)
 	if core.IsErr(err, nil, "cannot unmarshal listDirsOptions %s: %v", C.GoString(listDirsOptions)) {
@@ -321,12 +316,13 @@ func (w CWriter) Write(p []byte) (n int, err error) {
 }
 
 //export putData
-func putData(safeName, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func putData(hnd C.int, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	var options safe.PutOptions
 	err := cUnmarshal(putOptions, &options)
@@ -343,14 +339,14 @@ func putData(safeName, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
 }
 
 //export putCString
-func putCString(safeName, name, data *C.char,
-	putOptions *C.char) C.Result {
+func putCString(hnd C.int, name, data *C.char, putOptions *C.char) C.Result {
 
-	i, ok := safes.Get(C.GoString(safeName))
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	var options safe.PutOptions
 	err := cUnmarshal(putOptions, &options)
@@ -373,12 +369,13 @@ func putCString(safeName, name, data *C.char,
 }
 
 //export putFile
-func putFile(safeName, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func putFile(hnd C.int, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	var options safe.PutOptions
 	err := cUnmarshal(putOptions, &options)
@@ -399,12 +396,13 @@ func putFile(safeName, name *C.char, sourceFile *C.char, putOptions *C.char) C.R
 }
 
 //export getData
-func getData(safeName, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func getData(hnd C.int, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	var options safe.GetOptions
 	err := cUnmarshal(getOptions, &options)
@@ -421,12 +419,13 @@ func getData(safeName, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
 }
 
 //export getCString
-func getCString(safeName, name, getOptions *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func getCString(hnd C.int, name, getOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	var options safe.GetOptions
 	err := cUnmarshal(getOptions, &options)
@@ -445,12 +444,13 @@ func getCString(safeName, name, getOptions *C.char) C.Result {
 }
 
 //export getFile
-func getFile(safeName, name, destFile, getOptions *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func getFile(hnd C.int, name, destFile, getOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	var options safe.GetOptions
 	err := cUnmarshal(getOptions, &options)
@@ -474,12 +474,13 @@ func getFile(safeName, name, destFile, getOptions *C.char) C.Result {
 }
 
 //export setUsers
-func setUsers(safeName *C.char, users *C.char, setUsersOptions *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func setUsers(hnd C.int, users *C.char, setUsersOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	var users_ safe.Users
 	err := cUnmarshal(users, &users_)
@@ -501,12 +502,13 @@ func setUsers(safeName *C.char, users *C.char, setUsersOptions *C.char) C.Result
 }
 
 //export getUsers
-func getUsers(safeName *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func getUsers(hnd C.int) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	users, err := safe.GetUsers(s)
 	if core.IsErr(err, nil, "cannot get users: %v") {
@@ -516,12 +518,13 @@ func getUsers(safeName *C.char) C.Result {
 }
 
 //export checkForUpdates
-func checkForUpdates(safeName, dir *C.char, after *C.char, depth C.int) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func checkForUpdates(hnd C.int, dir *C.char, after *C.char, depth C.int) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 	a, err := time.Parse(time.RFC3339, C.GoString(after))
 	if core.IsErr(err, nil, "cannot parse time: %v") {
 		return cResult(nil, err)
@@ -535,12 +538,13 @@ func checkForUpdates(safeName, dir *C.char, after *C.char, depth C.int) C.Result
 }
 
 //export getIdentities
-func getIdentities(safeName *C.char) C.Result {
-	i, ok := safes.Get(C.GoString(safeName))
+func getIdentities(hnd C.int) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	s := i.(*safe.Safe)
 
 	identities, err := safe.GetIdentities(s)
 	if err != nil {

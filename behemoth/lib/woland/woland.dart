@@ -2,7 +2,7 @@ import 'dart:ffi'; // For FFI
 // For Platform.isX
 import 'dart:convert';
 import 'dart:io';
-import 'package:behemoth/woland/woland_def.dart';
+import 'package:behemoth/woland/types.dart';
 import "package:ffi/ffi.dart";
 import 'package:flutter/foundation.dart';
 import 'woland_platform_interface.dart';
@@ -190,130 +190,130 @@ String encodeAccess(String userId, String safeName, String creatorId,
       .unwrapString();
 }
 
-DecodedToken decodeAccess(Identity user, String token) {
+DecodedToken decodeAccess(Identity user, String access) {
   var fun = lib.lookupFunction<Args2SS, Args2SS>("decodeAccess");
   var m =
-      fun(jsonEncode(user).toNativeUtf8(), token.toNativeUtf8()).unwrapMap();
+      fun(jsonEncode(user).toNativeUtf8(), access.toNativeUtf8()).unwrapMap();
   return DecodedToken.fromJson(m);
 }
 
-Safe createSafe(Identity identity, String token, CreateOptions options) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("createSafe");
-  var m = fun(jsonEncode(identity).toNativeUtf8(), token.toNativeUtf8(),
-          jsonEncode(options).toNativeUtf8())
-      .unwrapMap();
-  return Safe.fromJson(m);
-}
+// Safe createSafe(Identity identity, String token, CreateOptions options) {
+//   var fun = lib.lookupFunction<Args3SSS, Args3SSS>("createSafe");
+//   var m = fun(jsonEncode(identity).toNativeUtf8(), token.toNativeUtf8(),
+//           jsonEncode(options).toNativeUtf8())
+//       .unwrapMap();
+//   return Safe.fromJson(m);
+// }
 
-Safe openSafe(Identity identity, String token, OpenOptions options) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("openSafe");
-  var m = fun(jsonEncode(identity).toNativeUtf8(), token.toNativeUtf8(),
-          jsonEncode(options).toNativeUtf8())
-      .unwrapMap();
-  return Safe.fromJson(m);
-}
+// Safe openSafe(Identity identity, String token, OpenOptions options) {
+//   var fun = lib.lookupFunction<Args3SSS, Args3SSS>("openSafe");
+//   var m = fun(jsonEncode(identity).toNativeUtf8(), token.toNativeUtf8(),
+//           jsonEncode(options).toNativeUtf8())
+//       .unwrapMap();
+//   return Safe.fromJson(m);
+// }
 
-void closeSafe(String safeName) {
-  var fun = lib.lookupFunction<Args1S, Args1S>("closeSafe");
-  fun(safeName.toNativeUtf8()).unwrapVoid();
-}
+// void closeSafe(String safeName) {
+//   var fun = lib.lookupFunction<Args1S, Args1S>("closeSafe");
+//   fun(safeName.toNativeUtf8()).unwrapVoid();
+// }
 
-List<Header> listFiles(String safeName, String dir, ListOptions options) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("listFiles");
-  var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
-          jsonEncode(options).toNativeUtf8())
-      .unwrapList();
-  return l.map((e) => Header.fromJson(e)).toList();
-}
+// List<Header> listFiles(String safeName, String dir, ListOptions options) {
+//   var fun = lib.lookupFunction<Args3SSS, Args3SSS>("listFiles");
+//   var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
+//           jsonEncode(options).toNativeUtf8())
+//       .unwrapList();
+//   return l.map((e) => Header.fromJson(e)).toList();
+// }
 
-List<String> listDirs(String safeName, String dir, ListDirsOptions options) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("listDirs");
-  var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
-          jsonEncode(options).toNativeUtf8())
-      .unwrapList();
-  return l.cast<String>();
-}
+// List<String> listDirs(String safeName, String dir, ListDirsOptions options) {
+//   var fun = lib.lookupFunction<Args3SSS, Args3SSS>("listDirs");
+//   var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
+//           jsonEncode(options).toNativeUtf8())
+//       .unwrapList();
+//   return l.cast<String>();
+// }
 
-Header putBytes(
-    String safeName, String name, Uint8List data, PutOptions putOptions) {
-  var base64 = base64Encode(data);
-  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putCString");
-  var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
-          base64.toNativeUtf8(), jsonEncode(putOptions).toNativeUtf8())
-      .unwrapMap();
-  return Header.fromJson(m);
-}
+// Header putBytes(
+//     String safeName, String name, Uint8List data, PutOptions putOptions) {
+//   var base64 = base64Encode(data);
+//   var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putCString");
+//   var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
+//           base64.toNativeUtf8(), jsonEncode(putOptions).toNativeUtf8())
+//       .unwrapMap();
+//   return Header.fromJson(m);
+// }
 
-Header putObject<T>(
-    String safeName, String name, T object, PutOptions putOptions) {
-  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putCString");
-  var m = fun(
-          safeName.toNativeUtf8(),
-          name.toNativeUtf8(),
-          jsonEncode(object).toNativeUtf8(),
-          jsonEncode(putOptions).toNativeUtf8())
-      .unwrapMap();
-  return Header.fromJson(m);
-}
+// Header putObject<T>(
+//     String safeName, String name, T object, PutOptions putOptions) {
+//   var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putCString");
+//   var m = fun(
+//           safeName.toNativeUtf8(),
+//           name.toNativeUtf8(),
+//           jsonEncode(object).toNativeUtf8(),
+//           jsonEncode(putOptions).toNativeUtf8())
+//       .unwrapMap();
+//   return Header.fromJson(m);
+// }
 
-Header putFile<T>(
-    String safeName, String name, String filepath, PutOptions putOptions) {
-  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putFile");
-  var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
-          filepath.toNativeUtf8(), jsonEncode(putOptions).toNativeUtf8())
-      .unwrapMap();
-  return Header.fromJson(m);
-}
+// Header putFile<T>(
+//     String safeName, String name, String filepath, PutOptions putOptions) {
+//   var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("putFile");
+//   var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
+//           filepath.toNativeUtf8(), jsonEncode(putOptions).toNativeUtf8())
+//       .unwrapMap();
+//   return Header.fromJson(m);
+// }
 
-typedef JsonFactory<T> = T Function(Map<String, dynamic>);
+// typedef JsonFactory<T> = T Function(Map<String, dynamic>);
 
-T getObject<T>(String safeName, String name, GetOptions getOptions,
-    JsonFactory<T> fromJson) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("getCString");
+// T getObject<T>(String safeName, String name, GetOptions getOptions,
+//     JsonFactory<T> fromJson) {
+//   var fun = lib.lookupFunction<Args3SSS, Args3SSS>("getCString");
 
-  var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
-          jsonEncode(getOptions).toNativeUtf8())
-      .unwrapMap();
+//   var m = fun(safeName.toNativeUtf8(), name.toNativeUtf8(),
+//           jsonEncode(getOptions).toNativeUtf8())
+//       .unwrapMap();
 
-  return fromJson(m);
-}
+//   return fromJson(m);
+// }
 
-void getFile(
-    String safeName, String name, String filepath, GetOptions getOptions) {
-  var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("getFile");
-  fun(safeName.toNativeUtf8(), name.toNativeUtf8(), filepath.toNativeUtf8(),
-          jsonEncode(getOptions).toNativeUtf8())
-      .unwrapVoid();
-}
+// void getFile(
+//     String safeName, String name, String filepath, GetOptions getOptions) {
+//   var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("getFile");
+//   fun(safeName.toNativeUtf8(), name.toNativeUtf8(), filepath.toNativeUtf8(),
+//           jsonEncode(getOptions).toNativeUtf8())
+//       .unwrapVoid();
+// }
 
-void createZone(String safeName, Map<String, int> users) {
-  var fun = lib.lookupFunction<Args2SS, Args2SS>("createZone");
-  fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8()).unwrapVoid();
-}
+// void createZone(String safeName, Map<String, int> users) {
+//   var fun = lib.lookupFunction<Args2SS, Args2SS>("createZone");
+//   fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8()).unwrapVoid();
+// }
 
-void setUsers(String safeName, Users users, SetUsersOptions options) {
-  var fun = lib.lookupFunction<Args3SSS, Args3SSS>("setUsers");
-  fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8(),
-          jsonEncode(options).toNativeUtf8())
-      .unwrapVoid();
-}
+// void setUsers(String safeName, Users users, SetUsersOptions options) {
+//   var fun = lib.lookupFunction<Args3SSS, Args3SSS>("setUsers");
+//   fun(safeName.toNativeUtf8(), jsonEncode(users).toNativeUtf8(),
+//           jsonEncode(options).toNativeUtf8())
+//       .unwrapVoid();
+// }
 
-Users getUsers(String safeName) {
-  var fun = lib.lookupFunction<Args1S, Args1S>("getUsers");
-  var m = fun(safeName.toNativeUtf8()).unwrapMap();
-  return m.map((key, value) => MapEntry(key, value as Permission));
-}
+// Users getUsers(String safeName) {
+//   var fun = lib.lookupFunction<Args1S, Args1S>("getUsers");
+//   var m = fun(safeName.toNativeUtf8()).unwrapMap();
+//   return m.map((key, value) => MapEntry(key, value as Permission));
+// }
 
-typedef Args4SSSI = Args4SSST<Int>;
-typedef Args4SSSi = Args4SSST<int>;
-List<String> checkForUpdates(
-    String safeName, String dir, DateTime after, int depth) {
-  var fun = lib.lookupFunction<Args4SSSI, Args4SSSi>("checkForUpdates");
-  var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
-          after.toUtc().toIso8601String().toNativeUtf8(), depth)
-      .unwrapList();
-  return l.cast<String>();
-}
+// typedef Args4SSSI = Args4SSST<Int>;
+// typedef Args4SSSi = Args4SSST<int>;
+// List<String> checkForUpdates(
+//     String safeName, String dir, DateTime after, int depth) {
+//   var fun = lib.lookupFunction<Args4SSSI, Args4SSSi>("checkForUpdates");
+//   var l = fun(safeName.toNativeUtf8(), dir.toNativeUtf8(),
+//           after.toUtc().toIso8601String().toNativeUtf8(), depth)
+//       .unwrapList();
+//   return l.cast<String>();
+// }
 
 List<Identity> getAllIdentities() {
   var fun = lib.lookupFunction<Args0, Args0>("getAllIdentities");

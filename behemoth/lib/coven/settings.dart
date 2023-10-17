@@ -1,7 +1,5 @@
 import 'package:behemoth/common/profile.dart';
 import 'package:flutter/material.dart';
-import 'package:behemoth/woland/woland.dart';
-import 'package:behemoth/woland/woland_def.dart';
 
 class CommunitySettings extends StatefulWidget {
   const CommunitySettings({super.key});
@@ -14,20 +12,17 @@ class _CommunitySettingsState extends State<CommunitySettings> {
   @override
   Widget build(BuildContext context) {
     final coven = ModalRoute.of(context)!.settings.arguments as Coven;
-
-    var identity = Profile.current().identity;
-    var access = coven.rooms["lounge"]!;
-    var safe = openSafe(identity, access, OpenOptions());
+    var lounge = coven.getLoungeSync()!;
 
     final buttonStyle = ButtonStyle(
       padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(20)),
     );
 
-    var quota = safe.quota == 0
+    var quota = lounge.quota == 0
         ? "unlimited"
-        : safe.quota < 1e9
-            ? "${safe.quota / 1e6}MB"
-            : "${safe.quota / 1e9}GB";
+        : lounge.quota < 1e9
+            ? "${lounge.quota / 1e6}MB"
+            : "${lounge.quota / 1e9}GB";
 
     return Scaffold(
       appBar: AppBar(
@@ -38,11 +33,11 @@ class _CommunitySettingsState extends State<CommunitySettings> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("Description: ${safe.description}"),
+            Text("Description: ${lounge.description}"),
             const SizedBox(height: 20),
             Text("Quota: $quota"),
             const SizedBox(height: 20),
-            Text("Quota Group: ${safe.quotaGroup}"),
+            Text("Quota Group: ${lounge.quotaGroup}"),
             const SizedBox(height: 20),
             const Text("Danger Zone",
                 textAlign: TextAlign.center,

@@ -16,21 +16,21 @@
         ]
     },
         {
-            "name": "margarita",
-            "cwd": "margarita",
+            "name": "behemoth",
+            "cwd": "behemoth",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "margarita (profile mode)",
-            "cwd": "margarita",
+            "name": "behemoth (profile mode)",
+            "cwd": "behemoth",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "margarita (release mode)",
-            "cwd": "margarita",
+            "name": "behemoth (release mode)",
+            "cwd": "behemoth",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

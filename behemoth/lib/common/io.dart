@@ -20,7 +20,7 @@ Future<void> initFolders() async {
   applicationFolder = dir.path;
 
   dir = await getApplicationDocumentsDirectory();
-  documentsFolder = path.join(dir.path, "🍹behemoth");
+  documentsFolder = path.join(dir.path, "🐱 behemoth");
   if (!Directory(documentsFolder).existsSync()) {
     Directory(documentsFolder).createSync(recursive: true);
   }

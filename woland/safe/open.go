@@ -75,7 +75,10 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		return nil, err
 	}
 
+	safesCounterLock.Lock()
+	safesCounter++
 	s := Safe{
+		Hnd:         safesCounter,
 		CurrentUser: currentUser,
 		Access:      access,
 		Name:        name,
@@ -95,6 +98,7 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		newestChangeFile:     newestChangeFile,
 		lastIdentitiesUpdate: core.Now(),
 	}
+	safesCounterLock.Unlock()
 
 	return &s, nil
 }

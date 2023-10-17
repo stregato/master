@@ -1,17 +1,12 @@
-//import 'package:behemoth/woland/woland.dart' as w;
-//import 'package:behemoth/woland/woland_def.dart' as w;
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:math';
 
+import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/woland/woland.dart';
-import 'package:behemoth/woland/woland_def.dart';
-//import 'package:behemoth/portal/pool.dart';
-//import 'package:basic_utils/basic_utils.dart';
-
-var openSaves = <String, DateTime>{};
+import 'package:behemoth/woland/types.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class NewsIcon extends StatefulWidget {
   const NewsIcon({Key? key}) : super(key: key);
@@ -23,12 +18,12 @@ class NewsIcon extends StatefulWidget {
 class _NewsIconState extends State<NewsIcon> {
   Timer? _timer;
   static DateTime _nextRefresh = DateTime(0);
-  static Map<String, int> _news = {};
+  static Map<Safe, int> _news = {};
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 10), _refresh);
+//    _timer = Timer.periodic(const Duration(seconds: 10), _refresh);
     if (_nextRefresh.year == 0) {
       var sib = getConfig("news", "next_refresh");
       if (!sib.missing) {
@@ -43,10 +38,9 @@ class _NewsIconState extends State<NewsIcon> {
     super.dispose();
   }
 
-  _refresh(Timer timer) async {
+  _refresh() async {
     if (mounted && DateTime.now().isAfter(_nextRefresh)) {
-      var news = await Isolate.run<Map<String, int>>(
-          () => checkNotifications(openSaves, Profile.current()));
+      var news = await checkNotifications();
       var diff = news.length - _news.length;
       diff = 1 + diff * diff;
       setState(() {
@@ -59,23 +53,21 @@ class _NewsIconState extends State<NewsIcon> {
     }
   }
 
-  void showNotifications(Map<String, int> news) {
+  void showNotifications(Map<Safe, int> news) {
     var entries = news.entries.toList();
-    entries.sort((a, b) => a.key.compareTo(b.key));
+    entries.sort((a, b) => a.key.name.compareTo(b.key.name));
     var notificationsList = entries.map(
       (e) {
-        var sn = e.key;
-        var community = sn.substring(0, sn.lastIndexOf("/"));
-        var space = sn.substring(sn.lastIndexOf("/") + 1);
-        var safeName = "$community/$space";
+        var safe = e.key;
         var count = e.value;
         return Card(
           child: ListTile(
-            title: Text("$space@$community ($count)"),
+            title: Text("${safe.prettyName} ($count)"),
             onTap: () {
-              _news.remove(safeName);
+              _news.remove(safe);
               Navigator.pop(context);
-              Navigator.pushNamed(context, "/coven/room", arguments: safeName);
+              Navigator.pushNamed(context, "/coven/room",
+                  arguments: {"name": safe.name, "future": () async => safe});
             },
           ),
         );
@@ -88,7 +80,7 @@ class _NewsIconState extends State<NewsIcon> {
           return Padding(
               padding: const EdgeInsets.all(1.0),
               child: Column(children: [
-                ElevatedButton(
+                PlatformElevatedButton(
                   onPressed: () {},
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment
@@ -110,42 +102,28 @@ class _NewsIconState extends State<NewsIcon> {
         });
   }
 
-  static Map<String, DateTime> failedSafes = {};
-
-  static Map<String, int> checkNotifications(
-      Map<String, DateTime> openSaves, Profile profile) {
-    var news = <String, int>{};
-    for (var c in profile.covens.values) {
-      for (var e in c.rooms.entries) {
-        var safeName = "${c.name}/${e.key}";
-        var access = e.value;
-        if (failedSafes.containsKey(safeName) &&
-            (!openSaves.containsKey(safeName) ||
-                openSaves[safeName]!.isBefore(failedSafes[safeName]!))) {
-          continue;
+  static Future<Map<Safe, int>> checkNotifications() async {
+    var news = <Safe, int>{};
+    for (var safe in Coven.safes.values) {
+      try {
+        var files = await safe.listFiles(
+            "chat", ListOptions(knownSince: safe.accessed));
+        if (files.isNotEmpty) {
+          news[safe] = files.length;
         }
-        try {
-          openSafe(profile.identity, access, OpenOptions());
-          var lastOpen = openSaves[safeName] ??
-              DateTime.now().add(-const Duration(days: 1));
-          var files =
-              listFiles(safeName, "chat", ListOptions(knownSince: lastOpen));
-          if (files.isNotEmpty) {
-            news[safeName] = files.length;
-          }
-          files.where((e) => e.name.endsWith(".i")).forEach((element) {});
-        } catch (e) {
-          failedSafes[safeName] = DateTime.now();
-          continue;
-        }
+        files.where((e) => e.name.endsWith(".i")).forEach((element) {});
+      } catch (e) {
+        continue;
       }
     }
+
     return news;
   }
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
+    _refresh();
+    return PlatformIconButton(
       icon: _news.isEmpty
           ? const Icon(Icons
               .notifications_none) // Display the alarm_off icon when _news is empty

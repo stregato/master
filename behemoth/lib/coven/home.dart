@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:uni_links/uni_links.dart';
 import 'package:flutter/services.dart' show PlatformException;
 
@@ -17,12 +19,16 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   static StreamSubscription<Uri?>? linkSub;
   Uri? _unilink;
+  late Timer _timer;
+
   // ignore: unused_field
   bool _refresh = false;
 
   @override
   void initState() {
     super.initState();
+    _timer =
+        Timer.periodic(const Duration(seconds: 10), (_) => setState(() {}));
     if (!isDesktop && linkSub == null) {
       try {
         getInitialUri().then((uri) {
@@ -35,6 +41,12 @@ class _HomeState extends State<Home> {
         //platform does not support
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
   }
 
   void _processUnilink(BuildContext context) {
@@ -74,8 +86,8 @@ class _HomeState extends State<Home> {
     var widgets = profile.covens.values.map(
       (community) {
         return Card(
-          child: ListTile(
-            title: Text(community.name),
+          child: PlatformListTile(
+            title: PlatformText(community.name),
             onTap: () =>
                 Navigator.pushNamed(context, "/coven", arguments: community),
           ),
@@ -83,8 +95,8 @@ class _HomeState extends State<Home> {
       },
     ).toList();
 
-    return Scaffold(
-      appBar: AppBar(
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
         title: // Your content here
             Row(children: [
           const Icon(Icons.home), // Add the desired icon
@@ -94,9 +106,9 @@ class _HomeState extends State<Home> {
             overflow: TextOverflow.ellipsis,
           ),
         ]),
-        actions: [
+        trailingActions: [
           const NewsIcon(),
-          IconButton(
+          PlatformIconButton(
               onPressed: () {
                 Navigator.pushNamed(context, "/settings")
                     .then((value) => setState(() {
@@ -104,53 +116,14 @@ class _HomeState extends State<Home> {
                         }));
               },
               icon: const Icon(Icons.settings)),
-          // PopupMenuButton<String>(
-          //   onSelected: (String result) {
-          //     switch (result) {
-          //       case 'join':
-          //         Navigator.pushNamed(context, "/join")
-          //             .then((value) => setState(() {
-          //                   _refresh = true;
-          //                 }));
-          //         break;
-          //       case 'create':
-          //         Navigator.pushNamed(context, "/create")
-          //             .then((value) => setState(() {
-          //                   _refresh = true;
-          //                 }));
-          //         break;
-          //       case 'settings':
-          //         Navigator.pushNamed(context, "/settings")
-          //             .then((value) => setState(() {
-          //                   _refresh = true;
-          //                 }));
-          //         break;
-          //     }
-          //   },
-          //   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-          //     const PopupMenuItem<String>(
-          //       value: 'join',
-          //       child: Text('Join Coven'),
-          //     ),
-          //     const PopupMenuItem<String>(
-          //       value: 'create',
-          //       child: Text('Create Coven'),
-          //     ),
-          //     const PopupMenuDivider(),
-          //     const PopupMenuItem<String>(
-          //       value: 'settings',
-          //       child: Text('Settings'),
-          //     ),
-          //   ],
-          // ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(8),
         children: widgets,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        onTap: (idx) {
+      bottomNavBar: PlatformNavBar(
+        itemChanged: (idx) {
           setState(() {});
           switch (idx) {
             case 1:

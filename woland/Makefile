@@ -1,13 +1,13 @@
 
 OUT=$(PWD)/dist
-MARGARITA=$(PWD)/../behemoth
+BEHEMOTH=$(PWD)/../behemoth
 
 linux-x86_64:
 	CGO_ENABLED=1 \
 	GOOS=linux \
 	GOARCH=amd64 \
 	go build -buildmode=c-shared -tags linux -o $(OUT)/linux/libwoland.so
-	test -e $(MARGARITA) && cp -rf $(OUT)/linux $(MARGARITA)
+	test -e $(BEHEMOTH) && cp -rf $(OUT)/linux $(BEHEMOTH)
 linux: linux-x86_64
 
 windows:
@@ -16,7 +16,7 @@ windows:
 	GOOS=windows \
 	GOARCH=amd64 \
 	go build -buildmode=c-shared -tags windows -o $(OUT)/windows/woland.dll
-	test -e $(MARGARITA) && cp -rf $(OUT)/windows $(MARGARITA)
+	test -e $(BEHEMOTH) && cp -rf $(OUT)/windows $(BEHEMOTH)
 
 macos-x86_64:
 	CGO_ENABLED=1 \
@@ -31,7 +31,7 @@ macos-arm_64:
 macos: macos-x86_64 macos-arm_64
 	lipo $(OUT)/macos/x86/libwoland.dylib $(OUT)/macos/arm64/libwoland.dylib -create -output $(OUT)/macos/libwoland.dylib
 	rm -rf $(OUT)/macos/x86 $(OUT)/macos/arm64
-	test -e $(MARGARITA) && cp -rf $(OUT)/macos $(MARGARITA)
+	test -e $(BEHEMOTH) && cp -rf $(OUT)/macos $(BEHEMOTH)
 
 ios-arm64:
 	CGO_ENABLED=1 \
@@ -65,7 +65,7 @@ ios: ios-arm64 ios-x86_64
     -headers $(OUT)/ios/x86/woland.h
 	rm -r $(OUT)/ios/arm64
 	rm -r $(OUT)/ios/x86
-	test -e $(MARGARITA) && cp -rf $(OUT)/ios $(MARGARITA)
+	test -e $(BEHEMOTH) && cp -rf $(OUT)/ios $(BEHEMOTH)
 
 apple: macos ios
 
@@ -105,9 +105,9 @@ android-x86_64:
 
 #android: android-armv7a android-arm64 android-x86 android-x86_64
 android: android-arm64 android-x86_64
-	test -e $(MARGARITA) && cp -rf $(OUT)/android $(MARGARITA)
+	test -e $(BEHEMOTH) && cp -rf $(OUT)/android $(BEHEMOTH)
 
-SNAP_OUT=$(MARGARITA)/snap/local
+SNAP_OUT=$(BEHEMOTH)/snap/local
 snap:
 	go mod tidy
 	CGO_ENABLED=1 \
@@ -118,7 +118,7 @@ snap:
 clean: 
 	rm -rf $(OUT)
 
-behemoth
-	test -e $(MARGARITA) && cp -rf $(OUT)/* $(MARGARITA)
+behemoth:
+	test -e $(BEHEMOTH) && cp -rf $(OUT)/* $(BEHEMOTH)
 
 	

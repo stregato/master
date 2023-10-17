@@ -35,7 +35,7 @@ func TestCreate(t *testing.T) {
 	core.TestErr(t, err, "cannot encode access token: %v")
 
 	// Call the Open function
-	s, err := Create(TestIdentity, access, CreateOptions{Wipe: true})
+	s, err := Create(TestIdentity, access, nil, CreateOptions{Wipe: true})
 	core.TestErr(t, err, "cannot open portal: %v")
 
 	Close(s)

@@ -26,7 +26,7 @@ const (
 	DefaultReplicaWatch   = 10 * time.Minute
 )
 
-func Create(currentUser security.Identity, access string, options CreateOptions) (*Safe, error) {
+func Create(currentUser security.Identity, access string, users Users, options CreateOptions) (*Safe, error) {
 	name, creatorId, aesKey, urls, err := DecodeAccess(currentUser, access)
 	if core.IsErr(err, nil, "invalid access token 'account'") {
 		return nil, err
@@ -63,7 +63,10 @@ func Create(currentUser security.Identity, access string, options CreateOptions)
 	keyId := snowflake.ID()
 	key := core.GenerateRandomBytes(KeySize)
 	keys := map[uint64][]byte{keyId: key}
-	users := Users{creatorId: PermissionRead + PermissionWrite + PermissionAdmin + PermissionSuperAdmin}
+	if users == nil {
+		users = make(Users)
+	}
+	users[creatorId] = PermissionRead + PermissionWrite + PermissionAdmin + PermissionSuperAdmin
 
 	if options.ChangeLogWatch == 0 {
 		options.ChangeLogWatch = DefaultChangeLogWatch
@@ -97,9 +100,15 @@ func Create(currentUser security.Identity, access string, options CreateOptions)
 	core.Info("safe created: name %s, creator %s, description %s, quota %d", name, currentUser.Id,
 		options.Description, options.Quota)
 
+	safesCounterLock.Lock()
+	defer safesCounterLock.Unlock()
+	safesCounter++
+
 	return &Safe{
+		Hnd:         safesCounter,
 		CurrentUser: currentUser,
 		CreatorId:   creatorId,
+		Access:      access,
 		Name:        name,
 		Description: options.Description,
 		Storage:     stores[0].Describe(),

@@ -1,8 +1,9 @@
+import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/woland/safe.dart';
+import 'package:behemoth/woland/types.dart';
+import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/copy_field.dart';
-import 'package:behemoth/common/profile.dart';
-import 'package:behemoth/woland/woland.dart';
-import 'package:behemoth/woland/woland_def.dart';
 
 class Invite extends StatefulWidget {
   const Invite({super.key});
@@ -19,7 +20,9 @@ class _InviteState extends State<Invite> {
   bool _anonymousInvite = false;
 
   final TextEditingController _idController = TextEditingController();
-  late String _safeName;
+  late Safe _safe;
+  late String _covenName;
+  late String _roomName;
 
   _InviteState() {
     _idController.addListener(() {
@@ -60,35 +63,28 @@ class _InviteState extends State<Invite> {
     }
   }
 
-  _add() {
+  _add() async {
     var profile = Profile.current();
-    var roomName = _safeName.substring(_safeName.lastIndexOf("/"));
-    var covenName = _safeName.substring(0, _safeName.lastIndexOf("/"));
-    var coven = profile.covens[covenName];
-    if (coven != null) {
-      var access = coven.rooms[roomName]!;
-      var d = decodeAccess(profile.identity, access);
-
-      setUsers(
-          _safeName,
-          {_id: permissionRead + permissionWrite + permissionAdmin},
-          SetUsersOptions());
-      setState(() {
-        _access = encodeAccess(_id, _safeName, d.creatorId, d.aesKey, d.urls);
-      });
-    }
+    await _safe.setUsers(
+        {_id: permissionRead + permissionWrite + permissionAdmin},
+        SetUsersOptions());
+    var d = decodeAccess(profile.identity, _safe.access);
+    setState(() {
+      _access = encodeAccess(_id, _safe.name, d.creatorId, d.aesKey, d.urls);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    _safeName = ModalRoute.of(context)!.settings.arguments as String;
-    var roomName = _safeName.substring(_safeName.lastIndexOf("/") + 1);
-    var covenName = _safeName.substring(0, _safeName.lastIndexOf("/") - 1);
+    _safe = ModalRoute.of(context)!.settings.arguments as Safe;
+    var lastSlash = _safe.name.lastIndexOf("/");
+    _roomName = _safe.name.substring(lastSlash + 1);
+    _covenName = _safe.name.substring(0, lastSlash);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text("Invite to $roomName@$covenName"),
+        title: Text("Invite to $_roomName@$_covenName"),
       ),
       body: SingleChildScrollView(
         child: Container(
@@ -104,7 +100,7 @@ class _InviteState extends State<Invite> {
               ),
               const SizedBox(height: 20),
               TextFormField(
-                maxLines: 2,
+                maxLines: 4,
                 controller: _idController,
                 decoration: InputDecoration(
                   labelText: 'Enter the link',

@@ -16,8 +16,12 @@ class $AssetsImagesGen {
   AssetGenImage get icons8Behemoth =>
       const AssetGenImage('assets/images/icons8-behemoth.png');
 
+  /// File path: assets/images/icons8-waiting-cat.gif
+  AssetGenImage get icons8WaitingCat =>
+      const AssetGenImage('assets/images/icons8-waiting-cat.gif');
+
   /// List of all assets
-  List<AssetGenImage> get values => [icons8Behemoth];
+  List<AssetGenImage> get values => [icons8Behemoth, icons8WaitingCat];
 }
 
 class Assets {

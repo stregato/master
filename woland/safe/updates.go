@@ -30,7 +30,7 @@ func CheckForUpdates(s *Safe, dir string, after time.Time, depth int) ([]string,
 				core.Info("dir %s has been added", d)
 				ch <- d
 			} else {
-				touch, err := GetTouch(s.stores[0], hashedDir)
+				touch, err := GetTouch(s.stores[0], DataFolder, hashedDir, ".touch")
 				core.IsErr(err, nil, "cannot check touch file: %v", err)
 
 				if touch.After(after) && time.Unix(i, 0) != touch {

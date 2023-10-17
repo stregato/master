@@ -180,7 +180,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		return Header{}, err
 	}
 	core.Info("Wrote header for %s[%d]", header.Name, header.FileId)
-	_, err = SetTouch(store, hashedDir)
+	_, err = SetTouch(store, DataFolder, hashedDir, ".touch")
 	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 		return Header{}, err
 	}

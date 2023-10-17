@@ -3,6 +3,7 @@ package safe
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/stregato/master/woland/security"
@@ -10,6 +11,8 @@ import (
 )
 
 var CacheFolder string
+var safesCounter int
+var safesCounterLock sync.Mutex
 
 func init() {
 	dataDir, err := os.UserCacheDir()
@@ -29,6 +32,7 @@ const KeySize = 32
 type Keys map[uint64][]byte
 
 type Safe struct {
+	Hnd         int                 `json:"hnd"`         // Handle of the safe
 	CurrentUser security.Identity   `json:"currentUser"` // Current user
 	Access      string              `json:"access"`      // Access token
 	CreatorId   string              `json:"creatorId"`   // Creator of the safe

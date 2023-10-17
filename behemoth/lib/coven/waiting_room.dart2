@@ -1,0 +1,77 @@
+import 'package:flutter/material.dart';
+import 'package:behemoth/apps/chat/chat.dart';
+import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/coven/library.dart';
+
+class ZoneViewArgs {
+  String safeName;
+  String zoneName;
+  ZoneViewArgs(this.safeName, this.zoneName);
+}
+
+var currentPanelIdx = <String, int>{};
+
+class WaitingRoom extends StatefulWidget {
+  const WaitingRoom({Key? key}) : super(key: key);
+
+  @override
+  State<WaitingRoom> createState() => _WaitingRoomState();
+}
+
+class _WaitingRoomState extends State<WaitingRoom> {
+  List<Widget> _panels = [];
+  int _currentItem = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    var coven = ModalRoute.of(context)!.settings.arguments as Coven;
+    var lounge = coven.getLoungeSync()!;
+
+    if (_panels.isEmpty) {
+      _panels = [Chat(lounge, ""), Library(lounge)];
+    }
+
+    _currentItem = currentPanelIdx[lounge.name] ?? 0;
+    var title = safe.split("/").reversed.join("@");
+
+    var items = const [
+      BottomNavigationBarItem(
+        icon: Icon(Icons.chat),
+        label: 'Chat',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.library_books),
+        label: 'Library',
+      ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title, style: const TextStyle(fontSize: 18)),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(2.0),
+        child: Column(children: [
+          Expanded(
+            child: IndexedStack(
+              index: _currentItem,
+              children: _panels,
+            ),
+          ),
+        ]),
+      ),
+      //body:  _panels[_currentIndex],
+      bottomNavigationBar: NewsNavigationBar(
+        onTap: (int index) {
+          setState(() {
+            _currentItem = _currentItem == 0 ? 1 : 0;
+            currentPanelIdx[safe] = _currentItem;
+          });
+        },
+        items: [
+          items[_currentItem == 0 ? 1 : 0],
+        ],
+      ),
+    );
+  }
+}
