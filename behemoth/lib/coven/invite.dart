@@ -121,7 +121,7 @@ class _InviteState extends State<Invite> {
                 },
               ),
               const SizedBox(height: 40),
-              if (_anonymousInvite || _id.isNotEmpty && _access.isEmpty)
+              if (_id.isNotEmpty && _access.isEmpty)
                 Container(
                   constraints: const BoxConstraints(minWidth: 200),
                   child: ElevatedButton(

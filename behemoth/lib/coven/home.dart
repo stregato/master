@@ -108,6 +108,7 @@ class _HomeState extends State<Home> {
         ]),
         trailingActions: [
           const NewsIcon(),
+          const SizedBox(width: 10),
           PlatformIconButton(
               onPressed: () {
                 Navigator.pushNamed(context, "/settings")

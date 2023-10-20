@@ -1,7 +1,12 @@
+import 'dart:typed_data';
+
+import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
+import 'package:snowflake_dart/snowflake_dart.dart';
 
 class AddPerson extends StatefulWidget {
   const AddPerson({super.key});
@@ -12,48 +17,62 @@ class AddPerson extends StatefulWidget {
 
 class _AddPersonState extends State<AddPerson> {
   late Safe _safe;
-  late String _covenName;
-  late String _roomName;
+  late Safe _lounge;
 
-  _addPerson(Identity identity) async {
+  _addPerson(BuildContext context, Identity identity) async {
     await _safe.setUsers(
         {identity.id: permissionRead + permissionWrite + permissionAdmin},
         SetUsersOptions());
+    if (!mounted) return;
+
+    var d = decodeAccess(_safe.currentUser, _safe.access);
+    var access =
+        encodeAccess(identity.id, d.safeName, d.creatorId, d.aesKey, d.urls);
+
+    var task = _lounge.putBytes(
+        'chat/${Snowflake(nodeId: 0).generate()}',
+        Uint8List.fromList([]),
+        PutOptions(
+          contentType: "application/x-behemoth-invite",
+          private: identity.id,
+          meta: {
+            'access': access,
+            'name': _safe.prettyName,
+            'sender': _safe.currentUser,
+          },
+        ));
+    await progressDialog(context, "adding ${identity.nick}", task,
+        successMessage: "added ${identity.nick}",
+        errorMessage: "failed to add ${identity.nick}");
+    if (!mounted) return;
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    _safe = ModalRoute.of(context)!.settings.arguments as Safe;
-    var lastSlash = _safe.name.lastIndexOf("/");
+    var args = ModalRoute.of(context)!.settings.arguments as Map;
+    _safe = args['safe'] as Safe;
+    _lounge = args['lounge'] as Safe;
 
-    _covenName = _safe.name.substring(0, lastSlash - 1);
-    _roomName = _safe.name.substring(lastSlash + 1);
-    var identities2 = getIdentities(_safe.name);
-    var identities = getIdentities("$_covenName/lounge")
-        .where((e) => !identities2.contains(e));
+    var ids2 = _safe.getUsersSync().keys;
+    var ids =
+        _lounge.getUsersSync().keys.where((id) => !ids2.contains(id)).toList();
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text("Add to $_roomName@$_covenName"),
+        title: Text("Add to ${_safe.prettyName}"),
       ),
       body: SingleChildScrollView(
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
           child: Column(
             children: [
-              Text(
-                "Choose a person in $_covenName",
-                style: const TextStyle(
-                  fontSize: 16,
-                  //fontWeight: FontWeight.bold,
-                ),
-              ),
               const SizedBox(height: 20),
               ListView(
                 shrinkWrap: true,
-                children: identities.map((identity) {
+                children: ids.map((id) {
+                  var identity = getCachedIdentity(id);
                   var nick = identity.nick;
 
                   return ListTile(
@@ -64,7 +83,7 @@ class _AddPersonState extends State<AddPerson> {
                     trailing: IconButton(
                       icon: const Icon(Icons.add),
                       onPressed: () {
-                        _addPerson(identity);
+                        _addPerson(context, identity);
                       },
                     ),
                   );

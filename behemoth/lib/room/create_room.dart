@@ -30,7 +30,7 @@ class _CreateRoomState extends State<CreateRoom> {
   final List<Identity> _users = [];
 
   bool _validConfig() {
-    return name.isNotEmpty && _users.isNotEmpty;
+    return name.isNotEmpty;
   }
 
   _createRoom(Coven coven, String name, Map<String, Permission> users) async {
@@ -121,10 +121,12 @@ class _CreateRoomState extends State<CreateRoom> {
                                 "opening portal, please wait",
                                 _createRoom(coven, name, {
                                   for (var e in _users) e.id: permissionRead
-                                }).then(() => Navigator.pop(context)),
+                                }),
                                 successMessage:
                                     "Congrats! You successfully created $name",
                                 errorMessage: "Creation failed");
+                            if (!mounted) return;
+                            Navigator.pop(context);
                           }
                         : null,
                     child: const Text('Create'),

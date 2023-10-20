@@ -32,6 +32,8 @@ type ListOptions struct {
 	PrivateId       string    `json:"privateId"`       // Filter on private files either created by the current user or the specified user
 	Prefetch        bool      `json:"prefetch"`        // Prefetch the file bodies
 	ErrorIfNotExist bool      `json:"errorIfNotExist"` // Return an error if the directory does not exist. Otherwise, return empty list
+	OrderBy         string    `json:"orderBy"`         // Order by name or modTime. Default is name
+	ReverseOrder    bool      `json:"reverseOrder"`    // Order descending when true. Default is false
 }
 
 func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
@@ -52,8 +54,21 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 
 	var fromDepth = strings.Count(dir, "/") + 1
 	var toDepth int
-	if listOptions.Depth >= 0 {
+	if listOptions.Depth > 0 {
 		toDepth = fromDepth + listOptions.Depth
+	}
+
+	var key string
+	switch listOptions.OrderBy {
+	case "name", "":
+		key = "GET_FILES_NAME"
+	case "modTime":
+		key = "GET_FILES_MODTIME"
+	default:
+		return nil, fmt.Errorf("invalid order by: %s", listOptions.OrderBy)
+	}
+	if listOptions.ReverseOrder {
+		key += "_DESC"
 	}
 
 	args := sql.Args{
@@ -77,7 +92,8 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 		"fromDepth":      fromDepth,
 		"toDepth":        toDepth,
 	}
-	rows, err := sql.Query("GET_FILES", args)
+
+	rows, err := sql.Query(key, args)
 	if core.IsErr(err, nil, "cannot query files: %v", err) {
 		return nil, err
 	}
@@ -94,6 +110,7 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 			continue
 		}
 		headers = append(headers, header)
+		core.Info("found header %s, %v, %d", header.Name, header.ModTime, header.FileId)
 	}
 
 	if listOptions.Prefetch {

@@ -74,7 +74,10 @@ dependencies:
   flutter_platform_widgets: ^3.3.5
   flutter_markdown: ^0.6.18
   emoji_picker_flutter: ^1.6.2
-  
+  media_kit: ^1.1.9
+  media_kit_video: ^1.2.2 
+  media_kit_libs_video: ^1.0.4
+  media_kit_libs_audio: ^1.0.4
 
 dev_dependencies:
   flutter_test:

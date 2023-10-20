@@ -7,7 +7,8 @@ var currentPanelIdx = <String, int>{};
 
 class People extends StatefulWidget {
   final Safe safe;
-  const People(this.safe, {Key? key}) : super(key: key);
+  final Safe lounge;
+  const People(this.safe, this.lounge, {Key? key}) : super(key: key);
 
   @override
   State<People> createState() => _PeopleState();
@@ -49,7 +50,7 @@ class _PeopleState extends State<People> {
                   MainAxisAlignment.center, // Center horizontally
               children: [
                 Expanded(
-                  child: safe.name.endsWith("/lounge")
+                  child: safe == widget.lounge
                       ? ElevatedButton(
                           child: const Text("Invite"),
                           onPressed: () {
@@ -60,7 +61,10 @@ class _PeopleState extends State<People> {
                           child: const Text("Add"),
                           onPressed: () {
                             Navigator.pushNamed(context, "/coven/add_person",
-                                arguments: safe);
+                                arguments: {
+                                  "safe": safe,
+                                  "lounge": widget.lounge
+                                });
                           }),
                 )
               ],

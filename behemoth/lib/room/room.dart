@@ -24,6 +24,9 @@ class _RoomState extends State<Room> {
   Timer? _timer;
   String _title = "";
   List<Widget> _items = [];
+  late Safe _lounge;
+  Safe? _safe;
+  Widget? _addPerson;
 
   @override
   void initState() {
@@ -43,10 +46,22 @@ class _RoomState extends State<Room> {
     var args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     var future = args['future'] as Future<Safe>;
+    _lounge = args['lounge'] as Safe;
     if (_title.isEmpty) {
       _title = args['name'] as String;
       _currentItem = currentPanelIdx[_title] ?? 0;
     }
+
+    var addPerson = IconButton(
+        onPressed: () async {
+          if (_safe == null) return;
+          await Navigator.pushNamed(context, "/coven/add_person",
+              arguments: {"safe": _safe, "lounge": _lounge});
+          if (!mounted) return;
+          Navigator.pop(context);
+        },
+        icon: const Icon(Icons.person_add));
+
     var items = const [
       BottomNavigationBarItem(
         icon: Icon(Icons.chat),
@@ -67,7 +82,8 @@ class _RoomState extends State<Room> {
         title: Text(_title, style: const TextStyle(fontSize: 18)),
         trailingActions: [
           const NewsIcon(),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.exit_to_app)),
+          const SizedBox(width: 10),
+          addPerson,
         ],
       ),
       body: FutureBuilder<Safe>(
@@ -75,11 +91,11 @@ class _RoomState extends State<Room> {
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               if (_items.isEmpty) {
-                var safe = snapshot.data!;
+                _safe = snapshot.data!;
                 _items = [
-                  Chat(safe, ""),
-                  Content(safe),
-                  People(safe),
+                  Chat(_safe!, ""),
+                  Content(_safe!),
+                  People(_safe!, _lounge),
                 ];
               }
 

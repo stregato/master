@@ -34,10 +34,10 @@ class _SetupState extends State<Setup> {
   }
 
   _selectAvatar() async {
-    XFile? xfile = await pickImage();
-    if (xfile == null) return;
+    var xfiles = await pickVideo();
+    if (xfiles.isEmpty) return;
 
-    var bytes = await xfile.readAsBytes();
+    var bytes = await xfiles[0].readAsBytes();
     setState(() {
       _avatarImage = Image.memory(
         bytes,

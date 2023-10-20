@@ -17,7 +17,7 @@ class _PrivatesState extends State<Privates> {
     var items = safe
         .getUsersSync()
         .keys
-//        .where((id) => id != profile.identity.id)
+        .where((id) => id != safe.currentUser.id)
         .map((id) {
       var identity = getCachedIdentity(id);
       var nick = identity.nick.isNotEmpty ? identity.nick : id;
@@ -26,16 +26,15 @@ class _PrivatesState extends State<Privates> {
         onTap: () {
           // Navigate to a new page when an item is tapped
           Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => Scaffold(
-                  appBar: AppBar(title: Text("🕵 with $nick")),
-                  body: Padding(
-                    padding: const EdgeInsets.all(2.0),
-                    child: Column(children: [Chat(safe, id)]),
-                  ),
-                ),
-              ));
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                appBar: AppBar(title: Text("🕵 with $nick")),
+                body: Padding(
+                    padding: const EdgeInsets.all(2.0), child: Chat(safe, id)),
+              ),
+            ),
+          );
         },
       );
     }).toList();

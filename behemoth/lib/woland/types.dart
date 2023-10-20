@@ -255,6 +255,8 @@ class ListOptions {
   bool includeDeleted;
   bool prefetch;
   bool errorIfNotExist;
+  String orderBy;
+  bool reverseOrder;
 
   ListOptions(
       {this.name = '',
@@ -273,7 +275,9 @@ class ListOptions {
       this.limit = 0,
       this.includeDeleted = false,
       this.prefetch = false,
-      this.errorIfNotExist = false});
+      this.errorIfNotExist = false,
+      this.orderBy = '',
+      this.reverseOrder = false});
 
   Map<String, dynamic> toJson() => {
         'name': name,
@@ -293,6 +297,8 @@ class ListOptions {
         'includeDeleted': includeDeleted,
         'prefetch': prefetch,
         'errorIfNotExist': errorIfNotExist,
+        'orderBy': orderBy,
+        'reverseOrder': reverseOrder,
       };
 }
 
@@ -318,6 +324,7 @@ class PutOptions {
   bool zip;
   Map<String, dynamic> meta;
   String source;
+  String private;
 
   PutOptions(
       {this.replace = false,
@@ -328,7 +335,8 @@ class PutOptions {
       this.contentType = '',
       this.zip = false,
       this.meta = const {},
-      this.source = ''});
+      this.source = '',
+      this.private = ''});
 
   Map<String, dynamic> toJson() => {
         'replace': replace,
@@ -340,6 +348,7 @@ class PutOptions {
         'zip': zip,
         'meta': meta,
         'source': source,
+        'private': private,
       };
 }
 

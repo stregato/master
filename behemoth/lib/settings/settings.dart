@@ -24,10 +24,10 @@ class _SettingsState extends State<Settings> {
   late Uint8List _avatar;
 
   _selectAvatar() async {
-    XFile? xfile = await pickImage();
-    if (xfile == null) return;
+    var xfiles = await pickImage();
+    if (xfiles.isEmpty) return;
 
-    var bytes = await xfile.readAsBytes();
+    var bytes = await xfiles[0].readAsBytes();
     setState(() {
       _avatar = bytes;
     });

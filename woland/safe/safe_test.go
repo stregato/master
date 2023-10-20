@@ -79,9 +79,23 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, file.Name == "sub/file1", "Expected file name to be 'file1', got '%s'", file.Name)
 
-	_, err = ListFiles(s, "sub", ListOptions{})
-	core.TestErr(t, err, "cannot list files: %v")
-	files, err := ListFiles(s, "sub", ListOptions{})
+	r = core.NewBytesReader(data)
+	file, err = Put(s, "sub/file2", r, PutOptions{
+		Tags:        []string{"tag1", "tag2"},
+		ContentType: "text/plain",
+	})
+	core.TestErr(t, err, "cannot put file: %v")
+	core.Assert(t, file.Name == "sub/file2", "Expected file name to be 'file1', got '%s'", file.Name)
+
+	r = core.NewBytesReader(data)
+	file, err = Put(s, "sub/file3", r, PutOptions{
+		Tags:        []string{"tag1", "tag2"},
+		ContentType: "text/plain",
+	})
+	core.TestErr(t, err, "cannot put file: %v")
+	core.Assert(t, file.Name == "sub/file3", "Expected file name to be 'file1', got '%s'", file.Name)
+
+	files, err := ListFiles(s, "sub", ListOptions{OrderBy: "modTime", ReverseOrder: true})
 	core.TestErr(t, err, "cannot list files: %v")
 	core.Assert(t, len(files) == 1, "Expected 1 file, got %d", len(files))
 	file = files[0]
@@ -97,7 +111,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	core.TestErr(t, err, "cannot get file: %v")
 	core.Assert(t, bytes.Equal(data, b.Bytes()), "Expected data to be '%s', got '%s'", data, b.Bytes())
 
-	files, err = ListFiles(s, "sub", ListOptions{})
+	files, err = ListFiles(s, "sub", ListOptions{OrderBy: "modTime", ReverseOrder: true})
 	core.TestErr(t, err, "cannot list files: %v")
 	file = files[0]
 	core.Assert(t, file.Cached != "", "Expected cached to be set")

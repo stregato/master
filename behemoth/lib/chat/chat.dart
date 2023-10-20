@@ -13,7 +13,6 @@ import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/woland/types.dart';
-import 'package:behemoth/woland/woland.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
@@ -154,6 +153,7 @@ class _ChatState extends State<Chat> {
   }
 
   types.Message _convertInvite(Header h, types.User user) {
+    var sender = Identity.fromJson(h.attributes.extra['sender']);
     return types.CustomMessage(
         id: h.name,
         author: user,
@@ -161,6 +161,8 @@ class _ChatState extends State<Chat> {
         metadata: {
           'mime': h.attributes.contentType,
           'access': h.attributes.extra['access'],
+          'name': h.attributes.extra['name'],
+          'sender': sender,
         });
   }
 
@@ -173,7 +175,7 @@ class _ChatState extends State<Chat> {
       if (contentType == 'text/html') {
         return _convertHtml(h, user);
       }
-      if (contentType == 'application/x-woland-invite') {
+      if (contentType == 'application/x-behemoth-invite') {
         return _convertInvite(h, user);
       }
       if (contentType.startsWith('text/')) {
@@ -201,8 +203,12 @@ class _ChatState extends State<Chat> {
   }
 
   _listFiles(Chat widget, DateTime after, DateTime before) async {
-    var options =
-        ListOptions(after: after, before: before, limit: isDesktop ? 40 : 20);
+    var options = ListOptions(
+        after: after,
+        before: before,
+        limit: isDesktop ? 40 : 20,
+        orderBy: "modTime",
+        reverseOrder: true);
 
     if (widget.privateId.isNotEmpty) {
       options.privateId = widget.privateId;
@@ -265,48 +271,38 @@ class _ChatState extends State<Chat> {
             ],
           ),
         );
-      case 'application/x-woland-invite':
+      case 'application/x-behemoth-invite':
         var access = message.metadata?['access'] as String;
-        var p = Profile.current();
-        var currentUser = p.identity;
-        var d = decodeAccess(currentUser, access);
-        var name = d.safeName.substring(0, d.safeName.lastIndexOf('/'));
-        var space = d.safeName.substring(name.length + 1);
-
-        var nick = message.author.lastName;
-        var m = message.metadata?['message'] as String;
+        var name = message.metadata?['name'] as String;
+        var sender = message.metadata?['sender'] as Identity;
 
         return Card(
+          color: Colors.blue,
           margin: const EdgeInsets.all(4.0),
           child: Padding(
             padding: const EdgeInsets.all(4.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Invite to join $space@$name from $nick",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18.0,
-                      ),
-                    ),
-                    Text(m),
-                  ],
+                Text(
+                  "Invite to join $name from ${sender.nick}",
+                  style: const TextStyle(
+                    backgroundColor: Colors.blue,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18.0,
+                  ),
                 ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await Coven.join(access);
-                    if (!mounted) return;
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        backgroundColor: Colors.green,
-                        content: Text("Joined $space@$name")));
-                  },
-                  child: const Text('Join'),
-                ),
+                if (sender.id != _safe.currentUser.id)
+                  ElevatedButton(
+                    onPressed: () async {
+                      await progressDialog(
+                          context, "Joining $name", Coven.join(access),
+                          successMessage: "Joined $name",
+                          errorMessage: "Failed to join $name");
+                    },
+                    child: const Text('Join'),
+                  ),
               ],
             ),
           ),
@@ -341,9 +337,11 @@ class _ChatState extends State<Chat> {
 
   void _handleSendPressed(types.PartialText message) async {
     var name = 'chat/${Snowflake(nodeId: 0).generate()}';
-    var putOptions = PutOptions();
-    putOptions.contentType = "text/plain";
-    putOptions.meta = {'text': message.text};
+    var putOptions = PutOptions(
+      contentType: "text/plain",
+      private: widget.privateId,
+      meta: {'text': message.text},
+    );
 
     var header = await _safe.putBytes(name, Uint8List(0), putOptions);
 
@@ -364,9 +362,8 @@ class _ChatState extends State<Chat> {
       builder: (BuildContext context) => SafeArea(
         child: SizedBox(
           height: 200,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
+          child: ListView(
+            children: [
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.photo),
@@ -488,9 +485,7 @@ class _ChatState extends State<Chat> {
   }
 
   void _handleImageSelection(BuildContext context) async {
-    XFile? xfile = await pickImage();
-
-    if (xfile != null) {
+    for (var xfile in await pickImage()) {
       _addImage(xfile);
     }
   }

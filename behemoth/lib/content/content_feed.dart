@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/image.dart';
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/news_icon.dart';
@@ -9,8 +11,11 @@ import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart';
+import 'package:video_player/video_player.dart';
 
 class ContentFeed extends StatefulWidget {
   const ContentFeed({super.key});
@@ -20,12 +25,22 @@ class ContentFeed extends StatefulWidget {
 }
 
 class _ContentFeedState extends State<ContentFeed> {
-  int _start = 0;
+  int _offset = 0;
   int _end = 0;
   List<Header> _headers = [];
-  List<Widget> _items = [];
   late Safe _safe;
   String _folder = "";
+  final Map<int, Widget> _cache = {};
+  List<Widget> _items = [];
+  final List<Player> _players = [];
+
+  @override
+  void dispose() {
+    for (var p in _players) {
+      p.dispose();
+    }
+    super.dispose();
+  }
 
   Future<Widget> _getImageWidget(Header h) async {
     if (h.attributes.thumbnail.isNotEmpty) {
@@ -35,7 +50,8 @@ class _ContentFeedState extends State<ContentFeed> {
       );
     }
 
-    var localpath = join(documentsFolder, _safe.name, _folder, h.name);
+    var localpath =
+        join(documentsFolder, _safe.name, _folder, basename(h.name));
     var localfile = File(localpath);
     if (!localfile.existsSync()) {
       await _safe.getFile(h.name, localpath, GetOptions());
@@ -44,44 +60,84 @@ class _ContentFeedState extends State<ContentFeed> {
     return Image.file(localfile, fit: BoxFit.cover);
   }
 
-  Future<Widget?> _getWidget(Header h) async {
+  Future<Widget> _getVideoWidget(
+    Header h,
+  ) async {
+    var localpath =
+        join(documentsFolder, _safe.name, _folder, basename(h.name));
+    var localfile = File(localpath);
+    if (!localfile.existsSync()) {
+      await _safe.getFile(h.name, localpath, GetOptions());
+    }
+
+    var player = Player();
+    _players.add(player);
+    var controller = VideoController(player);
+    player.open(Media(localpath), play: false);
+    return Video(controller: controller);
+  }
+
+  Future<Widget> _getWidget(Header h) async {
     var mime = h.attributes.contentType;
     if (mime.startsWith("image/")) {
       return _getImageWidget(h);
+    } else if (mime.startsWith("video/")) {
+      return _getVideoWidget(h);
     }
-    return null;
+    return Container();
   }
 
   Future _read() async {
-    _headers = await _safe.listFiles("content/$_folder", ListOptions());
+    _headers = await _safe.listFiles(
+        "content/$_folder",
+        ListOptions(
+          reverseOrder: true,
+          orderBy: 'modTime',
+          limit: 5,
+          offset: _offset,
+        ));
     var items = <Widget>[];
+    var updated = false;
     for (var h in _headers) {
-      Widget? w = await _getWidget(h);
-      if (w != null) {
-        items.add(w);
+      var w = _cache[h.fileId];
+      if (w == null) {
+        updated = true;
+        w = await _getWidget(h);
+        _cache[h.fileId] = w;
       }
+      items.add(w);
     }
-    setState(() {
-      _items = items;
-    });
+    if (updated) {
+      setState(() {
+        _items = items;
+      });
+    }
   }
 
-  void _addImage() async {
-    XFile? xfile = await pickImage();
-    if (xfile == null) {
-      return;
+  void _addMedia(String mediaType) async {
+    List<XFile> xfiles;
+    switch (mediaType) {
+      case "image":
+        xfiles = await pickImage();
+        break;
+      case "video":
+        xfiles = await pickVideo();
+        break;
+      default:
+        return;
     }
-    final bytes = await xfile.readAsBytes();
-//    final image = await decodeImageFromList(bytes);
 
-    var name = "content/$_folder/${basename(xfile.name)}";
-    var options = PutOptions(
-        autoThumbnail: true, contentType: lookupMimeType(xfile.path) ?? '');
-    var header = await _safe.putFile(name, xfile.path, options);
-    setState(() {
-      _items.add(Image.memory(bytes, fit: BoxFit.cover));
-      _headers.add(header);
-    });
+    for (var xfile in xfiles) {
+      var name = "content/$_folder/${basename(xfile.name)}";
+      var localpath =
+          join(documentsFolder, _safe.name, _folder, basename(xfile.name));
+      await xfile.saveTo(localpath);
+      var options = PutOptions(
+          contentType: lookupMimeType(xfile.path) ?? '', source: localpath);
+      await _safe.putFile(name, localpath, options);
+    }
+
+    _read();
   }
 
   void _handleAttachmentPressed(BuildContext context) {
@@ -99,7 +155,7 @@ class _ContentFeedState extends State<ContentFeed> {
                   title: const Text('Photo'),
                   onTap: () {
                     Navigator.pop(context);
-                    _addImage();
+                    _addMedia('image');
                   },
                 ),
               ),
@@ -112,6 +168,7 @@ class _ContentFeedState extends State<ContentFeed> {
                   title: const Text('Video'),
                   onTap: () {
                     Navigator.pop(context);
+                    _addMedia('video');
                   },
                 ),
               ),
@@ -141,7 +198,6 @@ class _ContentFeedState extends State<ContentFeed> {
           ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
       _safe = args["safe"] as Safe;
       _folder = args["folder"] as String;
-      _read();
     }
 
     return PlatformScaffold(
@@ -153,33 +209,47 @@ class _ContentFeedState extends State<ContentFeed> {
           IconButton(onPressed: () {}, icon: const Icon(Icons.exit_to_app)),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: _items.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  elevation: 3.0,
-                  margin: const EdgeInsets.all(8.0),
-                  child: _items[index],
-                );
-              },
-            ),
-          ),
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  onPressed: () => _handleAttachmentPressed(context),
-                  child: const Text('Add'),
+      body: FutureBuilder(
+          future: _read(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CatProgressIndicator("Loading...");
+            }
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    const Spacer(),
+                    IconButton(
+                        onPressed: _read, icon: const Icon(Icons.refresh)),
+                    const SizedBox(width: 10),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () => _handleAttachmentPressed(context),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          ]),
-        ],
-      ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _items.length,
+                    itemBuilder: (context, index) {
+                      var w = _items[index];
+                      var width = MediaQuery.of(context).size.width * 0.9;
+                      var height = w is Video ? width * 9.0 / 16.0 : null;
+                      return Card(
+                        elevation: 3.0,
+                        margin: const EdgeInsets.all(8.0),
+                        child: Center(
+                          child:
+                              SizedBox(width: width, height: height, child: w),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          }),
     );
   }
 }

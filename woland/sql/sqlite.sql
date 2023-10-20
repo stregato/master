@@ -86,6 +86,12 @@ CREATE TABLE IF NOT EXISTS Header (
 -- INIT
 CREATE INDEX IF NOT EXISTS modTimeIndex ON Header (modTime);
 
+-- INIT
+CREATE INDEX IF NOT EXISTS fileIdIndex ON Header (fileId);
+
+-- INIT
+CREATE INDEX IF NOT EXISTS nameIndex ON Header (name);
+
 -- INSERT_HEADER
 INSERT INTO Header (safe, name, size, fileId, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, cacheExpires, header)
 VALUES (:safe, :name, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :cacheExpires, :header)
@@ -97,7 +103,7 @@ UPDATE Header SET header = :header, cacheExpires=:cacheExpires WHERE safe = :saf
 -- SET_DELETED_FILE
 UPDATE Header SET deleted = 1 WHERE safe = :safe AND fileId = :fileId
 
--- GET_FILES
+-- GET_FILES_NAME
 SELECT header FROM Header
 WHERE safe = :safe
   AND (:name = '' OR name = :name)
@@ -115,8 +121,67 @@ WHERE safe = :safe
   AND (depth >= :fromDepth) 
   AND (:toDepth = 0 OR depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
-ORDER BY modTime DESC
-LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
+  ORDER BY name LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
+
+-- GET_FILES_MODTIME
+SELECT header FROM Header
+WHERE safe = :safe
+  AND (:name = '' OR name = :name)
+  AND (:suffix = '' OR name LIKE '%' || :suffix)
+  AND (:fileId = 0 OR fileId = :fileId)
+  AND (:dir = '' OR dir = :dir)
+  AND (:tags = '' OR tags LIKE '%' || :tags || '%')
+  AND (:contentType = '' OR contentType = :contentType)
+  AND (:creator = '' OR creator = :creator)
+  AND (:noPrivate = 0 OR privateId == '')
+  AND (:privateId = '' OR (privateId = :privateId AND creator = :currentUser) OR (privateId = :currentUser AND creator = :privateId))
+  AND (:before < 0 OR modTime < :before)
+  AND (:after < 0 OR modTime > :after)
+  AND (:syncAfter < 0 OR syncTime > :syncAfter)
+  AND (depth >= :fromDepth) 
+  AND (:toDepth = 0 OR depth <= :toDepth)
+  AND (:includeDeleted == 1 OR deleted = 0)
+  ORDER BY name LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
+
+-- GET_FILES_NAME_DESC
+SELECT header FROM Header
+WHERE safe = :safe
+  AND (:name = '' OR name = :name)
+  AND (:suffix = '' OR name LIKE '%' || :suffix)
+  AND (:fileId = 0 OR fileId = :fileId)
+  AND (:dir = '' OR dir = :dir)
+  AND (:tags = '' OR tags LIKE '%' || :tags || '%')
+  AND (:contentType = '' OR contentType = :contentType)
+  AND (:creator = '' OR creator = :creator)
+  AND (:noPrivate = 0 OR privateId == '')
+  AND (:privateId = '' OR (privateId = :privateId AND creator = :currentUser) OR (privateId = :currentUser AND creator = :privateId))
+  AND (:before < 0 OR modTime < :before)
+  AND (:after < 0 OR modTime > :after)
+  AND (:syncAfter < 0 OR syncTime > :syncAfter)
+  AND (depth >= :fromDepth) 
+  AND (:toDepth = 0 OR depth <= :toDepth)
+  AND (:includeDeleted == 1 OR deleted = 0)
+  ORDER BY name DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
+
+-- GET_FILES_MODTIME_DESC
+SELECT header FROM Header
+WHERE safe = :safe
+  AND (:name = '' OR name = :name)
+  AND (:suffix = '' OR name LIKE '%' || :suffix)
+  AND (:fileId = 0 OR fileId = :fileId)
+  AND (:dir = '' OR dir = :dir)
+  AND (:tags = '' OR tags LIKE '%' || :tags || '%')
+  AND (:contentType = '' OR contentType = :contentType)
+  AND (:creator = '' OR creator = :creator)
+  AND (:noPrivate = 0 OR privateId == '')
+  AND (:privateId = '' OR (privateId = :privateId AND creator = :currentUser) OR (privateId = :currentUser AND creator = :privateId))
+  AND (:before < 0 OR modTime < :before)
+  AND (:after < 0 OR modTime > :after)
+  AND (:syncAfter < 0 OR syncTime > :syncAfter)
+  AND (depth >= :fromDepth) 
+  AND (:toDepth = 0 OR depth <= :toDepth)
+  AND (:includeDeleted == 1 OR deleted = 0)
+  ORDER BY name DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_FOLDERS
 SELECT distinct dir FROM Header

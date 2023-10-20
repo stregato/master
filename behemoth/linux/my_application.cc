@@ -50,7 +50,17 @@ static void my_application_activate(GApplication* application) {
 
   // auto bdw = bitsdojo_window_from(window);
   // bdw->setCustomFrame(true);
-//  gtk_window_set_default_size(window, 1280, 720);
+
+  GdkRectangle workarea = {0};
+  gdk_monitor_get_workarea(
+    gdk_display_get_primary_monitor(gdk_display_get_default()),
+    &workarea);
+
+  int width = workarea.width < 1280 ? 300 : workarea.width * 0.25;
+  int height = workarea.height;
+
+  gtk_window_set_default_size(window, width, height);
+  gtk_window_move(window, workarea.width - width, workarea.y);
   gtk_widget_show(GTK_WIDGET(window));
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();

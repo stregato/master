@@ -4,6 +4,7 @@ import 'package:basic_utils/basic_utils.dart';
 import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/woland/woland.dart';
@@ -33,6 +34,7 @@ class _CovenWidgetState extends State<CovenWidget> {
   Timer? _timer;
   DateTime lastWaitingUsersUpdate = DateTime(0);
   Safe? _lounge;
+  List<Header> _invites = [];
 
   @override
   void initState() {
@@ -45,6 +47,69 @@ class _CovenWidgetState extends State<CovenWidget> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  List<Widget> getInvites(BuildContext context) {
+    var widgets = <Widget>[];
+    for (var h in _invites) {
+      var access = h.attributes.extra['access'] as String;
+      var name = h.attributes.extra['name'] as String;
+      var sender = Identity.fromJson(h.attributes.extra['sender']);
+
+      widgets.add(Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.mail),
+                const SizedBox(width: 10),
+                Text("Invite to $name by ${sender.nick}"),
+                const Spacer(),
+                PlatformElevatedButton(
+                  onPressed: () {
+                    progressDialog(context, "Joining $name", Coven.join(access),
+                        successMessage: "Joined $name",
+                        errorMessage: "Failed to join $name");
+                  },
+                  child: const Text('Join'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ));
+    }
+    return widgets;
+  }
+
+  _checkInvites() async {
+    var headers = await _lounge!.listFiles(
+        "chat",
+        ListOptions(
+          // privateId: _coven.identity.id,
+          contentType: "application/x-behemoth-invite",
+        ));
+
+    var invites = <Header>[];
+    var diff = false;
+    for (var h in headers) {
+      var name = h.attributes.extra['name'] as String;
+      var access = h.attributes.extra['access'] as String;
+      if (!_coven.rooms.containsKey(name)) {
+        invites.add(h);
+        diff |= _invites
+            .where((h) => h.attributes.extra['access'] == access)
+            .isNotEmpty;
+      }
+    }
+
+    if (diff || invites.length != _invites.length) {
+      setState(() {
+        _invites = invites;
+      });
+    }
   }
 
   _waitingRoom() {
@@ -67,6 +132,15 @@ class _CovenWidgetState extends State<CovenWidget> {
   @override
   Widget build(BuildContext context) {
     _coven = ModalRoute.of(context)!.settings.arguments as Coven;
+
+    var settingsIcon = IconButton(
+        onPressed: () async {
+          await Navigator.pushNamed(context, "/coven/settings",
+              arguments: _coven);
+          setState(() {});
+        },
+        icon: const Icon(Icons.settings));
+
     var privates = Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -102,6 +176,7 @@ class _CovenWidgetState extends State<CovenWidget> {
                     Navigator.pushNamed(context, "/coven/room", arguments: {
                       "future": _coven.getSafe(room),
                       "name": Safe.pretty(safeName),
+                      "lounge": _lounge,
                     }).then((value) {
                       setState(() {});
                     });
@@ -113,6 +188,7 @@ class _CovenWidgetState extends State<CovenWidget> {
     }).toList();
 
     _waitingRoom();
+    _checkInvites();
     var amAdmin = _myPermission & permissionAdmin == permissionAdmin;
     for (var id in _waitingUsers) {
       var identity = getIdentity(id);
@@ -166,40 +242,8 @@ class _CovenWidgetState extends State<CovenWidget> {
           title: Text(_coven.name),
           trailingActions: [
             const NewsIcon(),
-            PopupMenuButton<String>(
-              onSelected: (String result) {
-                switch (result) {
-                  case 'create':
-                    Navigator.pushNamed(context, "/coven/create",
-                            arguments: _coven)
-                        .then((value) => setState(() {}));
-                    break;
-                  case 'invite':
-                    Navigator.pushNamed(context, "/invite",
-                        arguments: "${_coven.name}/lounge");
-                    break;
-                  case 'settings':
-                    Navigator.pushNamed(context, "/coven/settings",
-                            arguments: _coven)
-                        .then((value) => setState(() {}));
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'create',
-                  child: Text('Add Space'),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'invite',
-                  child: Text('Invite'),
-                ),
-                const PopupMenuDivider(),
-                const PopupMenuItem<String>(
-                  value: 'settings',
-                  child: Text('Settings'),
-                ),
-              ],
-            ),
+            const SizedBox(width: 10),
+            settingsIcon,
           ],
         ),
         body: FutureBuilder<Safe>(
@@ -215,8 +259,9 @@ class _CovenWidgetState extends State<CovenWidget> {
               _lounge = snapshot.data as Safe;
               return Padding(
                 padding: const EdgeInsets.all(2.0),
-                child: Column(
+                child: ListView(
                   children: [
+                    ...getInvites(context),
                     privates,
                     ...zonesWidgets,
                   ],
@@ -237,7 +282,8 @@ class _CovenWidgetState extends State<CovenWidget> {
           },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.list), label: "Rooms"),
-            BottomNavigationBarItem(icon: Icon(Icons.add), label: "Add Room"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.add), label: "Create Room"),
             BottomNavigationBarItem(
                 icon: Icon(Icons.person_add), label: "Invite"),
           ],

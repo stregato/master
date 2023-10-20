@@ -67,7 +67,7 @@ class _NewsIconState extends State<NewsIcon> {
               _news.remove(safe);
               Navigator.pop(context);
               Navigator.pushNamed(context, "/coven/room",
-                  arguments: {"name": safe.name, "future": () async => safe});
+                  arguments: {"name": safe.name, "future": safe});
             },
           ),
         );

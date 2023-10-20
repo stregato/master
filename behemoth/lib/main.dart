@@ -4,6 +4,7 @@ import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/io.dart';
 
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:window_size/window_size.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:uni_links_desktop/uni_links_desktop.dart';
@@ -12,6 +13,7 @@ import 'app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
 
   if (Platform.isWindows || Platform.isMacOS) {
     registerProtocol('mg');
