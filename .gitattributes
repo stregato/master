@@ -1,1 +1,5 @@
 dist/ filter=lfs diff=lfs merge=lfs -text
+woland.dll filter=lfs diff=lfs merge=lfs -text
+libwoland.so filter=lfs diff=lfs merge=lfs -text
+libwoland.dylib filter=lfs diff=lfs merge=lfs -text
+woland.a filter=lfs diff=lfs merge=lfs -text
