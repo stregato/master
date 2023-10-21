@@ -33,7 +33,7 @@ type Identity struct {
 	Id      string    `json:"i"`
 	Nick    string    `json:"n,omitempty"`
 	Email   string    `json:"e,omitempty"`
-	ModTime time.Time `json:"modTime"`
+	ModTime time.Time `json:"m"`
 
 	Private string `json:"p,omitempty"`
 

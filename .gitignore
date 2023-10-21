@@ -56,6 +56,12 @@ behemoth/linux/CMakeFiles/
 behemoth/ios/Podfile.lock
 behemoth/macos/Podfile.lock
 
+poland/linux/**
+poland/macos/**
+poland/windows/**
+
+woland/dist/**
+
 go.work.sum
 **/libwoland.*
 **/woland.a

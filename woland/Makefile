@@ -1,6 +1,7 @@
 
 OUT=$(PWD)/dist
 BEHEMOTH=$(PWD)/../behemoth
+BEHEMOTH=$(PWD)/../poland
 
 linux-x86_64:
 	CGO_ENABLED=1 \
@@ -120,5 +121,9 @@ clean:
 
 behemoth:
 	test -e $(BEHEMOTH) && cp -rf $(OUT)/* $(BEHEMOTH)
+
+python:
+	test -e $(POLAND) && cp -rf $(OUT)/* $(POLAND)
+
 
 	

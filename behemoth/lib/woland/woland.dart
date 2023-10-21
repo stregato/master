@@ -178,15 +178,16 @@ List<Identity> getIdentities(String safeName) {
   return l.map((e) => Identity.fromJson(e)).toList();
 }
 
-String encodeAccess(String userId, String safeName, String creatorId,
-    String aesKey, List<String> urls) {
+String encodeAccess(
+    String userId, String safeName, String creatorId, List<String> urls,
+    {String aesKey = ""}) {
   var fun = lib.lookupFunction<Args5SSSSS, Args5SSSSS>("encodeAccess");
   return fun(
           userId.toNativeUtf8(),
           safeName.toNativeUtf8(),
           creatorId.toNativeUtf8(),
-          aesKey.toNativeUtf8(),
-          jsonEncode(urls).toNativeUtf8())
+          jsonEncode(urls).toNativeUtf8(),
+          aesKey.toNativeUtf8())
       .unwrapString();
 }
 

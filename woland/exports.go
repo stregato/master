@@ -138,7 +138,7 @@ func wlnd_getIdentity(id *C.char) C.Result {
 }
 
 //export wlnd_encodeAccess
-func wlnd_encodeAccess(userId *C.char, safeName *C.char, creatorId *C.char, aesKey *C.char, urls *C.char) C.Result {
+func wlnd_encodeAccess(userId *C.char, safeName *C.char, creatorId *C.char, urls *C.char, aesKey *C.char) C.Result {
 	var urls_ []string
 	err := cUnmarshal(urls, &urls_)
 	if core.IsErr(err, nil, "cannot unmarshal urls: %v") {
@@ -160,14 +160,14 @@ type decodedToken struct {
 }
 
 //export wlnd_decodeAccess
-func wlnd_decodeAccess(identity *C.char, token *C.char) C.Result {
+func wlnd_decodeAccess(identity *C.char, access *C.char) C.Result {
 	var i security.Identity
 	err := cUnmarshal(identity, &i)
 	if core.IsErr(err, nil, "cannot unmarshal identity: %v") {
 		return cResult(nil, err)
 	}
 
-	safeName, creatorId, aesKey, urls, err := safe.DecodeAccess(i, C.GoString(token))
+	safeName, creatorId, aesKey, urls, err := safe.DecodeAccess(i, C.GoString(access))
 	if core.IsErr(err, nil, "cannot transfer token: %v") {
 		return cResult(nil, err)
 	}
