@@ -51,7 +51,9 @@ behemoth/tmp/
 behemoth/linux/plugins/
 behemoth/linux/CMakeFiles/
 .DS_Store
-ios/Podfile.lock
-macos/Podfile.lock
+behemoth/ios/Podfile.lock
+behemoth/macos/Podfile.lock
 
+go.work.sum
+**/libwoland.so
 *.snap

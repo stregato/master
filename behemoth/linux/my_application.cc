@@ -1,6 +1,8 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+//#include <stdio.h>
+//#include <stdlib.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -59,8 +61,13 @@ static void my_application_activate(GApplication* application) {
   int width = workarea.width < 1280 ? 300 : workarea.width * 0.25;
   int height = workarea.height;
 
-  gtk_window_set_default_size(window, width, height);
-  gtk_window_move(window, workarea.width - width, workarea.y);
+  // if (getenv("SNAP") != NULL) {
+  //   gtk_window_set_default_size(window, 320, 600);
+  //     gtk_window_move(window, 700, 30);
+  // } else {
+    gtk_window_set_default_size(window, width, height);
+    gtk_window_move(window, workarea.width - width, workarea.y);
+//  }
   gtk_widget_show(GTK_WIDGET(window));
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();

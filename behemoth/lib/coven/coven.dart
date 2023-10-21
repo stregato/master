@@ -256,7 +256,15 @@ class _CovenWidgetState extends State<CovenWidget> {
                 return CatProgressIndicator("Connecting to ${_coven.name}...");
               }
 
-              _lounge = snapshot.data as Safe;
+              if (_lounge == null) {
+                _lounge = snapshot.data as Safe;
+                Future.delayed(Duration.zero, () {
+                  setState(() {
+                    _lounge = snapshot.data as Safe;
+                  });
+                });
+              }
+
               return Padding(
                 padding: const EdgeInsets.all(2.0),
                 child: ListView(
