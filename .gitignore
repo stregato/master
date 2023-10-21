@@ -55,5 +55,5 @@ behemoth/ios/Podfile.lock
 behemoth/macos/Podfile.lock
 
 go.work.sum
-**/libwoland.so
+**/libwoland.*
 *.snap
