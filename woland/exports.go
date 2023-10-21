@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 	"unsafe"
 
 	"github.com/sirupsen/logrus"
@@ -63,8 +62,8 @@ func cUnmarshal(i *C.char, v any) error {
 	return nil
 }
 
-//export start
-func start(dbPath, appPath *C.char) C.Result {
+//export wlnd_start
+func wlnd_start(dbPath, appPath *C.char) C.Result {
 	err := Start(C.GoString(dbPath), C.GoString(appPath))
 	if core.IsErr(err, nil, "cannot start: %v") {
 		return cResult(nil, err)
@@ -73,14 +72,14 @@ func start(dbPath, appPath *C.char) C.Result {
 	return cResult(nil, nil)
 }
 
-//export stop
-func stop() C.Result {
+//export wlnd_stop
+func wlnd_stop() C.Result {
 	err := Stop()
 	return cResult(nil, err)
 }
 
-//export factoryReset
-func factoryReset() C.Result {
+//export wlnd_factoryReset
+func wlnd_factoryReset() C.Result {
 	err := FactoryReset()
 	return cResult(nil, err)
 }
@@ -92,14 +91,14 @@ type configItem struct {
 	Missing bool   `json:"missing,omitempty"`
 }
 
-//export getConfig
-func getConfig(node, key *C.char) C.Result {
+//export wlnd_getConfig
+func wlnd_getConfig(node, key *C.char) C.Result {
 	s, i, b, ok := sql.GetConfig(C.GoString(node), C.GoString(key))
 	return cResult(configItem{S: s, I: i, B: b, Missing: !ok}, nil)
 }
 
-//export setConfig
-func setConfig(node, key, value *C.char) C.Result {
+//export wlnd_setConfig
+func wlnd_setConfig(node, key, value *C.char) C.Result {
 	var item configItem
 	err := cUnmarshal(value, &item)
 	if core.IsErr(err, nil, "cannot unmarshal config: %v") {
@@ -111,14 +110,14 @@ func setConfig(node, key, value *C.char) C.Result {
 	return cResult(nil, err)
 }
 
-//export newIdentity
-func newIdentity(nick *C.char) C.Result {
+//export wlnd_newIdentity
+func wlnd_newIdentity(nick *C.char) C.Result {
 	i, err := security.NewIdentity(C.GoString(nick))
 	return cResult(i, err)
 }
 
-//export setIdentity
-func setIdentity(identity *C.char) C.Result {
+//export wlnd_setIdentity
+func wlnd_setIdentity(identity *C.char) C.Result {
 	var i security.Identity
 	err := cUnmarshal(identity, &i)
 	if core.IsErr(err, nil, "cannot unmarshal identity: %v") {
@@ -129,8 +128,8 @@ func setIdentity(identity *C.char) C.Result {
 	return cResult(nil, err)
 }
 
-//export getIdentity
-func getIdentity(id *C.char) C.Result {
+//export wlnd_getIdentity
+func wlnd_getIdentity(id *C.char) C.Result {
 	identity, err := security.GetIdentity(C.GoString(id))
 	if core.IsErr(err, nil, "cannot get identity: %v") {
 		return cResult(nil, err)
@@ -138,8 +137,8 @@ func getIdentity(id *C.char) C.Result {
 	return cResult(identity, nil)
 }
 
-//export encodeAccess
-func encodeAccess(userId *C.char, safeName *C.char, creatorId *C.char, aesKey *C.char, urls *C.char) C.Result {
+//export wlnd_encodeAccess
+func wlnd_encodeAccess(userId *C.char, safeName *C.char, creatorId *C.char, aesKey *C.char, urls *C.char) C.Result {
 	var urls_ []string
 	err := cUnmarshal(urls, &urls_)
 	if core.IsErr(err, nil, "cannot unmarshal urls: %v") {
@@ -160,8 +159,8 @@ type decodedToken struct {
 	Urls      []string `json:"urls"`
 }
 
-//export decodeAccess
-func decodeAccess(identity *C.char, token *C.char) C.Result {
+//export wlnd_decodeAccess
+func wlnd_decodeAccess(identity *C.char, token *C.char) C.Result {
 	var i security.Identity
 	err := cUnmarshal(identity, &i)
 	if core.IsErr(err, nil, "cannot unmarshal identity: %v") {
@@ -180,8 +179,8 @@ func decodeAccess(identity *C.char, token *C.char) C.Result {
 	}, nil)
 }
 
-//export createSafe
-func createSafe(creator *C.char, token *C.char, users *C.char, createOptions *C.char) C.Result {
+//export wlnd_createSafe
+func wlnd_createSafe(creator *C.char, token *C.char, users *C.char, createOptions *C.char) C.Result {
 	var CreateOptions safe.CreateOptions
 	err := cUnmarshal(createOptions, &CreateOptions)
 	if core.IsErr(err, nil, "cannot unmarshal createOptions: %v") {
@@ -208,8 +207,8 @@ func createSafe(creator *C.char, token *C.char, users *C.char, createOptions *C.
 	return cResult(nil, err)
 }
 
-//export openSafe
-func openSafe(identity *C.char, token *C.char, openOptions *C.char) C.Result {
+//export wlnd_openSafe
+func wlnd_openSafe(identity *C.char, token *C.char, openOptions *C.char) C.Result {
 	var OpenOptions safe.OpenOptions
 	err := cUnmarshal(openOptions, &OpenOptions)
 	if core.IsErr(err, nil, "cannot unmarshal openOptions: %v") {
@@ -234,8 +233,8 @@ func openSafe(identity *C.char, token *C.char, openOptions *C.char) C.Result {
 	return cResult(s, err)
 }
 
-//export closeSafe
-func closeSafe(hnd C.int) C.Result {
+//export wlnd_closeSafe
+func wlnd_closeSafe(hnd C.int) C.Result {
 	safesSync.Lock()
 	defer safesSync.Unlock()
 	s, ok := safes[int(hnd)]
@@ -247,8 +246,8 @@ func closeSafe(hnd C.int) C.Result {
 	return cResult(nil, nil)
 }
 
-//export listFiles
-func listFiles(hnd C.int, dir, listOptions *C.char) C.Result {
+//export wlnd_listFiles
+func wlnd_listFiles(hnd C.int, dir, listOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -265,8 +264,8 @@ func listFiles(hnd C.int, dir, listOptions *C.char) C.Result {
 	return cResult(headers, err)
 }
 
-//export listDirs
-func listDirs(hnd C.int, dir *C.char, listDirsOptions *C.char) C.Result {
+//export wlnd_listDirs
+func wlnd_listDirs(hnd C.int, dir *C.char, listDirsOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -315,8 +314,8 @@ func (w CWriter) Write(p []byte) (n int, err error) {
 	return int(s), nil
 }
 
-//export putData
-func putData(hnd C.int, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
+//export wlnd_putData
+func wlnd_putData(hnd C.int, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -338,8 +337,8 @@ func putData(hnd C.int, name *C.char, r *C.Reader, putOptions *C.char) C.Result 
 	return cResult(header, nil)
 }
 
-//export putCString
-func putCString(hnd C.int, name, data *C.char, putOptions *C.char) C.Result {
+//export wlnd_putCString
+func wlnd_putCString(hnd C.int, name, data *C.char, putOptions *C.char) C.Result {
 
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
@@ -368,8 +367,8 @@ func putCString(hnd C.int, name, data *C.char, putOptions *C.char) C.Result {
 	return cResult(header, nil)
 }
 
-//export putFile
-func putFile(hnd C.int, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
+//export wlnd_putFile
+func wlnd_putFile(hnd C.int, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -395,8 +394,8 @@ func putFile(hnd C.int, name *C.char, sourceFile *C.char, putOptions *C.char) C.
 	return cResult(header, nil)
 }
 
-//export getData
-func getData(hnd C.int, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
+//export wlnd_getData
+func wlnd_getData(hnd C.int, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -418,8 +417,8 @@ func getData(hnd C.int, name *C.char, w *C.Writer, getOptions *C.char) C.Result 
 	return cResult(header, nil)
 }
 
-//export getCString
-func getCString(hnd C.int, name, getOptions *C.char) C.Result {
+//export wlnd_getCString
+func wlnd_getCString(hnd C.int, name, getOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -443,8 +442,8 @@ func getCString(hnd C.int, name, getOptions *C.char) C.Result {
 	return cResult(r, nil)
 }
 
-//export getFile
-func getFile(hnd C.int, name, destFile, getOptions *C.char) C.Result {
+//export wlnd_getFile
+func wlnd_getFile(hnd C.int, name, destFile, getOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -473,8 +472,8 @@ func getFile(hnd C.int, name, destFile, getOptions *C.char) C.Result {
 	return cResult(header, nil)
 }
 
-//export setUsers
-func setUsers(hnd C.int, users *C.char, setUsersOptions *C.char) C.Result {
+//export wlnd_setUsers
+func wlnd_setUsers(hnd C.int, users *C.char, setUsersOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -501,8 +500,8 @@ func setUsers(hnd C.int, users *C.char, setUsersOptions *C.char) C.Result {
 	return cResult(nil, nil)
 }
 
-//export getUsers
-func getUsers(hnd C.int) C.Result {
+//export wlnd_getUsers
+func wlnd_getUsers(hnd C.int) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -517,28 +516,28 @@ func getUsers(hnd C.int) C.Result {
 	return cResult(users, nil)
 }
 
-//export checkForUpdates
-func checkForUpdates(hnd C.int, dir *C.char, after *C.char, depth C.int) C.Result {
-	safesSync.Lock()
-	s, ok := safes[int(hnd)]
-	safesSync.Unlock()
-	if !ok {
-		return cResult(nil, ErrSafeNotFound)
-	}
-	a, err := time.Parse(time.RFC3339, C.GoString(after))
-	if core.IsErr(err, nil, "cannot parse time: %v") {
-		return cResult(nil, err)
-	}
+// //export checkForUpdates
+// func checkForUpdates(hnd C.int, dir *C.char, after *C.char, depth C.int) C.Result {
+// 	safesSync.Lock()
+// 	s, ok := safes[int(hnd)]
+// 	safesSync.Unlock()
+// 	if !ok {
+// 		return cResult(nil, ErrSafeNotFound)
+// 	}
+// 	a, err := time.Parse(time.RFC3339, C.GoString(after))
+// 	if core.IsErr(err, nil, "cannot parse time: %v") {
+// 		return cResult(nil, err)
+// 	}
 
-	updates, err := safe.CheckForUpdates(s, C.GoString(dir), a, int(depth))
-	if core.IsErr(err, nil, "cannot check for updates: %v") {
-		return cResult(nil, err)
-	}
-	return cResult(updates, nil)
-}
+// 	updates, err := safe.CheckForUpdates(s, C.GoString(dir), a, int(depth))
+// 	if core.IsErr(err, nil, "cannot check for updates: %v") {
+// 		return cResult(nil, err)
+// 	}
+// 	return cResult(updates, nil)
+// }
 
-//export getIdentities
-func getIdentities(hnd C.int) C.Result {
+//export wlnd_getIdentities
+func wlnd_getIdentities(hnd C.int) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -553,8 +552,8 @@ func getIdentities(hnd C.int) C.Result {
 	return cResult(identities, nil)
 }
 
-//export getAllIdentities
-func getAllIdentities() C.Result {
+//export wlnd_getAllIdentities
+func wlnd_getAllIdentities() C.Result {
 	identities, err := security.GetIdentities()
 	if err != nil {
 		return cResult(nil, err)
@@ -562,13 +561,13 @@ func getAllIdentities() C.Result {
 	return cResult(identities, nil)
 }
 
-//export getLogs
-func getLogs() C.Result {
+//export wlnd_getLogs
+func wlnd_getLogs() C.Result {
 	return cResult(core.RecentLog, nil)
 }
 
-//export setLogLevel
-func setLogLevel(level C.int) C.Result {
+//export wlnd_setLogLevel
+func wlnd_setLogLevel(level C.int) C.Result {
 	logrus.SetLevel(logrus.Level(level))
 	core.Info("log level set to %d", level)
 	return cResult(nil, nil)
