@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/image.dart';
@@ -15,7 +13,6 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart';
-import 'package:video_player/video_player.dart';
 
 class ContentFeed extends StatefulWidget {
   const ContentFeed({super.key});
@@ -25,8 +22,7 @@ class ContentFeed extends StatefulWidget {
 }
 
 class _ContentFeedState extends State<ContentFeed> {
-  int _offset = 0;
-  int _end = 0;
+  final int _offset = 0;
   List<Header> _headers = [];
   late Safe _safe;
   String _folder = "";

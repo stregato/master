@@ -2,7 +2,6 @@ import 'package:behemoth/common/progress.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/woland/woland.dart';
-import 'package:behemoth/woland/types.dart';
 
 class UnilinkAccept extends StatefulWidget {
   const UnilinkAccept({super.key});

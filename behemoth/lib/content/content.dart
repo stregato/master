@@ -3,14 +3,11 @@
 import 'dart:io';
 
 import 'package:behemoth/common/io.dart';
-import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/theme.dart';
-import 'package:flutter_breadcrumb/flutter_breadcrumb.dart';
 import 'package:behemoth/common/file_access.dart' as fa;
 import 'package:file_icon/file_icon.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';

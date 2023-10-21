@@ -89,7 +89,7 @@ class ProgressDialog extends StatefulWidget {
 }
 
 class ProgressState extends State<ProgressDialog> {
-  double? _progress;
+  //double? _progress;
   Timer? timer;
 
   @override
@@ -100,10 +100,10 @@ class ProgressState extends State<ProgressDialog> {
       timer = Timer.periodic(
         const Duration(seconds: 1),
         (Timer t) => setState(() {
-          if (widget.getProgress != null) {
-            var getProgress = widget.getProgress!;
-            _progress = getProgress();
-          }
+          // if (widget.getProgress != null) {
+          //   var getProgress = widget.getProgress!;
+          //   _progress = getProgress();
+          // }
         }),
       );
     }

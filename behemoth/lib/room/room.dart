@@ -26,7 +26,6 @@ class _RoomState extends State<Room> {
   List<Widget> _items = [];
   late Safe _lounge;
   Safe? _safe;
-  Widget? _addPerson;
 
   @override
   void initState() {

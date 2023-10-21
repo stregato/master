@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/profile.dart';

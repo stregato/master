@@ -5,7 +5,6 @@ import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/gen/assets.gen.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/woland/woland.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 class Setup extends StatefulWidget {
