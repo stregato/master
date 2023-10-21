@@ -39,7 +39,6 @@
 
 /* Begin PBXFileReference section */
 		13EA236D2A056E86003D9442 /* Woland.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = Woland.xcframework; sourceTree = "<group>"; };
-		13EA23742A0575B2003D9442 /* woland.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = woland.a; path = "Woland.xcframework/ios-arm64/woland.a"; sourceTree = "<group>"; };
 		13EA23772A057A87003D9442 /* Dummy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Dummy.m; sourceTree = "<group>"; };
 		13EA23792A059037003D9442 /* libresolv.9.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.9.tbd; path = usr/lib/libresolv.9.tbd; sourceTree = SDKROOT; };
 		13EA237A2A059037003D9442 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
@@ -82,7 +81,6 @@
 			children = (
 				13EA23792A059037003D9442 /* libresolv.9.tbd */,
 				13EA237A2A059037003D9442 /* libresolv.tbd */,
-				13EA23742A0575B2003D9442 /* woland.a */,
 				13EA236D2A056E86003D9442 /* Woland.xcframework */,
 				56D1F9686764FD131DCC511D /* Pods_Runner.framework */,
 			);
