@@ -2,6 +2,7 @@ import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 
 import 'package:behemoth/woland/woland.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 var currentPanelIdx = <String, int>{};
 
@@ -28,7 +29,7 @@ class _PeopleState extends State<People> {
         leading: Image.memory(identity.avatar, width: 32, height: 32),
         title: Text(nick),
         subtitle: Text("${e.key.substring(0, 16)}..."),
-        trailing: IconButton(
+        trailing: PlatformIconButton(
           icon: const Icon(Icons.delete),
           onPressed: () {
             setState(() {
@@ -51,13 +52,13 @@ class _PeopleState extends State<People> {
               children: [
                 Expanded(
                   child: safe == widget.lounge
-                      ? ElevatedButton(
+                      ? PlatformElevatedButton(
                           child: const Text("Invite"),
                           onPressed: () {
                             Navigator.pushNamed(context, "/invite",
                                 arguments: safe);
                           })
-                      : ElevatedButton(
+                      : PlatformElevatedButton(
                           child: const Text("Add"),
                           onPressed: () {
                             Navigator.pushNamed(context, "/coven/add_person",

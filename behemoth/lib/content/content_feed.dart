@@ -202,7 +202,8 @@ class _ContentFeedState extends State<ContentFeed> {
             style: const TextStyle(fontSize: 18)),
         trailingActions: [
           const NewsIcon(),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.exit_to_app)),
+          PlatformIconButton(
+              onPressed: () {}, icon: const Icon(Icons.exit_to_app)),
         ],
       ),
       body: FutureBuilder(
@@ -216,10 +217,10 @@ class _ContentFeedState extends State<ContentFeed> {
                 Row(
                   children: [
                     const Spacer(),
-                    IconButton(
+                    PlatformIconButton(
                         onPressed: _read, icon: const Icon(Icons.refresh)),
                     const SizedBox(width: 10),
-                    IconButton(
+                    PlatformIconButton(
                       icon: const Icon(Icons.add),
                       onPressed: () => _handleAttachmentPressed(context),
                     ),

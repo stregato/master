@@ -6,6 +6,7 @@ import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class CreateRoom extends StatefulWidget {
   const CreateRoom({super.key});
@@ -97,7 +98,7 @@ class _CreateRoomState extends State<CreateRoom> {
                   itemCount: _users.length,
                   itemBuilder: (context, index) => ListTile(
                     leading: const Icon(Icons.share),
-                    trailing: IconButton(
+                    trailing: PlatformIconButton(
                         icon: const Icon(Icons.delete),
                         onPressed: () {
                           setState(() {
@@ -113,7 +114,7 @@ class _CreateRoomState extends State<CreateRoom> {
                 Container(
                   padding: const EdgeInsets.symmetric(
                       vertical: 16.0, horizontal: 16.0),
-                  child: ElevatedButton(
+                  child: PlatformElevatedButton(
                     onPressed: _validConfig()
                         ? () async {
                             await progressDialog(

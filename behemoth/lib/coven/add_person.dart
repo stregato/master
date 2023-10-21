@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:snowflake_dart/snowflake_dart.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class AddPerson extends StatefulWidget {
   const AddPerson({super.key});
@@ -80,7 +81,7 @@ class _AddPersonState extends State<AddPerson> {
                         Image.memory(identity.avatar, width: 32, height: 32),
                     title: Text(nick),
                     subtitle: Text("${identity.id.substring(0, 16)}..."),
-                    trailing: IconButton(
+                    trailing: PlatformIconButton(
                       icon: const Icon(Icons.add),
                       onPressed: () {
                         _addPerson(context, identity);

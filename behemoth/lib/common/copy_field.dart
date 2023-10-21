@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/share_data.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class CopyField extends StatelessWidget {
   final String _label;
@@ -11,16 +12,18 @@ class CopyField extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: TextField(
+          child: PlatformTextField(
             readOnly: true,
-            decoration: InputDecoration(
-              labelText: _label,
-              border: const OutlineInputBorder(),
+            material: (context, platform) => MaterialTextFieldData(
+              decoration: InputDecoration(
+                labelText: _label,
+                border: const OutlineInputBorder(),
+              ),
             ),
             controller: TextEditingController(text: _value),
           ),
         ),
-        IconButton(
+        PlatformIconButton(
           icon: const Icon(Icons.share),
           onPressed: () {
             Navigator.push(

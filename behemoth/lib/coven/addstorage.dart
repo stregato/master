@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class AddStorage extends StatefulWidget {
   const AddStorage({super.key});
@@ -214,7 +215,7 @@ class _AddStorageState extends State<AddStorage> {
           ),
           ButtonBar(
             children: [
-              ElevatedButton(
+              PlatformElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text("Cancel"),
               )
@@ -227,7 +228,7 @@ class _AddStorageState extends State<AddStorage> {
       content = Column(children: [
         fields,
         ButtonBar(children: [
-          ElevatedButton(
+          PlatformElevatedButton(
             onPressed: valid()
                 ? () => setState(() {
                       storageType = "";
@@ -235,7 +236,7 @@ class _AddStorageState extends State<AddStorage> {
                 : null,
             child: const Text("Test"),
           ),
-          ElevatedButton(
+          PlatformElevatedButton(
             onPressed: valid()
                 ? () => setState(() {
                       Navigator.of(context).pop(Storage(getUrl(), a.public_));
@@ -243,7 +244,7 @@ class _AddStorageState extends State<AddStorage> {
                 : null,
             child: const Text("Add"),
           ),
-          ElevatedButton(
+          PlatformElevatedButton(
             onPressed: () => setState(() {
               storageType = "";
               a = Args();

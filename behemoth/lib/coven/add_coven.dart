@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class AddCoven extends StatelessWidget {
   const AddCoven({Key? key}) : super(key: key);
@@ -16,7 +17,7 @@ class AddCoven extends StatelessWidget {
             const SizedBox(height: 10),
             Row(children: [
               Expanded(
-                child: ElevatedButton(
+                child: PlatformElevatedButton(
                   onPressed: () {
                     Navigator.pushNamed(context, "/addPortal/add");
                   },
@@ -36,7 +37,7 @@ class AddCoven extends StatelessWidget {
             const SizedBox(height: 10),
             Row(children: [
               Expanded(
-                child: ElevatedButton(
+                child: PlatformElevatedButton(
                   onPressed: () {
                     Navigator.pushNamed(context, "/addPortal/create");
                   },

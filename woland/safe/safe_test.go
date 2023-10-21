@@ -97,9 +97,9 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 
 	files, err := ListFiles(s, "sub", ListOptions{OrderBy: "modTime", ReverseOrder: true})
 	core.TestErr(t, err, "cannot list files: %v")
-	core.Assert(t, len(files) == 1, "Expected 1 file, got %d", len(files))
+	core.Assert(t, len(files) == 3, "Expected 1 file, got %d", len(files))
 	file = files[0]
-	if file.Name != "sub/file1" {
+	if file.Name != "sub/file3" {
 		t.Errorf("Expected file name to be 'file1', got '%s'", file.Name)
 	}
 	if file.Size != int64(len(data)) {

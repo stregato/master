@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 //import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 // ignore: import_of_legacy_library_into_null_portal
 import 'package:url_launcher/url_launcher.dart';
@@ -50,13 +51,13 @@ void deleteError(BuildContext context, String filePath, Object? e) {
 Future<bool?> deleteFile(BuildContext context, String filePath) {
 // set up the buttons
 
-  Widget cancelButton = ElevatedButton(
+  Widget cancelButton = PlatformElevatedButton(
     child: const Text("Cancel"),
     onPressed: () {
       Navigator.pop(context, false);
     },
   );
-  Widget continueButton = ElevatedButton(
+  Widget continueButton = PlatformElevatedButton(
       child: const Text("Continue"),
       onPressed: () async {
         if (filePath.isEmpty) return;

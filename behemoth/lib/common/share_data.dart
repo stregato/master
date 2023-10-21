@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -54,7 +55,7 @@ class ShareData extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 20),
-            TextField(
+            PlatformTextField(
               controller: TextEditingController(text: _value),
               readOnly: true,
             ),
@@ -64,7 +65,7 @@ class ShareData extends StatelessWidget {
             Container(
               constraints: const BoxConstraints(
                   minWidth: 200.0), // Set the minimum width here
-              child: ElevatedButton(
+              child: PlatformElevatedButton(
                 onPressed: () {
                   launchUrl(Uri.parse(
                       'https://mail.google.com/mail/?view=cm&fs=1&to=&su=$_label&body=$_value'));
@@ -76,7 +77,7 @@ class ShareData extends StatelessWidget {
             Container(
               constraints: const BoxConstraints(
                   minWidth: 200.0), // Set the minimum width here
-              child: ElevatedButton(
+              child: PlatformElevatedButton(
                 onPressed: () {
                   launchUrl(Uri.parse('mailto:?subject=$_label&body=_value'));
                 },

@@ -191,7 +191,7 @@ class _ContentState extends State<Content> {
     var toolbar = Row(
       children: [
         if (_folder.isNotEmpty)
-          IconButton(
+          PlatformIconButton(
             onPressed: () {
               _folder = _folder
                   .split("/")
@@ -215,9 +215,9 @@ class _ContentState extends State<Content> {
           ),
         ),
         const Spacer(),
-        IconButton(onPressed: _read, icon: const Icon(Icons.refresh)),
+        PlatformIconButton(onPressed: _read, icon: const Icon(Icons.refresh)),
         const SizedBox(width: 10),
-        IconButton(
+        PlatformIconButton(
           icon: const Icon(Icons.add),
           onPressed: () async {
             await Navigator.pushNamed(context, "/content/add",

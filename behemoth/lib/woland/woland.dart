@@ -47,7 +47,7 @@ class Woland {
   }
 }
 
-class CResult extends Struct {
+sealed class CResult extends Struct {
   external Pointer<Utf8> res;
   external Pointer<Utf8> err;
 

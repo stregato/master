@@ -66,7 +66,7 @@ class _ContentEditorState extends State<ContentEditor> {
               ? IndexedStack(index: _currentPanelIdx, children: [
                   Markdown(data: _textEditingController!.text),
                   Expanded(
-                    child: TextField(
+                    child: PlatformTextField(
                       controller: _textEditingController,
                       maxLines: null,
                       keyboardType: TextInputType.multiline,

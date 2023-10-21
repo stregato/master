@@ -21,15 +21,7 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 
 #line 3 "exports.go"
 
-typedef struct Result{
-    char* res;
-	char* err;
-} Result;
-
-typedef struct App {
-	void (*feed)(char* name, char* data, int eof);
-} App;
-
+#include "cfunc.h"
 #include <stdlib.h>
 
 #line 1 "cgo-generated-wrapper"
@@ -88,36 +80,34 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern Result start(char* dbPath, char* cachePath, char* availableBandwith);
+extern Result start(char* dbPath, char* appPath);
 extern Result stop();
 extern Result factoryReset();
-extern Result securitySelfId();
-extern Result securityGetSelf();
-extern Result securitySetSelf(char* identity);
-extern Result securityIdentityFromId(char* id);
-extern Result poolList();
-extern Result poolCreate(char* config, char* apps);
-extern Result poolJoin(char* token);
-extern Result poolLeave(char* name);
-extern Result poolSub(char* name, char* sub, char* idsList, char* appsList);
-extern Result poolInvite(char* poolName, char* idsList, char* invitePool);
-extern Result poolGet(char* name);
-extern Result poolUsers(char* poolName);
-extern Result poolParseInvite(char* token);
-extern Result chatReceive(char* poolName, long after, long before, int limit, char* private);
-extern Result chatSend(char* poolName, char* contentType, char* text, char* binary, char* private);
-extern Result chatPrivates(char* poolName);
-extern Result libraryList(char* poolName, char* folder);
-extern Result libraryFind(char* poolName, long id);
-extern Result libraryReceive(char* poolName, long id, char* localPath);
-extern Result librarySave(char* poolName, long id, char* localPath);
-extern Result librarySend(char* poolName, char* localPath, char* name, int solveConflicts, char* tagsList);
-extern Result inviteReceive(char* poolName, int after, int onlyMine);
-extern Result notifications(long ctime);
-extern Result fileOpen(char* filePath);
-extern Result dump();
+extern Result getConfig(char* node, char* key);
+extern Result setConfig(char* node, char* key, char* value);
+extern Result newIdentity(char* nick);
+extern Result setIdentity(char* identity);
+extern Result getIdentity(char* id);
+extern Result encodeAccess(char* userId, char* safeName, char* creatorId, char* aesKey, char* urls);
+extern Result decodeAccess(char* identity, char* token);
+extern Result createSafe(char* creator, char* token, char* users, char* createOptions);
+extern Result openSafe(char* identity, char* token, char* openOptions);
+extern Result closeSafe(int hnd);
+extern Result listFiles(int hnd, char* dir, char* listOptions);
+extern Result listDirs(int hnd, char* dir, char* listDirsOptions);
+extern Result putData(int hnd, char* name, Reader* r, char* putOptions);
+extern Result putCString(int hnd, char* name, char* data, char* putOptions);
+extern Result putFile(int hnd, char* name, char* sourceFile, char* putOptions);
+extern Result getData(int hnd, char* name, Writer* w, char* getOptions);
+extern Result getCString(int hnd, char* name, char* getOptions);
+extern Result getFile(int hnd, char* name, char* destFile, char* getOptions);
+extern Result setUsers(int hnd, char* users, char* setUsersOptions);
+extern Result getUsers(int hnd);
+extern Result checkForUpdates(int hnd, char* dir, char* after, int depth);
+extern Result getIdentities(int hnd);
+extern Result getAllIdentities();
+extern Result getLogs();
 extern Result setLogLevel(int level);
-extern Result setAvailableBandwidth(char* availableBandwidth);
 
 #ifdef __cplusplus
 }

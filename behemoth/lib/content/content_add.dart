@@ -85,12 +85,12 @@ class _ContentStateAdd extends State<ContentAdd> {
       BuildContext context, String msg, String suffix) async {
     var textController = TextEditingController();
 
-    return showDialog(
+    return showPlatformDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(msg),
-          content: TextField(
+          content: PlatformTextField(
             controller: textController,
           ),
           actions: <Widget>[
@@ -118,12 +118,12 @@ class _ContentStateAdd extends State<ContentAdd> {
   Future<void> _newTextDialog(BuildContext context) async {
     var textController = TextEditingController();
 
-    return showDialog(
+    return showPlatformDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text("Name of the file:"),
-          content: TextField(
+          content: PlatformTextField(
             controller: textController,
           ),
           actions: <Widget>[

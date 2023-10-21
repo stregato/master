@@ -9,6 +9,7 @@ import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/theme.dart';
 import 'package:mime/mime.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 import 'package:path/path.dart' as path;
 
@@ -265,19 +266,19 @@ class _ContentActionsState extends State<ContentActions> {
       appBar: AppBar(
         title: Text(_name, style: const TextStyle(fontSize: 18)),
         actions: [
-          IconButton(
+          PlatformIconButton(
             icon: const Icon(Icons.file_open),
             onPressed: () {
               Navigator.pushNamed(context, "/addPortal");
             },
           ),
-          IconButton(
+          PlatformIconButton(
             icon: const Icon(Icons.file_download),
             onPressed: () {
               Navigator.pushNamed(context, "/addPortal");
             },
           ),
-          IconButton(
+          PlatformIconButton(
             icon: const Icon(Icons.file_upload),
             onPressed: () {
               Navigator.pushNamed(context, "/addPortal");

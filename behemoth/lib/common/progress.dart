@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 Future<T?> progressDialog<T>(
     BuildContext context, String message, Future<T> task,
@@ -9,7 +10,7 @@ Future<T?> progressDialog<T>(
     String? errorMessage,
     Function()? getProgress,
     bool catchException = true}) async {
-  return showDialog(
+  return showPlatformDialog(
       context: context,
       builder: (_) => FutureBuilder<T>(
             builder: (context, snapshot) {

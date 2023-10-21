@@ -39,8 +39,8 @@ class _CovenWidgetState extends State<CovenWidget> {
   @override
   void initState() {
     super.initState();
-    _timer =
-        Timer.periodic(const Duration(seconds: 10), (_) => setState(() {}));
+    // _timer =
+    //     Timer.periodic(const Duration(seconds: 10), (_) => setState(() {}));
   }
 
   @override
@@ -85,6 +85,9 @@ class _CovenWidgetState extends State<CovenWidget> {
   }
 
   _checkInvites() async {
+    if (_lounge == null) {
+      return;
+    }
     var headers = await _lounge!.listFiles(
         "chat",
         ListOptions(
@@ -133,7 +136,7 @@ class _CovenWidgetState extends State<CovenWidget> {
   Widget build(BuildContext context) {
     _coven = ModalRoute.of(context)!.settings.arguments as Coven;
 
-    var settingsIcon = IconButton(
+    var settingsIcon = PlatformIconButton(
         onPressed: () async {
           await Navigator.pushNamed(context, "/coven/settings",
               arguments: _coven);

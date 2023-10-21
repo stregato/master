@@ -118,9 +118,12 @@ class _HomeState extends State<Home> {
               icon: const Icon(Icons.settings)),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(8),
-        children: widgets,
+      body: Padding(
+        padding: const EdgeInsets.only(top: 36),
+        child: ListView(
+          padding: const EdgeInsets.all(8),
+          children: widgets,
+        ),
       ),
       bottomNavBar: PlatformNavBar(
         itemChanged: (idx) {

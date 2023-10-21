@@ -2,6 +2,7 @@ import 'package:behemoth/common/progress.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/woland/woland.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class UnilinkAccept extends StatefulWidget {
   const UnilinkAccept({super.key});
@@ -29,7 +30,7 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
         children: [
           Text("You have been invited to join ${names[0]}"),
           const SizedBox(height: 20),
-          ElevatedButton(
+          PlatformElevatedButton(
               child: const Text("Accept"),
               onPressed: () async {
                 await progressDialog<Coven>(

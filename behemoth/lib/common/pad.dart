@@ -1,6 +1,7 @@
 import 'dart:ffi';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:numpad/numpad.dart';
 
 class Pad extends StatefulWidget {
@@ -42,7 +43,7 @@ class _PadState extends State<Pad> {
         ),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-          child: ElevatedButton(
+          child: PlatformElevatedButton(
             onPressed: _code.length == 5
                 ? () {
                     //widget.onSelect()

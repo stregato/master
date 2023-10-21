@@ -6,6 +6,7 @@ import 'package:behemoth/common/io.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/woland/types.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:path/path.dart';
 
 class ContentUpload extends StatefulWidget {
@@ -46,7 +47,7 @@ class _ContentUploadState extends State<ContentUpload> {
 
     var action = _uploading
         ? const CircularProgressIndicator()
-        : ElevatedButton(
+        : PlatformElevatedButton(
             onPressed: () {
               try {
                 setState(() {

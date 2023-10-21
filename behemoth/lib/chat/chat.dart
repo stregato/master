@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/woland/safe.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:snowflake_dart/snowflake_dart.dart';
 
 import 'package:behemoth/common/image.dart';
@@ -294,7 +295,7 @@ class _ChatState extends State<Chat> {
                   ),
                 ),
                 if (sender.id != _safe.currentUser.id)
-                  ElevatedButton(
+                  PlatformElevatedButton(
                     onPressed: () async {
                       await progressDialog(
                           context, "Joining $name", Coven.join(access),
@@ -504,7 +505,7 @@ class _ChatState extends State<Chat> {
   }
 
   Future<bool?> _inlineImagesDialog() async {
-    return showDialog<bool>(
+    return showPlatformDialog<bool>(
       context: context,
       barrierDismissible: false, // user must tap button!
       builder: (BuildContext context) {

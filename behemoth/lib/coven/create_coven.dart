@@ -6,6 +6,7 @@ import 'package:behemoth/coven/addstorage.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class CreateCoven extends StatefulWidget {
   const CreateCoven({super.key});
@@ -97,7 +98,7 @@ class _CreateCovenState extends State<CreateCoven> {
                       style: TextStyle(color: Colors.black54, fontSize: 14),
                     ),
                     const Spacer(),
-                    IconButton(
+                    PlatformIconButton(
                       onPressed: () {
                         Navigator.of(context)
                             .push(MaterialPageRoute(
@@ -120,7 +121,7 @@ class _CreateCovenState extends State<CreateCoven> {
                   itemCount: _urls.length,
                   itemBuilder: (context, index) => ListTile(
                     leading: const Icon(Icons.share),
-                    trailing: IconButton(
+                    trailing: PlatformIconButton(
                         icon: const Icon(Icons.delete),
                         onPressed: () {
                           setState(() {
@@ -216,7 +217,7 @@ class _CreateCovenState extends State<CreateCoven> {
                 Container(
                   padding: const EdgeInsets.symmetric(
                       vertical: 16.0, horizontal: 16.0),
-                  child: ElevatedButton(
+                  child: PlatformElevatedButton(
                     onPressed: _validConfig()
                         ? () async {
                             await progressDialog(

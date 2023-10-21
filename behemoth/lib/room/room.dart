@@ -51,7 +51,7 @@ class _RoomState extends State<Room> {
       _currentItem = currentPanelIdx[_title] ?? 0;
     }
 
-    var addPerson = IconButton(
+    var addPerson = PlatformIconButton(
         onPressed: () async {
           if (_safe == null) return;
           await Navigator.pushNamed(context, "/coven/add_person",

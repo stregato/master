@@ -4,6 +4,7 @@ import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class Add extends StatefulWidget {
   const Add({super.key});
@@ -76,16 +77,18 @@ class _AddState extends State<Add> {
       const Text(
           "Once you get a link, paste it below and click on 'Join' to join the community"),
       const SizedBox(height: 20),
-      TextField(
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(),
-          labelText: 'Access Link',
-          errorText: _errorText,
+      PlatformTextField(
+        material: (context, platform) => MaterialTextFieldData(
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            labelText: 'Access Link',
+            errorText: _errorText,
+          ),
         ),
         controller: _linkController,
       ),
       const SizedBox(height: 20),
-      ElevatedButton(
+      PlatformElevatedButton(
         onPressed: (_name.isNotEmpty && _errorText == null)
             ? () async {
                 var task = Coven.join(_access);
