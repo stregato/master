@@ -60,7 +60,7 @@ class Coven {
       String name, List<String> urls, CreateOptions options) async {
     var p = Profile.current();
     var token =
-        encodeAccess(p.identity.id, "$name/lounge", p.identity.id, "", urls);
+        encodeAccess(p.identity.id, "$name/lounge", p.identity.id, urls);
     await Safe.create(p.identity, token, {}, options);
     p.covens[name] = Coven(p.identity, name, {"lounge": token});
     p.save();

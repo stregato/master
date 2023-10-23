@@ -27,8 +27,8 @@ class _AddPersonState extends State<AddPerson> {
     if (!mounted) return;
 
     var d = decodeAccess(_safe.currentUser, _safe.access);
-    var access =
-        encodeAccess(identity.id, d.safeName, d.creatorId, d.aesKey, d.urls);
+    var access = encodeAccess(identity.id, d.safeName, d.creatorId, d.urls,
+        aesKey: d.aesKey);
 
     var task = _lounge.putBytes(
         'chat/${Snowflake(nodeId: 0).generate()}',

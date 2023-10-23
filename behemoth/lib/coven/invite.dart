@@ -70,7 +70,8 @@ class _InviteState extends State<Invite> {
         SetUsersOptions());
     var d = decodeAccess(profile.identity, _safe.access);
     setState(() {
-      _access = encodeAccess(_id, _safe.name, d.creatorId, d.aesKey, d.urls);
+      _access =
+          encodeAccess(_id, _safe.name, d.creatorId, d.urls, aesKey: d.aesKey);
     });
   }
 

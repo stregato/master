@@ -7,10 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		13EA236F2A056E98003D9442 /* Woland.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 13EA236D2A056E86003D9442 /* Woland.xcframework */; };
-		13EA23702A056E98003D9442 /* Woland.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 13EA236D2A056E86003D9442 /* Woland.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		13EA23712A056EAD003D9442 /* Woland.xcframework in Resources */ = {isa = PBXBuildFile; fileRef = 13EA236D2A056E86003D9442 /* Woland.xcframework */; };
-		13EA23762A0575C9003D9442 /* Woland.xcframework in Sources */ = {isa = PBXBuildFile; fileRef = 13EA236D2A056E86003D9442 /* Woland.xcframework */; };
 		13EA23782A057A87003D9442 /* Dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 13EA23772A057A87003D9442 /* Dummy.m */; };
 		13EA237B2A059037003D9442 /* libresolv.9.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 13EA23792A059037003D9442 /* libresolv.9.tbd */; };
 		13EA237C2A059037003D9442 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 13EA237A2A059037003D9442 /* libresolv.tbd */; };
@@ -30,7 +26,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				13EA23702A056E98003D9442 /* Woland.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -38,7 +33,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		13EA236D2A056E86003D9442 /* Woland.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = Woland.xcframework; sourceTree = "<group>"; };
 		13EA23772A057A87003D9442 /* Dummy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Dummy.m; sourceTree = "<group>"; };
 		13EA23792A059037003D9442 /* libresolv.9.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.9.tbd; path = usr/lib/libresolv.9.tbd; sourceTree = SDKROOT; };
 		13EA237A2A059037003D9442 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
@@ -68,7 +62,6 @@
 			files = (
 				13EA237B2A059037003D9442 /* libresolv.9.tbd in Frameworks */,
 				13EA237C2A059037003D9442 /* libresolv.tbd in Frameworks */,
-				13EA236F2A056E98003D9442 /* Woland.xcframework in Frameworks */,
 				C829799E347A7AC9C6D9E11F /* Pods_Runner.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -81,7 +74,6 @@
 			children = (
 				13EA23792A059037003D9442 /* libresolv.9.tbd */,
 				13EA237A2A059037003D9442 /* libresolv.tbd */,
-				13EA236D2A056E86003D9442 /* Woland.xcframework */,
 				56D1F9686764FD131DCC511D /* Pods_Runner.framework */,
 			);
 			name = Frameworks;
@@ -206,7 +198,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				13EA23712A056EAD003D9442 /* Woland.xcframework in Resources */,
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
@@ -294,7 +285,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				13EA23762A0575C9003D9442 /* Woland.xcframework in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				13EA23782A057A87003D9442 /* Dummy.m in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,

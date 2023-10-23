@@ -40,8 +40,9 @@ class _CreateRoomState extends State<CreateRoom> {
     var token = coven.rooms[welcomeSpace]!;
     var decodedToken = decodeAccess(currentId, token);
     var safeName = "${coven.name}/$name";
-    token = encodeAccess(currentId.id, safeName, currentId.id,
-        decodedToken.aesKey, decodedToken.urls);
+    token = encodeAccess(
+        currentId.id, safeName, currentId.id, decodedToken.urls,
+        aesKey: decodedToken.aesKey);
 
     await Safe.create(currentId, token, users, CreateOptions());
     coven.rooms[name] = token;
