@@ -5,7 +5,6 @@ import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/image.dart';
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/news_icon.dart';
-import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';

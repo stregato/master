@@ -33,7 +33,7 @@ class _ContentStateAdd extends State<ContentAdd> {
         children: <Widget>[
           _CustomCard(
             title: "Folder",
-            icon: Icons.folder,
+            icon: const Icon(Icons.folder),
             onTap: () async {
               await _newFolderDialog(context, "Folder Name", "");
               if (mounted) {
@@ -43,7 +43,7 @@ class _ContentStateAdd extends State<ContentAdd> {
           ),
           _CustomCard(
             title: "File",
-            icon: Icons.insert_drive_file,
+            icon: const Icon(Icons.insert_drive_file),
             onTap: () async {
               var selection = await fa.getFile(context);
               if (selection.valid && mounted) {
@@ -61,14 +61,14 @@ class _ContentStateAdd extends State<ContentAdd> {
           ),
           _CustomCard(
             title: "Markdown",
-            icon: Icons.text_fields,
+            icon: const Icon(Icons.text_fields),
             onTap: () async {
               await _newTextDialog(context);
             },
           ),
           _CustomCard(
             title: "Feed",
-            icon: Icons.rss_feed,
+            icon: const Icon(Icons.rss_feed),
             onTap: () async {
               await _newFolderDialog(context, "New Feed", ".feed");
               if (mounted) {
@@ -155,7 +155,7 @@ class _ContentStateAdd extends State<ContentAdd> {
 
 class _CustomCard extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final Icon icon;
   final VoidCallback onTap;
 
   const _CustomCard(
@@ -167,7 +167,7 @@ class _CustomCard extends StatelessWidget {
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       child: ListTile(
-        leading: Icon(icon),
+        leading: icon,
         title: Text(title),
         onTap: onTap,
       ),
