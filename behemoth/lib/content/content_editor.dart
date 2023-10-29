@@ -72,6 +72,21 @@ class _ContentEditorState extends State<ContentEditor> {
                       keyboardType: TextInputType.multiline,
                     ),
                   ),
+                  Column(
+                    children: [
+                      Expanded(
+                        child: PlatformTextField(
+                          controller: _textEditingController,
+                          maxLines: null,
+                          keyboardType: TextInputType.multiline,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      Expanded(
+                        child: Markdown(data: _textEditingController!.text),
+                      ),
+                    ],
+                  ),
                 ])
               : const CatProgressIndicator('Loading file...');
         },
@@ -86,6 +101,8 @@ class _ContentEditorState extends State<ContentEditor> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.preview), label: "Preview"),
           BottomNavigationBarItem(icon: Icon(Icons.edit), label: "Edit"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.edit_document), label: "Preview+Edit"),
         ],
       ),
     );

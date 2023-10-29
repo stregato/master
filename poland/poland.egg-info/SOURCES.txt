@@ -1,0 +1,5 @@
+setup.py
+poland.egg-info/PKG-INFO
+poland.egg-info/SOURCES.txt
+poland.egg-info/dependency_links.txt
+poland.egg-info/top_level.txt

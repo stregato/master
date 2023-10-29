@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/image.dart';
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/news_icon.dart';
+import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
@@ -22,23 +24,48 @@ class ContentFeed extends StatefulWidget {
 }
 
 class _ContentFeedState extends State<ContentFeed> {
-  final int _offset = 0;
+  int _offset = 0;
   List<Header> _headers = [];
   late Safe _safe;
   String _folder = "";
   final Map<int, Widget> _cache = {};
-  List<Widget> _items = [];
   final List<Player> _players = [];
+  final Map<int, Set<String>> _likes = {};
+  final ScrollController _scrollController = ScrollController();
+  bool _reload = true;
+  int _pending = 0;
 
   @override
-  void dispose() {
-    for (var p in _players) {
-      p.dispose();
-    }
-    super.dispose();
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
   }
 
-  Future<Widget> _getImageWidget(Header h) async {
+  Future<bool> _cleanUp() async {
+    for (var p in _players) {
+      await p.stop();
+      await p.dispose();
+    }
+    _players.clear();
+    return true;
+  }
+
+  void _handleScroll() {
+    var pos = _scrollController.position.pixels;
+    if (pos == _scrollController.position.maxScrollExtent) {
+      setState(() {
+        _offset += 5;
+        _reload = true;
+      });
+    }
+    if (pos == _scrollController.position.minScrollExtent) {
+      setState(() {
+        _reload = true;
+      });
+    }
+  }
+
+  Widget _getImageWidget(Header h) {
     if (h.attributes.thumbnail.isNotEmpty) {
       return Image.memory(
         h.attributes.thumbnail,
@@ -50,30 +77,31 @@ class _ContentFeedState extends State<ContentFeed> {
         join(documentsFolder, _safe.name, _folder, basename(h.name));
     var localfile = File(localpath);
     if (!localfile.existsSync()) {
-      await _safe.getFile(h.name, localpath, GetOptions());
+      return Text("Missing image ${h.name}");
     }
 
     return Image.file(localfile, fit: BoxFit.cover);
   }
 
-  Future<Widget> _getVideoWidget(
+  Widget _getVideoWidget(
     Header h,
-  ) async {
+  ) {
+    var player = Player();
+    var controller = VideoController(player);
     var localpath =
         join(documentsFolder, _safe.name, _folder, basename(h.name));
     var localfile = File(localpath);
     if (!localfile.existsSync()) {
-      await _safe.getFile(h.name, localpath, GetOptions());
+      return Text("Missing video ${h.name}");
     }
 
-    var player = Player();
-    _players.add(player);
-    var controller = VideoController(player);
     player.open(Media(localpath), play: false);
+    player.play();
+    _players.add(player);
     return Video(controller: controller);
   }
 
-  Future<Widget> _getWidget(Header h) async {
+  Widget _getWidget(Header h) {
     var mime = h.attributes.contentType;
     if (mime.startsWith("image/")) {
       return _getImageWidget(h);
@@ -83,34 +111,63 @@ class _ContentFeedState extends State<ContentFeed> {
     return Container();
   }
 
-  Future _read() async {
-    _headers = await _safe.listFiles(
+  Future _readLikes() async {
+    var cu = _safe.currentUser.id;
+    var headers = await _safe.listFiles(
         "content/$_folder",
         ListOptions(
+          tags: ['like'],
+        ));
+    for (var h in headers) {
+      var ids = <int>[];
+      try {
+        var byteList = await _safe.getBytes(h.name, GetOptions());
+        ids = Uint64List.view(byteList.buffer).toList();
+      } catch (e) {
+        // ignore
+      }
+      for (var id in ids) {
+        _likes.putIfAbsent(id, () => {}).add(cu);
+      }
+    }
+  }
+
+  Future _read() async {
+    if (!_reload) {
+      return;
+    }
+    await _readLikes();
+    var headers = await _safe.listFiles(
+        "content/$_folder",
+        ListOptions(
+          tags: ['media'],
           reverseOrder: true,
           orderBy: 'modTime',
           limit: 5,
           offset: _offset,
         ));
-    var items = <Widget>[];
-    var updated = false;
-    for (var h in _headers) {
-      var w = _cache[h.fileId];
-      if (w == null) {
-        updated = true;
-        w = await _getWidget(h);
-        _cache[h.fileId] = w;
+
+    for (var h in headers) {
+      if (_headers.contains(h)) {
+        continue;
       }
-      items.add(w);
+      try {
+        var localpath =
+            join(documentsFolder, _safe.name, _folder, basename(h.name));
+        var localfile = File(localpath);
+        if (!localfile.existsSync()) {
+          await _safe.getFile(h.name, localpath, GetOptions());
+        }
+        _headers.add(h);
+      } catch (e) {
+        continue;
+      }
     }
-    if (updated) {
-      setState(() {
-        _items = items;
-      });
-    }
+    _headers.sort((a, b) => b.modTime.compareTo(a.modTime));
+    _reload = false;
   }
 
-  void _addMedia(String mediaType) async {
+  void _addMedia(BuildContext context, String mediaType) async {
     List<XFile> xfiles;
     switch (mediaType) {
       case "image":
@@ -127,13 +184,21 @@ class _ContentFeedState extends State<ContentFeed> {
       var name = "content/$_folder/${basename(xfile.name)}";
       var localpath =
           join(documentsFolder, _safe.name, _folder, basename(xfile.name));
-      await xfile.saveTo(localpath);
+      xfile.saveTo(localpath);
       var options = PutOptions(
-          contentType: lookupMimeType(xfile.path) ?? '', source: localpath);
-      await _safe.putFile(name, localpath, options);
+          tags: ['media'],
+          contentType: lookupMimeType(xfile.path) ?? '',
+          source: localpath);
+      _safe.putFile(name, localpath, options).then((h) {
+        setState(() {
+          _pending--;
+          _headers = [h, ..._headers];
+        });
+      });
+      setState(() {
+        _pending++;
+      });
     }
-
-    _read();
   }
 
   void _handleAttachmentPressed(BuildContext context) {
@@ -151,7 +216,7 @@ class _ContentFeedState extends State<ContentFeed> {
                   title: const Text('Photo'),
                   onTap: () {
                     Navigator.pop(context);
-                    _addMedia('image');
+                    _addMedia(context, 'image');
                   },
                 ),
               ),
@@ -164,7 +229,7 @@ class _ContentFeedState extends State<ContentFeed> {
                   title: const Text('Video'),
                   onTap: () {
                     Navigator.pop(context);
-                    _addMedia('video');
+                    _addMedia(context, 'video');
                   },
                 ),
               ),
@@ -187,6 +252,41 @@ class _ContentFeedState extends State<ContentFeed> {
     );
   }
 
+  _setLiking(int fileId, bool liking) async {
+    var cu = _safe.currentUser.id;
+    var name = "content/$_folder/$cu";
+    var headers = await _safe.listFiles(
+        "content/$_folder",
+        ListOptions(
+          name: name,
+        ));
+    var ids = <int>{};
+    if (headers.isNotEmpty) {
+      try {
+        var byteList = await _safe.getBytes(name, GetOptions());
+        ids = Uint64List.view(byteList.buffer).toSet();
+      } finally {}
+    }
+    if (liking) {
+      ids.add(fileId);
+    }
+    if (!liking) {
+      ids.remove(fileId);
+    }
+    var byteList = Uint64List.fromList(ids.toList());
+    var options = PutOptions(tags: ['like'], replace: true);
+    await _safe.putBytes(name, byteList.buffer.asUint8List(), options);
+
+    var likes = _likes.putIfAbsent(fileId, () => {});
+    setState(() {
+      if (liking) {
+        likes.add(cu);
+      } else {
+        likes.remove(cu);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_folder.isEmpty) {
@@ -206,47 +306,98 @@ class _ContentFeedState extends State<ContentFeed> {
               onPressed: () {}, icon: const Icon(Icons.exit_to_app)),
         ],
       ),
-      body: FutureBuilder(
-          future: _read(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CatProgressIndicator("Loading...");
-            }
-            return Column(
-              children: [
-                Row(
-                  children: [
-                    const Spacer(),
-                    PlatformIconButton(
-                        onPressed: _read, icon: const Icon(Icons.refresh)),
-                    const SizedBox(width: 10),
-                    PlatformIconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: () => _handleAttachmentPressed(context),
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _items.length,
-                    itemBuilder: (context, index) {
-                      var w = _items[index];
-                      var width = MediaQuery.of(context).size.width * 0.9;
-                      var height = w is Video ? width * 9.0 / 16.0 : null;
-                      return Card(
-                        elevation: 3.0,
-                        margin: const EdgeInsets.all(8.0),
-                        child: Center(
-                          child:
-                              SizedBox(width: width, height: height, child: w),
-                        ),
-                      );
-                    },
+      body: WillPopScope(
+        onWillPop: _cleanUp,
+        child: FutureBuilder(
+            future: _read(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const CatProgressIndicator("Loading...");
+              }
+
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      const Spacer(),
+                      PlatformIconButton(
+                          onPressed: _read, icon: const Icon(Icons.refresh)),
+                      const SizedBox(width: 10),
+                      PlatformIconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () => _handleAttachmentPressed(context),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            );
-          }),
+                  if (_pending > 0)
+                    Container(
+                      margin: const EdgeInsets.all(32),
+                      child: Text(
+                        "Loading $_pending...",
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      itemCount: _headers.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index == _headers.length) {
+                          return const Column(children: [
+                            SizedBox(height: 80),
+                            Text("Pull for more",
+                                style: TextStyle(fontSize: 20)),
+                            SizedBox(height: 80),
+                          ]);
+                        }
+
+                        var h = _headers[index];
+                        var w =
+                            _cache.putIfAbsent(h.fileId, () => _getWidget(h));
+                        var width = MediaQuery.of(context).size.width * 0.9;
+                        var height = w is Video ? width * 9.0 / 16.0 : null;
+                        var likes = _likes[h.fileId] ?? {};
+                        var liking = likes.contains(_safe.currentUser.id);
+
+                        return Card(
+                          elevation: 3.0,
+                          margin: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                  width: width - 20, height: height, child: w),
+                              SizedBox(
+                                  width: 20.0, // Adjust the width as needed
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.thumb_up,
+                                              color: liking
+                                                  ? Colors.green
+                                                  : Colors.black,
+                                            ),
+                                            onPressed: () {
+                                              _setLiking(h.fileId, !liking);
+                                            },
+                                          ),
+                                          Text("(${likes.length})"),
+                                        ]),
+                                  )),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            }),
+      ),
     );
   }
 }

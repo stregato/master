@@ -1,41 +1,82 @@
 import json
+import os
+import appdirs
 from options import CreateOptions, OpenOptions, ListOptions, Users, ListDirsOptions, PutOptions, GetOptions, SetUsersOptions
 from woland import lib, e8, j8, o8, r2d
 from typing import List, Union
 from datetime import datetime
 import base64
 
-def start(dbPath, appPath):
-    "start woland library with the provided db file and app path"
-    r = lib.wlnd_start(e8(dbPath), e8(appPath))
-    return r2d(r)
+global woland_started
+woland_started = False
 
+def start(dbFile: str = '', appPath: str = ''):
+    """
+    Start the Woland library with the provided database file and application path.
+
+    Parameters:
+    - dbFile (str): The path to the database file Woland should use.
+    - appPath (str): The application path where cache will be created.
+
+    Usage:
+    Call this function to initialize the Woland library with the specified
+    database file and cache directory path. Woland will use the provided
+    database file for its operations and create cache data in the specified
+    application path.
+
+    Example:
+    start("/path/to/database.db", "/path/to/application")
+    """
+    global woland_started   
+    if woland_started:
+        raise Exception("woland already started")
+    
+    if not dbFile:
+        dbFile = os.path.join(appdirs.user_config_dir(), "poland.db")
+    if not appPath:
+        appPath = os.path.join(appdirs.user_data_dir(), "poland")
+
+    r = lib.wlnd_start(e8(dbFile), e8(appPath))
+    r = r2d(r)
+    woland_started = True
+    return r
 
 def stop():
     "stop woland library"
-    lib.wlnd_stop()
+    global woland_started
+    if woland_started:
+        lib.wlnd_stop()
+        woland_started = False
 
+def _check_started():
+    global woland_started
+    if not woland_started:
+        raise Exception("woland not started; call start(db, appPath) first")
 
 def factoryReset():
     "reset the db to its initial state"
+    _check_started()
     r = lib.wlnd_factoryReset()
     return r2d(r)
 
 
 def getConfig(node: str, key: str):
     "get a configuration value from the db"
+    _check_started()
     r = lib.wlnd_getConfig(e8(node), e8(key))
     return r2d(r)
 
 
 def setConfig(node: str, key: str, value: str):
     "set a configuration value in the db"
+    _check_started()
     r = lib.wlnd_setConfig(e8(node), e8(key), e8(value))
     return r2d(r)
 
 
 def encodeAccess(userId: str, safeName: str, creatorId: str, urls: List[str], aesKey: str = ""):
     "encode access to a safe"
+    _check_started()
     r = lib.wlnd_encodeAccess(e8(userId), e8(
         safeName), e8(creatorId), j8(urls), e8(aesKey))
     return r2d(r)
@@ -43,6 +84,8 @@ def encodeAccess(userId: str, safeName: str, creatorId: str, urls: List[str], ae
 
 def decodeAccess(access: str):
     "decode access to a safe"
+    _check_started()
+    
     r = lib.wlnd_decodeAccess(e8(access))
     return r2d(r)
 
@@ -63,6 +106,8 @@ class Identity():
         return Identity.fromJson(r2d(r))
 
     def __init__(self, id: str, nick: str, email: str, modTime: str, private, avatar):
+        _check_started()
+
         self.id = id
         self.nick = nick
         self.email = email
@@ -77,16 +122,23 @@ class Identity():
         r = lib.wlnd_setIdentity(e8(self.toJson()))
         return r2d(r)
 
+    def __repr__(self) -> str:
+        if self.email:
+            return  "%s<%s> [%s]" % (self.nick, self.email, self.id)
+        else:
+            return "%s [%s]" % (self.nick, self.id)
 
 
 class Safe():
     @staticmethod
-    def create(creator: Identity, access: str, users: Users = {}, createOptions: CreateOptions = CreateOptions()):
+    def create(creator: Identity, access: str, createOptions: CreateOptions = CreateOptions(), users: Users = {}):
+        _check_started()
         r = lib.wlnd_createSafe(e8(creator.toJson()), e8(
             access), j8(users), o8(createOptions))
         return r2d(r)
 
     def __init__(self, identity: Identity, access: str, openOptions: OpenOptions = OpenOptions()):
+        _check_started()
         r = lib.wlnd_openSafe(e8(identity.toJson()),
                               e8(access), o8(openOptions))
         for k, v in r2d(r).items():
@@ -130,13 +182,16 @@ class Safe():
     def getUsers(self):
         r = lib.wlnd_getUsers(self.hnd)
         return r2d(r)
+    
+    def __repr__(self) -> str:
+        return "%s [%s]" % (self.name, self.hnd)
 
 
 def test():
     start("/tmp/poland.db", "/tmp")
     i = Identity.new("test")
     access = encodeAccess(i.id, "test", i.id, ["file:///tmp/poland/"])
-    Safe.create(i, access, {}, CreateOptions(wipe=True))
+    Safe.create(i, access, CreateOptions(wipe=True), {})
     safe = Safe(i, access, OpenOptions())
     print(safe.listFiles())
     safe.putBytes("test.txt", b"hello world")

@@ -37,6 +37,7 @@ type PutOptions struct {
 
 	Replace       bool           `json:"replace"`       // Replace all other files with the same name
 	ReplaceID     uint64         `json:"replaceId"`     // Replace the file with the specified ID
+	UpdateMeta    uint64         `json:"updateMeta"`    // Update the metadata of the file with the specified ID. It does not change the file content
 	Tags          []string       `json:"tags"`          // Tags associated with the file
 	Thumbnail     []byte         `json:"thumbnail"`     // Thumbnail associated with the file
 	AutoThumbnail bool           `json:"autoThumbnail"` // Generate a thumbnail from the file
@@ -58,9 +59,15 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 
 	hashedDir := hashPath(getDir(name))
 	now := core.Now()
-	id := snowflake.ID()
+	var id uint64
 	var secondaryKey []byte
 	iv := core.GenerateRandomBytes(aes.BlockSize)
+
+	if options.UpdateMeta != 0 {
+		id = options.UpdateMeta
+	} else {
+		id = snowflake.ID()
+	}
 
 	if options.Private != "" {
 		key, err := security.DiffieHellmanKey(s.CurrentUser, options.Private)
@@ -96,11 +103,13 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 	}
 
 	store := s.stores[0]
-	err = store.Write(bodyFile, r2, nil)
-	if core.IsErr(err, nil, "cannot write body: %v", err) {
-		return Header{}, err
+	if options.UpdateMeta == 0 {
+		err = store.Write(bodyFile, r2, nil)
+		if core.IsErr(err, nil, "cannot write body: %v", err) {
+			return Header{}, err
+		}
+		core.Info("Wrote body for %s to %s", name, bodyFile)
 	}
-	core.Info("Wrote body for %s to %s", name, bodyFile)
 
 	for _, tag := range options.Tags {
 		if !isAlphanumeric(tag) {

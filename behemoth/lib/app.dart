@@ -89,12 +89,6 @@ class _BehemothAppState extends State<BehemothApp> {
           "/coven/create": (context) => const CreateRoom(),
           "/coven/onetoone": (context) => const Privates(),
           "/coven/settings": (context) => const CommunitySettings(),
-
-//         "/pool/sub": (context) => const SubPool(),
-//         "/pool/settings": (context) => const PoolSettings(),
-//         "/apps/chat": (context) => const Chat(),
-//         "/apps/private": (context) => const Private(),
-//         "/apps/library": (context) => const Library(),
           "/content/add": (context) => const ContentAdd(),
           "/content/upload": (context) => const ContentUpload(),
           "/content/editor": (context) => const ContentEditor(),

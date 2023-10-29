@@ -141,7 +141,7 @@ class _ContentActionsState extends State<ContentActions> {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                         backgroundColor: Colors.green,
                         content: Text(
-                          "$_name uploaded to $_safe",
+                          "$_name uploaded to ${_safe.prettyName}",
                         )));
                     Navigator.pop(context);
                   }

@@ -181,7 +181,7 @@ List<Identity> getIdentities(String safeName) {
 String encodeAccess(
     String userId, String safeName, String creatorId, List<String> urls,
     {String aesKey = ""}) {
-  var fun = lib.lookupFunction<Args5SSSSS, Args5SSSSS>("encodeAccess");
+  var fun = lib.lookupFunction<Args5SSSSS, Args5SSSSS>("wlnd_encodeAccess");
   return fun(
           userId.toNativeUtf8(),
           safeName.toNativeUtf8(),

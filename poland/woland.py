@@ -5,16 +5,20 @@ import json
 from dataclasses import dataclass, asdict
 from datetime import datetime, datetime
 import pytz
+import pkg_resources
 
-lib = {
-    "Windows": "./windows/woland.dll",
-    "Linux": "/linux/libwoland.so",
-    "Darwin": "./macos/libwoland.dylib",
-}
-os_name = platform.system()
-# Load the shared library (assuming it's already compiled)
-# Replace with the actual path to your .so file
-lib = ctypes.CDLL(os.getcwd()+lib[os_name])
+
+def load_lib():
+    lib = {
+        "Windows": "windows/woland.dll",
+        "Linux": "linux/libwoland.so",
+        "Darwin": "macos/libwoland.dylib",
+    }
+    os_name = platform.system()
+    package_dir = pkg_resources.get_distribution('poland').location
+    path = os.path.join(package_dir, lib[os_name])
+    return ctypes.CDLL(path)
+
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -41,7 +45,7 @@ def r2d(r):
         return None
     return json.loads(r.res.decode("utf-8"))
 
-
+lib = load_lib()
 lib.wlnd_start.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 lib.wlnd_start.restype = Result
 lib.wlnd_stop.argtypes = []

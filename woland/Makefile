@@ -1,7 +1,7 @@
 
 OUT=$(PWD)/dist
 BEHEMOTH=$(PWD)/../behemoth
-BEHEMOTH=$(PWD)/../poland
+POLAND=$(PWD)/../poland
 
 linux-x86_64:
 	CGO_ENABLED=1 \

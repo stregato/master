@@ -65,7 +65,7 @@ class _CovenWidgetState extends State<CovenWidget> {
               children: [
                 const Icon(Icons.mail),
                 const SizedBox(width: 10),
-                Text("Invite to $name by ${sender.nick}"),
+                PlatformText("Invite to $name by ${sender.nick}"),
                 const Spacer(),
                 PlatformElevatedButton(
                   onPressed: () {
@@ -73,7 +73,7 @@ class _CovenWidgetState extends State<CovenWidget> {
                         successMessage: "Joined $name",
                         errorMessage: "Failed to join $name");
                   },
-                  child: const Text('Join'),
+                  child: PlatformText('Join'),
                 ),
               ],
             ),
@@ -150,7 +150,7 @@ class _CovenWidgetState extends State<CovenWidget> {
         child: Column(
           children: [
             ListTile(
-                title: const Text("🕵 Privates"),
+                title: PlatformText("🕵 Privates"),
                 onTap: () {
                   Navigator.pushNamed(context, "/coven/onetoone",
                           arguments: _lounge)
@@ -165,15 +165,15 @@ class _CovenWidgetState extends State<CovenWidget> {
     var zonesWidgets = _coven.rooms.keys.map((room) {
       var safeName = "${_coven.name}/$room";
       var title = Coven.safes.containsKey(safeName)
-          ? Text("🔓 ${StringUtils.capitalize(room)}")
-          : Text("🔒 ${StringUtils.capitalize(room)}");
+          ? PlatformText("🔓 ${StringUtils.capitalize(room)}")
+          : PlatformText("🔒 ${StringUtils.capitalize(room)}");
 
       return Card(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Column(
             children: [
-              ListTile(
+              PlatformListTile(
                   title: title,
                   onTap: () async {
                     Navigator.pushNamed(context, "/coven/room", arguments: {
@@ -201,8 +201,8 @@ class _CovenWidgetState extends State<CovenWidget> {
       var accessPermission = permissionRead + permissionWrite + permissionAdmin;
       zonesWidgets.add(Card(
         child: ListTile(
-          title: Text("😴 ${identity.nick} waiting"),
-          subtitle: Text(
+          title: PlatformText("😴 ${identity.nick} waiting"),
+          subtitle: PlatformText(
             "\n${identity.id}",
             style: const TextStyle(fontSize: 12),
           ),
@@ -220,7 +220,7 @@ class _CovenWidgetState extends State<CovenWidget> {
                         });
                       }
                     : null,
-                child: const Text('Approve'),
+                child: PlatformText('Approve'),
               ),
               PlatformElevatedButton(
                 onPressed: amAdmin
@@ -232,7 +232,7 @@ class _CovenWidgetState extends State<CovenWidget> {
                         });
                       }
                     : null,
-                child: const Text('Reject'),
+                child: PlatformText('Reject'),
               ),
             ],
           ),
@@ -242,7 +242,7 @@ class _CovenWidgetState extends State<CovenWidget> {
 
     return PlatformScaffold(
         appBar: PlatformAppBar(
-          title: Text(_coven.name),
+          title: PlatformText(_coven.name),
           trailingActions: [
             const NewsIcon(),
             const SizedBox(width: 10),
@@ -253,7 +253,7 @@ class _CovenWidgetState extends State<CovenWidget> {
             future: _coven.getLounge(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
-                return Center(child: Text("${snapshot.error}"));
+                return Center(child: PlatformText("${snapshot.error}"));
               }
               if (!snapshot.hasData) {
                 return CatProgressIndicator("Connecting to ${_coven.name}...");

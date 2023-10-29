@@ -317,6 +317,7 @@ class ListDirsOptions {
 class PutOptions {
   bool replace;
   int replaceID;
+  int updateMeta;
   List<String> tags;
   List<int> thumbnail;
   bool autoThumbnail;
@@ -329,6 +330,7 @@ class PutOptions {
   PutOptions(
       {this.replace = false,
       this.replaceID = 0,
+      this.updateMeta = 0,
       this.tags = const [],
       this.thumbnail = const [],
       this.autoThumbnail = false,
@@ -341,6 +343,7 @@ class PutOptions {
   Map<String, dynamic> toJson() => {
         'replace': replace,
         'replaceID': replaceID,
+        'updateMeta': updateMeta,
         'tags': tags,
         'thumbnail': thumbnail,
         'autoThumbnail': autoThumbnail,

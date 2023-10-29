@@ -33,19 +33,5 @@ void main() {
 
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     setWindowTitle('Behemoth Desktop');
-    getCurrentScreen().then((screen) {
-      // doWhenWindowReady(() {
-      //   var height = (screen?.visibleFrame.height ?? 800);
-      //   var width = (screen?.frame.width ?? 1024) * 0.2;
-      //   if (width < 200) width = 200;
-      //   if (width > 600) width = 600;
-
-      //   appWindow.minSize = Size(width, height);
-      //   appWindow.size = Size(width, height);
-      //   appWindow.alignment = Alignment.topRight;
-
-      //   appWindow.show();
-      // });
-    });
   }
 }

@@ -120,6 +120,17 @@ class Safe {
     });
   }
 
+  Future<Uint8List> getBytes(String name, GetOptions getOptions) async {
+    return Isolate.run(() {
+      var fun =
+          lib.lookupFunction<Args3TSS<Int>, Args3TSS<int>>("wlnd_getCString");
+      var s =
+          fun(hnd, name.toNativeUtf8(), jsonEncode(getOptions).toNativeUtf8())
+              .unwrapString();
+      return base64Decode(s);
+    });
+  }
+
   Future getFile(String name, String filepath, GetOptions getOptions) async {
     return Isolate.run(() {
       var fun =

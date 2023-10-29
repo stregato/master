@@ -119,7 +119,7 @@ class _HomeState extends State<Home> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.only(top: 36),
+        padding: EdgeInsets.only(top: isCupertino(context) ? 36 : 0),
         child: ListView(
           padding: const EdgeInsets.all(8),
           children: widgets,

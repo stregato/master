@@ -80,34 +80,33 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern Result start(char* dbPath, char* appPath);
-extern Result stop();
-extern Result factoryReset();
-extern Result getConfig(char* node, char* key);
-extern Result setConfig(char* node, char* key, char* value);
-extern Result newIdentity(char* nick);
-extern Result setIdentity(char* identity);
-extern Result getIdentity(char* id);
-extern Result encodeAccess(char* userId, char* safeName, char* creatorId, char* aesKey, char* urls);
-extern Result decodeAccess(char* identity, char* token);
-extern Result createSafe(char* creator, char* token, char* users, char* createOptions);
-extern Result openSafe(char* identity, char* token, char* openOptions);
-extern Result closeSafe(int hnd);
-extern Result listFiles(int hnd, char* dir, char* listOptions);
-extern Result listDirs(int hnd, char* dir, char* listDirsOptions);
-extern Result putData(int hnd, char* name, Reader* r, char* putOptions);
-extern Result putCString(int hnd, char* name, char* data, char* putOptions);
-extern Result putFile(int hnd, char* name, char* sourceFile, char* putOptions);
-extern Result getData(int hnd, char* name, Writer* w, char* getOptions);
-extern Result getCString(int hnd, char* name, char* getOptions);
-extern Result getFile(int hnd, char* name, char* destFile, char* getOptions);
-extern Result setUsers(int hnd, char* users, char* setUsersOptions);
-extern Result getUsers(int hnd);
-extern Result checkForUpdates(int hnd, char* dir, char* after, int depth);
-extern Result getIdentities(int hnd);
-extern Result getAllIdentities();
-extern Result getLogs();
-extern Result setLogLevel(int level);
+extern Result wlnd_start(char* dbPath, char* appPath);
+extern Result wlnd_stop();
+extern Result wlnd_factoryReset();
+extern Result wlnd_getConfig(char* node, char* key);
+extern Result wlnd_setConfig(char* node, char* key, char* value);
+extern Result wlnd_newIdentity(char* nick);
+extern Result wlnd_setIdentity(char* identity);
+extern Result wlnd_getIdentity(char* id);
+extern Result wlnd_encodeAccess(char* userId, char* safeName, char* creatorId, char* urls, char* aesKey);
+extern Result wlnd_decodeAccess(char* identity, char* access);
+extern Result wlnd_createSafe(char* creator, char* token, char* users, char* createOptions);
+extern Result wlnd_openSafe(char* identity, char* token, char* openOptions);
+extern Result wlnd_closeSafe(int hnd);
+extern Result wlnd_listFiles(int hnd, char* dir, char* listOptions);
+extern Result wlnd_listDirs(int hnd, char* dir, char* listDirsOptions);
+extern Result wlnd_putData(int hnd, char* name, Reader* r, char* putOptions);
+extern Result wlnd_putCString(int hnd, char* name, char* data, char* putOptions);
+extern Result wlnd_putFile(int hnd, char* name, char* sourceFile, char* putOptions);
+extern Result wlnd_getData(int hnd, char* name, Writer* w, char* getOptions);
+extern Result wlnd_getCString(int hnd, char* name, char* getOptions);
+extern Result wlnd_getFile(int hnd, char* name, char* destFile, char* getOptions);
+extern Result wlnd_setUsers(int hnd, char* users, char* setUsersOptions);
+extern Result wlnd_getUsers(int hnd);
+extern Result wlnd_getIdentities(int hnd);
+extern Result wlnd_getAllIdentities();
+extern Result wlnd_getLogs();
+extern Result wlnd_setLogLevel(int level);
 
 #ifdef __cplusplus
 }
