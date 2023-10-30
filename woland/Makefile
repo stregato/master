@@ -35,6 +35,7 @@ macos: macos-x86_64 macos-arm_64
 	test -e $(BEHEMOTH) && cp -rf $(OUT)/macos $(BEHEMOTH)
 
 ios-arm64:
+	rm -rf $(OUT)/ios/arm64
 	CGO_ENABLED=1 \
 	GOOS=ios \
 	GOARCH=arm64 \
@@ -44,8 +45,12 @@ ios-arm64:
 	CGO_CFLAGS="-fembed-bitcode" \
 	CLANG=`xcrun --sdk iphoneos --find clang` \
 	go build -buildmode=c-archive -tags ios -o $(OUT)/ios/arm64/woland.a 
+	mkdir -p $(OUT)/ios/arm64/headers
+	mv -f $(OUT)/ios/arm64/*.h  $(OUT)/ios/arm64/headers
+	cp $(OUT)/../cfunc.h $(OUT)/ios/arm64/headers
 
 ios-x86_64:
+	rm -rf $(OUT)/ios/x86
 	CGO_ENABLED=1 \
 	GOOS=ios \
 	GOARCH=amd64 \
@@ -54,19 +59,30 @@ ios-x86_64:
 	CC=$(PWD)/clangwrap.sh \
 	CLANG=`xcrun --sdk iphonesimulator --find clang` \
 	go build -buildmode=c-archive -tags ios -o $(OUT)/ios/x86/woland.a
+	mkdir -p $(OUT)/ios/x86/headers
+	mv -f $(OUT)/ios/x86/*.h  $(OUT)/ios/x86/headers
+	cp $(OUT)/../cfunc.h $(OUT)/ios/x86/headers
 
 ios: ios-arm64 ios-x86_64
-#	lipo $(OUT)/ios/arm64/libwoland.a $(OUT)/ios/x86/libwoland.a -create -output $(OUT)/ios/libwoland.a
-	rm -rf $(OUT)/ios/Woland.xcframework
+#	lipo $(OUT)/ios/arm64/woland.a $(OUT)/ios/x86/woland.a -create -output $(OUT)/ios/woland.a
+#	cp $(OUT)/ios/arm64/woland.h $(BEHEMOTH)/ios/woland/woland
+#	cp $(OUT)/ios/woland.a $(BEHEMOTH)/ios/woland/woland
+	
+	rm -rf $(OUT)/ios/woland.xcframework
 	xcodebuild -create-xcframework \
-    -output $(OUT)/ios/Woland.xcframework \
+    -output $(OUT)/ios/woland.xcframework \
     -library $(OUT)/ios/arm64/woland.a \
-    -headers $(OUT)/ios/arm64/woland.h \
+    -headers $(OUT)/ios/arm64/headers \
     -library $(OUT)/ios/x86/woland.a  \
-    -headers $(OUT)/ios/x86/woland.h
-	rm -r $(OUT)/ios/arm64
-	rm -r $(OUT)/ios/x86
-	test -e $(BEHEMOTH) && cp -rf $(OUT)/ios $(BEHEMOTH)
+    -headers $(OUT)/ios/x86/headers
+	rm -rf $(BEHEMOTH)/ios/woland.xcframework
+	cp -r $(OUT)/ios/woland.xcframework $(BEHEMOTH)/ios
+	mkdir -p $(BEHEMOTH)/ios/woland.xcframework/ios-x86_64-simulator/Modules
+	mkdir -p $(BEHEMOTH)/ios/woland.xcframework/ios-arm64/Modules
+	cp $(OUT)/../module.modulemap $(BEHEMOTH)/ios/woland.xcframework/ios-x86_64-simulator/Modules
+	cp $(OUT)/../module.modulemap $(BEHEMOTH)/ios/woland.xcframework/ios-arm64/Modules
+
+
 
 apple: macos ios
 

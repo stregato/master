@@ -21,31 +21,8 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 
 #line 3 "exports.go"
 
-typedef struct Result{
-    char* res;
-	char* err;
-} Result;
-
-typedef struct App {
-	void (*feed)(char* name, char* data, int eof);
-} App;
-
-typedef int (*ReadFn)(char* data, int size);
-typedef int (*SeekFn)(int offset, int whence);
-typedef int (*WriteFn)(char* data, int size);
-
-int callRead(ReadFn fn, char* data, int size) {
-	return fn(data, size);
-}
-int callSeek(SeekFn fn, int offset, int whence) {
-	return fn(offset, whence);
-}
-int callWrite(WriteFn fn, char* data, int size) {
-	return fn(data, size);
-}
-
+#include "cfunc.h"
 #include <stdlib.h>
-
 
 #line 1 "cgo-generated-wrapper"
 
@@ -103,21 +80,33 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern Result start(char* dbPath, char* cachePath, char* availableBandwith);
-extern Result stop();
-extern Result factoryReset();
-extern Result getConfig(char* node, char* key);
-extern Result setConfig(char* node, char* key, char* s, int i, char* b);
-extern Result newIdentity(char* nick);
-extern Result setIdentity(char* identity);
-extern Result getIdentity(char* id);
-
-extern Result list(char* safeName, char* zoneName);
-extern Result put(char* safeName, char* zoneName, char* name, ReadFn read, SeekFn seek, char* putOptions);
-extern Result get(char* safeName, char* zoneName, char* name, WriteFn write, char* getOptions);
-extern Result createZone(char* safeName, char* zoneName, char* users);
-extern Result zones(char* safeName);
-extern Result setUsers(char* safeName, char* zoneName, char* users);
+extern Result wlnd_start(char* dbPath, char* appPath);
+extern Result wlnd_stop();
+extern Result wlnd_factoryReset();
+extern Result wlnd_getConfig(char* node, char* key);
+extern Result wlnd_setConfig(char* node, char* key, char* value);
+extern Result wlnd_newIdentity(char* nick);
+extern Result wlnd_setIdentity(char* identity);
+extern Result wlnd_getIdentity(char* id);
+extern Result wlnd_encodeAccess(char* userId, char* safeName, char* creatorId, char* urls, char* aesKey);
+extern Result wlnd_decodeAccess(char* identity, char* access);
+extern Result wlnd_createSafe(char* creator, char* token, char* users, char* createOptions);
+extern Result wlnd_openSafe(char* identity, char* token, char* openOptions);
+extern Result wlnd_closeSafe(int hnd);
+extern Result wlnd_listFiles(int hnd, char* dir, char* listOptions);
+extern Result wlnd_listDirs(int hnd, char* dir, char* listDirsOptions);
+extern Result wlnd_putData(int hnd, char* name, Reader* r, char* putOptions);
+extern Result wlnd_putCString(int hnd, char* name, char* data, char* putOptions);
+extern Result wlnd_putFile(int hnd, char* name, char* sourceFile, char* putOptions);
+extern Result wlnd_getData(int hnd, char* name, Writer* w, char* getOptions);
+extern Result wlnd_getCString(int hnd, char* name, char* getOptions);
+extern Result wlnd_getFile(int hnd, char* name, char* destFile, char* getOptions);
+extern Result wlnd_setUsers(int hnd, char* users, char* setUsersOptions);
+extern Result wlnd_getUsers(int hnd);
+extern Result wlnd_getIdentities(int hnd);
+extern Result wlnd_getAllIdentities();
+extern Result wlnd_getLogs();
+extern Result wlnd_setLogLevel(int level);
 
 #ifdef __cplusplus
 }

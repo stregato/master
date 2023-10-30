@@ -6,8 +6,8 @@
 //
 
 #import <Foundation/Foundation.h>
-#import "woland.h"
+#import <woland.h>
 
 void dummy(void) {
-     start(NULL,NULL,NULL);
+    wlnd_start(NULL,NULL);
  }

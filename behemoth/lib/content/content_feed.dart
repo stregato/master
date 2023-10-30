@@ -373,17 +373,22 @@ class _ContentFeedState extends State<ContentFeed> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          IconButton(
-                                            icon: Icon(
-                                              Icons.thumb_up,
-                                              color: liking
-                                                  ? Colors.green
-                                                  : Colors.black,
+                                          if (liking)
+                                            IconButton(
+                                              icon: const Icon(Icons.thumb_up,
+                                                  color: Colors.green),
+                                              onPressed: () {
+                                                _setLiking(h.fileId, !liking);
+                                              },
+                                            )
+                                          else
+                                            IconButton(
+                                              icon: const Icon(Icons.thumb_up,
+                                                  color: Colors.black),
+                                              onPressed: () {
+                                                _setLiking(h.fileId, !liking);
+                                              },
                                             ),
-                                            onPressed: () {
-                                              _setLiking(h.fileId, !liking);
-                                            },
-                                          ),
                                           Text("(${likes.length})"),
                                         ]),
                                   )),

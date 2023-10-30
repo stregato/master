@@ -11,13 +11,6 @@ import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
-var appsIcons = {
-  "chat": Icons.chat,
-  "private": Icons.question_answer,
-  "content": Icons.folder,
-  "invite": Icons.token,
-};
-
 const welcomeSpace = 'lounge';
 
 class CovenWidget extends StatefulWidget {

@@ -144,11 +144,12 @@ class _ContentState extends State<Content> {
       (e) {
         var isFeed = e.endsWith(".feed");
         var title = isFeed ? e.substring(0, e.length - 5) : e;
-        var icon = isFeed ? Icons.rss_feed : Icons.folder;
+        var icon =
+            isFeed ? const Icon(Icons.rss_feed) : const Icon(Icons.folder);
         return Card(
           child: ListTile(
               title: Text(title),
-              leading: Icon(icon),
+              leading: icon,
               onTap: () {
                 if (isFeed) {
                   Navigator.pushNamed(context, "/content/feed", arguments: {
