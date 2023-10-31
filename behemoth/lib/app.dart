@@ -1,6 +1,7 @@
 import 'package:behemoth/content/content_add.dart';
 import 'package:behemoth/content/content_editor.dart';
 import 'package:behemoth/content/content_feed.dart';
+import 'package:behemoth/settings/nolib.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/one_to_one.dart';
@@ -40,7 +41,12 @@ class _BehemothAppState extends State<BehemothApp> {
   _BehemothAppState() {
     try {
       start("$applicationFolder/woland.db", applicationFolder);
+    } catch (e) {
+      initialRoot = "/nolib";
+      return;
+    }
 
+    try {
       if (!Profile.hasProfile()) {
         initialRoot = "/setup";
       }
@@ -72,6 +78,7 @@ class _BehemothAppState extends State<BehemothApp> {
 //      home: _reset ? const Reset() : null,
         routes: {
           "/": (context) => const Home(),
+          "/nolib": (context) => const NoLib(),
           "/setup": (context) => const Setup(),
           "/reset": (context) => const Reset(),
           "/invite": (context) => const Invite(),

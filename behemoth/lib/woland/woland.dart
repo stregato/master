@@ -15,8 +15,6 @@ DynamicLibrary getLibrary() {
   }
   if (Platform.isLinux) {
     var locs = ['linux/libwoland.so', 'libwoland.so', '/lib/libwoland.so'];
-//    var locs = ['linux/libwoland.so'];
-
     for (var loc in locs) {
       try {
         return DynamicLibrary.open(loc);
@@ -36,7 +34,6 @@ DynamicLibrary getLibrary() {
   }
   if (Platform.isIOS) {
     return DynamicLibrary.process();
-    //return DynamicLibrary.open('libwoland.dylib');
   }
   return DynamicLibrary.process();
 }
