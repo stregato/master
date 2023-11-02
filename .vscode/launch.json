@@ -15,6 +15,14 @@
             "storage.TestS3"
         ]
     },
+    {
+        "name": "Poland",
+        "type": "python",
+        "request": "launch",
+        "program": "${workspaceFolder}/poland/poland.py",
+        "console": "integratedTerminal",
+        "cwd": "${workspaceFolder}/poland",
+    },
         {
             "name": "behemoth",
             "cwd": "behemoth",
