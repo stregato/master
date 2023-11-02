@@ -37,8 +37,8 @@ class _InviteState extends State<Invite> {
   }
 
   _processUrl(String url) {
-    var args = url.startsWith("https://behemoth.cool/i/")
-        ? url.substring("https://behemoth.cool/i/".length).split("/")
+    var args = url.startsWith("https://behemoth.space/i/")
+        ? url.substring("https://behemoth.space/i/".length).split("/")
         : url.startsWith("mg://i/")
             ? url.substring("mg://i/".length).split("/")
             : [];
@@ -135,7 +135,7 @@ class _InviteState extends State<Invite> {
                   children: [
                     const Text("Share one of the below links with the peer"),
                     const SizedBox(height: 40),
-                    CopyField("Mobile", "https://behemoth.cool/a/$_access"),
+                    CopyField("Mobile", "https://behemoth.space/a/$_access"),
                     const SizedBox(height: 40),
                     CopyField("Desktop", "mg://a/$_access"),
                   ],

@@ -205,7 +205,7 @@ class _ContentFeedState extends State<ContentFeed> {
       context: context,
       builder: (BuildContext context) => SafeArea(
         child: SizedBox(
-          height: 200,
+          height: 250,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[

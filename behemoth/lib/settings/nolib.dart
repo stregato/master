@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class NoLib extends StatelessWidget {
-  const NoLib({Key? key}) : super(key: key);
+  final String err;
+  const NoLib(this.err, {Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -10,6 +11,7 @@ class NoLib extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const Spacer(),
           const Icon(
             Icons.heart_broken,
             size: 100.0, // Adjust the size as needed
@@ -17,7 +19,7 @@ class NoLib extends StatelessWidget {
           ),
           const SizedBox(height: 16.0),
           const Text(
-            'No Woland library found',
+            'No Woland inside',
             style: TextStyle(
               fontSize: 20.0,
               fontWeight: FontWeight.bold,
@@ -32,6 +34,12 @@ class NoLib extends StatelessWidget {
             },
             child: const Text('Quit'),
           ),
+          const Spacer(),
+          Text(err,
+              style: const TextStyle(
+                  fontSize: 12.0,
+                  color: Colors.grey,
+                  decoration: TextDecoration.none)),
         ],
       ),
     );

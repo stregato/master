@@ -37,12 +37,14 @@ class BehemothApp extends StatefulWidget {
 
 class _BehemothAppState extends State<BehemothApp> {
   String initialRoot = "/";
+  String err = "";
 
   _BehemothAppState() {
     try {
       start("$applicationFolder/woland.db", applicationFolder);
     } catch (e) {
       initialRoot = "/nolib";
+      err = e.toString();
       return;
     }
 
@@ -78,7 +80,7 @@ class _BehemothAppState extends State<BehemothApp> {
 //      home: _reset ? const Reset() : null,
         routes: {
           "/": (context) => const Home(),
-          "/nolib": (context) => const NoLib(),
+          "/nolib": (context) => NoLib(err),
           "/setup": (context) => const Setup(),
           "/reset": (context) => const Reset(),
           "/invite": (context) => const Invite(),

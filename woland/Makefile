@@ -88,7 +88,7 @@ apple: macos ios
 
 ANDROID_OUT=../behemothandroid/app/src/main/jniLibs
 ANDROID_SDK=$(HOME)/Android/Sdk
-NDK_VERSION=25.1.8937393
+NDK_VERSION=26.1.10909125
 NDK_BUILD=linux-x86_64
 NDK_BIN=$(ANDROID_SDK)/ndk/$(NDK_VERSION)/toolchains/llvm/prebuilt/$(NDK_BUILD)/bin
 # android-armv7a:

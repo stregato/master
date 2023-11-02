@@ -65,184 +65,187 @@ class _CreateCovenState extends State<CreateCoven> {
       appBar: AppBar(
         title: const Text("Create Coven"),
       ),
-      body: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-        child: Builder(
-          builder: (context) => Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                    "Enter a name and at least a storage, i.e. sftp or s3"),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  validator: (value) {
-                    return null;
-                  },
-                  onChanged: (val) => setState(() => _name = val),
-                ),
-                TextFormField(
-                  decoration: const InputDecoration(labelText: 'Description'),
-                  validator: (value) {
-                    return null;
-                  },
-                  onChanged: (val) => setState(() => _description = val),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    const Text(
-                      "Storages",
-                      style: TextStyle(color: Colors.black54, fontSize: 14),
-                    ),
-                    const Spacer(),
-                    PlatformIconButton(
-                      onPressed: () {
-                        Navigator.of(context)
-                            .push(MaterialPageRoute(
-                                builder: (context) => const AddStorage()))
-                            .then((value) {
-                          if (value is Storage) {
-                            setState(() {
-                              _urls.add(value.url);
-                            });
-                          }
-                        });
-                      },
-                      icon: const Icon(Icons.add),
-                    )
-                  ],
-                ),
-                ListView.builder(
-                  scrollDirection: Axis.vertical,
-                  shrinkWrap: true,
-                  itemCount: _urls.length,
-                  itemBuilder: (context, index) => ListTile(
-                    leading: const Icon(Icons.share),
-                    trailing: PlatformIconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () {
-                          setState(() {
-                            _urls.removeAt(index);
-                          });
-                        }),
-                    title: Text(_urls[index]),
+      body: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+          child: Builder(
+            builder: (context) => Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                      "Enter a name and at least a storage, i.e. sftp or s3"),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Name'),
+                    validator: (value) {
+                      return null;
+                    },
+                    onChanged: (val) => setState(() => _name = val),
                   ),
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                Row(
-                  children: [
-                    const Text(
-                      "Same storage as",
-                      style: TextStyle(color: Colors.black54, fontSize: 14),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    validator: (value) {
+                      return null;
+                    },
+                    onChanged: (val) => setState(() => _description = val),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Text(
+                        "Storages",
+                        style: TextStyle(color: Colors.black54, fontSize: 14),
+                      ),
+                      const Spacer(),
+                      PlatformIconButton(
+                        onPressed: () {
+                          Navigator.of(context)
+                              .push(MaterialPageRoute(
+                                  builder: (context) => const AddStorage()))
+                              .then((value) {
+                            if (value is Storage) {
+                              setState(() {
+                                _urls.add(value.url);
+                              });
+                            }
+                          });
+                        },
+                        icon: const Icon(Icons.add),
+                      )
+                    ],
+                  ),
+                  ListView.builder(
+                    scrollDirection: Axis.vertical,
+                    shrinkWrap: true,
+                    itemCount: _urls.length,
+                    itemBuilder: (context, index) => ListTile(
+                      leading: const Icon(Icons.share),
+                      trailing: PlatformIconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              _urls.removeAt(index);
+                            });
+                          }),
+                      title: Text(_urls[index]),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: // Replace with your label
-                          DropdownButton<String>(
-                        value: _sameStorageAs,
-                        items: profile.covens.keys
-                            .map((e) =>
-                                DropdownMenuItem(value: e, child: Text(e)))
-                            .toList(),
-                        onChanged: (name) {
-                          var c = profile.covens[name];
-                          var access = c?.rooms["lounge"]!;
-                          var d = decodeAccess(profile.identity, access!);
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  Row(
+                    children: [
+                      const Text(
+                        "Same storage as",
+                        style: TextStyle(color: Colors.black54, fontSize: 14),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: // Replace with your label
+                            DropdownButton<String>(
+                          value: _sameStorageAs,
+                          items: profile.covens.keys
+                              .map((e) =>
+                                  DropdownMenuItem(value: e, child: Text(e)))
+                              .toList(),
+                          onChanged: (name) {
+                            var c = profile.covens[name];
+                            var access = c?.rooms["lounge"]!;
+                            var d = decodeAccess(profile.identity, access!);
 
+                            setState(() {
+                              _urls = d.urls;
+                              _sameStorageAs = name;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  const Text(
+                    "Limit storage",
+                    style: TextStyle(color: Colors.black54, fontSize: 14),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(_getDisplayValue(_mapSliderToValue(_sliderValue))),
+                      Slider(
+                        min: 0.0,
+                        max: 1.0,
+                        value: _sliderValue,
+                        onChanged: (value) {
                           setState(() {
-                            _urls = d.urls;
-                            _sameStorageAs = name;
+                            _sliderValue = value;
                           });
                         },
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                const Text(
-                  "Limit storage",
-                  style: TextStyle(color: Colors.black54, fontSize: 14),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Text(_getDisplayValue(_mapSliderToValue(_sliderValue))),
-                    Slider(
-                      min: 0.0,
-                      max: 1.0,
-                      value: _sliderValue,
-                      onChanged: (value) {
-                        setState(() {
-                          _sliderValue = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                Row(
-                  children: [
-                    const Text(
-                      "Wipe (danger)",
-                      style: TextStyle(color: Colors.red, fontSize: 14),
-                    ),
-                    const Spacer(),
-                    Switch(
-                      value: _wipe,
-                      onChanged: (value) {
-                        setState(() {
-                          _wipe = value;
-                        });
-                        if (value) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Danger: wipe will delete all data in the community'),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 16.0, horizontal: 16.0),
-                  child: PlatformElevatedButton(
-                    onPressed: _validConfig()
-                        ? () async {
-                            await progressDialog(
-                                context,
-                                "opening portal, please wait",
-                                Coven.create(
-                                    _name,
-                                    _urls,
-                                    CreateOptions(
-                                        wipe: _wipe,
-                                        description: _description,
-                                        quota: _mapSliderToValue(_sliderValue),
-                                        quotaGroup: "$_name/")),
-                                successMessage:
-                                    "Congrats! You successfully created $_name",
-                                errorMessage: "Creation failed");
-                            // ignore: use_build_context_synchronously
-                            Navigator.popUntil(
-                                context, (route) => route.isFirst);
-                          }
-                        : null,
-                    child: const Text('Create'),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  Row(
+                    children: [
+                      const Text(
+                        "Wipe (danger)",
+                        style: TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                      const Spacer(),
+                      Switch(
+                        value: _wipe,
+                        onChanged: (value) {
+                          setState(() {
+                            _wipe = value;
+                          });
+                          if (value) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Danger: wipe will delete all data in the community'),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 16.0, horizontal: 16.0),
+                    child: PlatformElevatedButton(
+                      onPressed: _validConfig()
+                          ? () async {
+                              await progressDialog(
+                                  context,
+                                  "opening portal, please wait",
+                                  Coven.create(
+                                      _name,
+                                      _urls,
+                                      CreateOptions(
+                                          wipe: _wipe,
+                                          description: _description,
+                                          quota:
+                                              _mapSliderToValue(_sliderValue),
+                                          quotaGroup: "$_name/")),
+                                  successMessage:
+                                      "Congrats! You successfully created $_name",
+                                  errorMessage: "Creation failed");
+                              // ignore: use_build_context_synchronously
+                              Navigator.popUntil(
+                                  context, (route) => route.isFirst);
+                            }
+                          : null,
+                      child: const Text('Create'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -49,50 +49,52 @@ class ShareData extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text("Sharing")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20),
-            PlatformTextField(
-              controller: TextEditingController(text: _value),
-              readOnly: true,
-            ),
-            const SizedBox(height: 20),
-            shareButton,
-            const SizedBox(height: 20),
-            Container(
-              constraints: const BoxConstraints(
-                  minWidth: 200.0), // Set the minimum width here
-              child: PlatformElevatedButton(
-                onPressed: () {
-                  launchUrl(Uri.parse(
-                      'https://mail.google.com/mail/?view=cm&fs=1&to=&su=$_label&body=$_value'));
-                },
-                child: const Text("Send via gmail"),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              PlatformTextField(
+                controller: TextEditingController(text: _value),
+                readOnly: true,
               ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              constraints: const BoxConstraints(
-                  minWidth: 200.0), // Set the minimum width here
-              child: PlatformElevatedButton(
-                onPressed: () {
-                  launchUrl(Uri.parse('mailto:?subject=$_label&body=_value'));
-                },
-                child: const Text("Send via mail client"),
+              const SizedBox(height: 20),
+              shareButton,
+              const SizedBox(height: 20),
+              Container(
+                constraints: const BoxConstraints(
+                    minWidth: 200.0), // Set the minimum width here
+                child: PlatformElevatedButton(
+                  onPressed: () {
+                    launchUrl(Uri.parse(
+                        'https://mail.google.com/mail/?view=cm&fs=1&to=&su=$_label&body=$_value'));
+                  },
+                  child: const Text("Send via gmail"),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            QrImageView(
-              data: _value,
-              version: QrVersions.auto,
-              size: 320,
-              gapless: false,
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 20),
+              Container(
+                constraints: const BoxConstraints(
+                    minWidth: 200.0), // Set the minimum width here
+                child: PlatformElevatedButton(
+                  onPressed: () {
+                    launchUrl(Uri.parse('mailto:?subject=$_label&body=_value'));
+                  },
+                  child: const Text("Send via mail client"),
+                ),
+              ),
+              const SizedBox(height: 20),
+              QrImageView(
+                data: _value,
+                version: QrVersions.auto,
+                size: 320,
+                gapless: false,
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );

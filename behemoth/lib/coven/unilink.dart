@@ -9,9 +9,9 @@ class Unilink extends StatefulWidget {
 
 class _UnilinkState extends State<Unilink> {
   final _urlPrefixes = <String, String>{
-    "https://behemoth.cool/i/": "id",
+    "https://behemoth.space/i/": "id",
     "mg://i/": "id",
-    "https://behemoth.cool/a/": "access",
+    "https://behemoth.space/a/": "access",
     "mg://a/": "access",
   };
   final _urlArgs = <String, int>{

@@ -183,8 +183,22 @@ func ListDirs(s *Safe, dir string, options ListDirsOptions) ([]string, error) {
 }
 
 func synchorize(currentUser security.Identity, store storage.Store, safeName, hashedDir string, depth int, keys map[uint64][]byte) (newFiles int, err error) {
-	var touch time.Time
+	if depth != 1 {
+		ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{OnlyFolders: true})
+		if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
+			return 0, err
+		}
 
+		for _, l := range ls {
+			nf, err := synchorize(currentUser, store, safeName, path.Join(hashedDir, l.Name()), depth-1, keys)
+			if core.IsErr(err, nil, "cannot sync dir %s/%s: %v", store, hashedDir, err) {
+				return 0, err
+			}
+			newFiles += nf
+		}
+	}
+
+	var touch time.Time
 	var touchConfigKey = fmt.Sprintf("%s//%s", safeName, hashedDir)
 	last, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchConfigKey)
 	if ok {
@@ -252,21 +266,6 @@ func synchorize(currentUser security.Identity, store storage.Store, safeName, ha
 		return 0, err
 	}
 	core.Info("saved touch information: %v and %s", touch, newLast)
-
-	if depth != 0 {
-		ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{OnlyFolders: true})
-		if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
-			return 0, err
-		}
-
-		for _, l := range ls {
-			nf, err := synchorize(currentUser, store, safeName, path.Join(hashedDir, l.Name()), depth-1, keys)
-			if core.IsErr(err, nil, "cannot sync dir %s/%s: %v", store, hashedDir, err) {
-				return 0, err
-			}
-			newFiles += nf
-		}
-	}
 
 	return newFiles, nil
 }

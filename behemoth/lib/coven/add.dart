@@ -17,7 +17,7 @@ class _AddState extends State<Add> {
   String? _errorText;
   String _name = "";
   String _access = "";
-  List<String> accessPrefixes = ['https://behemoth.cool/a/', 'mg://a/'];
+  List<String> accessPrefixes = ['https://behemoth.space/a/', 'mg://a/'];
   final TextEditingController _linkController = TextEditingController();
 
   _AddState() {
@@ -61,9 +61,9 @@ class _AddState extends State<Add> {
     var profile = Profile.current();
 
     var currentUserId = profile.identity.id;
-    var desktopLink = 'mg://i/$currentUserId/${profile.identity.nick}';
+    var desktopLink = 'bm://i/$currentUserId/${profile.identity.nick}';
     var mobileLink =
-        'https://behemoth.cool/i/$currentUserId/${profile.identity.nick}';
+        'https://behemoth.space/i/$currentUserId/${profile.identity.nick}';
 
     var shareIdSection = <Widget>[
       const Text(
@@ -108,10 +108,12 @@ class _AddState extends State<Add> {
       appBar: AppBar(
         title: const Text("Join"),
       ),
-      body: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-        child: Column(
-          children: shareIdSection,
+      body: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+          child: Column(
+            children: shareIdSection,
+          ),
         ),
       ),
     );
