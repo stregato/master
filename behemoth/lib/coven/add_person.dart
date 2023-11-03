@@ -59,9 +59,9 @@ class _AddPersonState extends State<AddPerson> {
     var ids =
         _lounge.getUsersSync().keys.where((id) => !ids2.contains(id)).toList();
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
+    return PlatformScaffold(
+      //resizeToAvoidBottomInset: false, //TODO: add again
+      appBar: PlatformAppBar(
         title: Text("Add to ${_safe.prettyName}"),
       ),
       body: SingleChildScrollView(

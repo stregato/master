@@ -40,8 +40,8 @@ class _PeopleState extends State<People> {
       );
     }).toList();
 
-    return Scaffold(
-      body: Padding(
+    return SafeArea(
+      child: Padding(
         padding: const EdgeInsets.all(2.0),
         child: Column(
           children: [

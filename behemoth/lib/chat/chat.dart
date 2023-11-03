@@ -588,23 +588,21 @@ class _ChatState extends State<Chat> {
         onDragDone: (details) async {
           _dropFiles(details.files);
         },
-        child: Expanded(
-          child: chat.Chat(
-            messages: _messages,
-            onAttachmentPressed: () {
-              _handleAttachmentPressed(context);
-            },
-            onMessageTap: _handleMessageTap,
-            onPreviewDataFetched: _handlePreviewDataFetched,
-            onSendPressed: _handleSendPressed,
-            onEndReached: _handleEndReached,
-            onEndReachedThreshold: _pageThresold,
-            isLastPage: _isLastPage,
-            showUserAvatars: true,
-            showUserNames: true,
-            user: _currentUser,
-            customMessageBuilder: _customMessageBuilder,
-          ),
+        child: chat.Chat(
+          messages: _messages,
+          onAttachmentPressed: () {
+            _handleAttachmentPressed(context);
+          },
+          onMessageTap: _handleMessageTap,
+          onPreviewDataFetched: _handlePreviewDataFetched,
+          onSendPressed: _handleSendPressed,
+          onEndReached: _handleEndReached,
+          onEndReachedThreshold: _pageThresold,
+          isLastPage: _isLastPage,
+          showUserAvatars: true,
+          showUserNames: true,
+          user: _currentUser,
+          customMessageBuilder: _customMessageBuilder,
         ),
       ),
     );

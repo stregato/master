@@ -76,8 +76,8 @@ class _HomeState extends State<Home> {
     _refresh = false;
 
     if (!Profile.hasProfile()) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("Loading")),
+      return PlatformScaffold(
+        appBar: PlatformAppBar(title: const Text("Loading")),
       );
     }
 
@@ -118,8 +118,7 @@ class _HomeState extends State<Home> {
               icon: const Icon(Icons.settings)),
         ],
       ),
-      body: Padding(
-        padding: EdgeInsets.only(top: isCupertino(context) ? 36 : 0),
+      body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(8),
           children: widgets,

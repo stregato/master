@@ -250,13 +250,12 @@ class _ContentState extends State<Content> {
       ),
     );
 
-    return PlatformScaffold(
-      body: Column(children: [
-        const SizedBox(height: 10),
-        toolbar,
-        const SizedBox(height: 10),
-        files,
-      ]),
-    );
+    return SafeArea(
+        child: Column(children: [
+      const SizedBox(height: 10),
+      toolbar,
+      const SizedBox(height: 10),
+      files,
+    ]));
   }
 }

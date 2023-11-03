@@ -56,8 +56,8 @@ class _CreateRoomState extends State<CreateRoom> {
     var users = coven.getLoungeSync()!.getUsersSync();
     var identities = users.keys.map((id) => getCachedIdentity(id)).toList();
 
-    return Scaffold(
-      appBar: AppBar(
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
         title: const Text("Create Room"),
       ),
       body: Container(

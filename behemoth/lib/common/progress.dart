@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:behemoth/common/cat_progress_indicator.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
@@ -17,9 +18,8 @@ Future<T?> progressDialog<T>(
               if (snapshot.connectionState == ConnectionState.done) {
                 if (successMessage != null) {
                   Future.delayed(Duration.zero, () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        backgroundColor: Colors.green,
-                        content: Text(successMessage)));
+                    showPlatformSnackbar(context, successMessage,
+                        backgroundColor: Colors.green);
                     Navigator.pop(context, snapshot.data);
                   });
                 }
@@ -27,9 +27,8 @@ Future<T?> progressDialog<T>(
               if (snapshot.hasError) {
                 if (errorMessage != null) {
                   Future.delayed(Duration.zero, () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        backgroundColor: Colors.red,
-                        content: Text("$errorMessage: ${snapshot.error}")));
+                    showPlatformSnackbar(context, errorMessage,
+                        backgroundColor: Colors.red);
                     Navigator.pop(context, snapshot.error);
                   });
                 }

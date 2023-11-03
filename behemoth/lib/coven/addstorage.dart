@@ -255,8 +255,8 @@ class _AddStorageState extends State<AddStorage> {
       ]);
     }
 
-    return Scaffold(
-      appBar: AppBar(
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
         title: const Text("Add Storage"),
       ),
       body: Container(

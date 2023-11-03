@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:behemoth/common/document.dart';
 //import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:path/path.dart' as pl;
 
 class ChooseFile extends StatefulWidget {
@@ -108,8 +109,8 @@ class _ChooseFileState extends State<ChooseFile> {
       ],
     );
 
-    return Scaffold(
-      appBar: AppBar(
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
         title: Text("Download $name"),
       ),
       body: Container(

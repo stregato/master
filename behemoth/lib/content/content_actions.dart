@@ -262,10 +262,10 @@ class _ContentActionsState extends State<ContentActions> {
     //       ),
     //     );
     //   }
-    return Scaffold(
-      appBar: AppBar(
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
         title: Text(_name, style: const TextStyle(fontSize: 18)),
-        actions: [
+        trailingActions: [
           PlatformIconButton(
             icon: const Icon(Icons.file_open),
             onPressed: () {
@@ -286,15 +286,17 @@ class _ContentActionsState extends State<ContentActions> {
           ),
         ],
       ),
-      body: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-        child: Column(children: [
-          ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.all(8),
-            children: items,
-          ),
-        ]),
+      body: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+          child: Column(children: [
+            ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(8),
+              children: items,
+            ),
+          ]),
+        ),
       ),
 //      bottomNavigationBar: MainNavigationBar(poolName),
     );

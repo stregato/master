@@ -49,9 +49,9 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
           "cannot access to the community with the provided link: ${e.toString()}");
     }
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
+    return PlatformScaffold(
+      // resizeToAvoidBottomInset: false, //TODO: get back
+      appBar: PlatformAppBar(
         title: Text(title),
       ),
       body: body,

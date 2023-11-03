@@ -6,6 +6,7 @@ import 'package:behemoth/common/image.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/profile.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/services.dart';
@@ -53,11 +54,11 @@ class _SettingsState extends State<Settings> {
     var email = TextEditingController(text: profile.identity.email);
     _avatar = currentUser.avatar;
 
-    return Scaffold(
-      appBar: AppBar(
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
         title: const Text("Settings"),
       ),
-      resizeToAvoidBottomInset: true,
+      //resizeToAvoidBottomInset: true, //TODO: add it back
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
         child: Column(
