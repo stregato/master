@@ -38,6 +38,7 @@ class BehemothApp extends StatefulWidget {
 class _BehemothAppState extends State<BehemothApp> {
   String initialRoot = "/";
   String err = "";
+  ThemeMode? themeMode = ThemeMode.dark; // initial brightness
 
   _BehemothAppState() {
     try {
@@ -55,57 +56,103 @@ class _BehemothAppState extends State<BehemothApp> {
     } catch (e) {
       initialRoot = "/reset";
     }
+
+    var d = getConfig("ui", "theme");
+    if (d.s == "dark") {
+      themeMode = ThemeMode.dark;
+    } else if (d.s == "light") {
+      themeMode = ThemeMode.light;
+    }
   }
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return PlatformProvider(
-      // settings: PlatformSettingsData(
-      //   platformStyle: const PlatformStyleData(
-      //     linux: PlatformStyle.Cupertino,
-      //   ),
-      // ),
-      builder: (context) => PlatformApp(
-        localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
-          DefaultMaterialLocalizations.delegate,
-          DefaultWidgetsLocalizations.delegate,
-          DefaultCupertinoLocalizations.delegate,
-        ],
-        title: 'Behemoth',
-        // theme: ThemeData(
-        //   primarySwatch: Colors.blue,
-        // ),
-        initialRoute: initialRoot,
-//      home: _reset ? const Reset() : null,
-        routes: {
-          "/": (context) => const Home(),
-          "/nolib": (context) => NoLib(err),
-          "/setup": (context) => const Setup(),
-          "/reset": (context) => const Reset(),
-          "/invite": (context) => const Invite(),
-          "/unilink": (context) => const Unilink(),
-          "/unilink/invite": (context) => const UnilinkInvite(),
-          "/unilink/accept": (context) => const UnilinkAccept(),
-          //"/": (context) => const AddCommunity(),
-          "/create": (context) => const CreateCoven(),
-          "/join": (context) => const Add(),
-          "/settings": (context) => const Settings(),
+    final materialLightTheme = ThemeData.light();
+    final materialDarkTheme = ThemeData.dark();
 
-          "/coven": (context) => const CovenWidget(),
-          "/coven/room": (context) => const Room(),
-          "/coven/add_person": (context) => const AddPerson(),
-          "/coven/create": (context) => const CreateRoom(),
-          "/coven/onetoone": (context) => const Privates(),
-          "/coven/settings": (context) => const CommunitySettings(),
-          "/content/add": (context) => const ContentAdd(),
-          "/content/upload": (context) => const ContentUpload(),
-          "/content/editor": (context) => const ContentEditor(),
-          "/content/feed": (context) => const ContentFeed(),
-// //        "/apps/content/download": (context) => const DownloadFile(),
-          "/content/actions": (context) => const ContentActions(),
-//         "/apps/invite/list": (context) => const InviteList(),
+    const darkDefaultCupertinoTheme =
+        CupertinoThemeData(brightness: Brightness.dark);
+    final cupertinoDarkTheme = MaterialBasedCupertinoThemeData(
+      materialTheme: materialDarkTheme.copyWith(
+        cupertinoOverrideTheme: CupertinoThemeData(
+          brightness: Brightness.dark,
+          barBackgroundColor: darkDefaultCupertinoTheme.barBackgroundColor,
+          textTheme: CupertinoTextThemeData(
+            primaryColor: Colors.white,
+            navActionTextStyle:
+                darkDefaultCupertinoTheme.textTheme.navActionTextStyle.copyWith(
+              color: const Color(0xF0F9F9F9),
+            ),
+            navLargeTitleTextStyle: darkDefaultCupertinoTheme
+                .textTheme.navLargeTitleTextStyle
+                .copyWith(color: const Color(0xF0F9F9F9)),
+          ),
+        ),
+      ),
+    );
+    final cupertinoLightTheme =
+        MaterialBasedCupertinoThemeData(materialTheme: materialLightTheme);
+
+    return PlatformProvider(
+      settings: PlatformSettingsData(
+        iosUsesMaterialWidgets: true,
+        iosUseZeroPaddingForAppbarPlatformIcon: true,
+        platformStyle: const PlatformStyleData(
+          linux: PlatformStyle.Cupertino,
+        ),
+      ),
+      builder: (context) => PlatformTheme(
+        themeMode: themeMode,
+        materialLightTheme: materialLightTheme,
+        materialDarkTheme: materialDarkTheme,
+        cupertinoLightTheme: cupertinoLightTheme,
+        cupertinoDarkTheme: cupertinoDarkTheme,
+        matchCupertinoSystemChromeBrightness: true,
+        onThemeModeChanged: (themeMode) {
+          this.themeMode = themeMode; /* you can save to storage */
         },
+        builder: (context) => PlatformApp(
+          localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+            DefaultMaterialLocalizations.delegate,
+            DefaultWidgetsLocalizations.delegate,
+            DefaultCupertinoLocalizations.delegate,
+          ],
+          title: 'Behemoth',
+          // theme: ThemeData(
+          //   primarySwatch: Colors.blue,
+          // ),
+          initialRoute: initialRoot,
+//      home: _reset ? const Reset() : null,
+          routes: {
+            "/": (context) => const Home(),
+            "/nolib": (context) => NoLib(err),
+            "/setup": (context) => const Setup(),
+            "/reset": (context) => const Reset(),
+            "/invite": (context) => const Invite(),
+            "/unilink": (context) => const Unilink(),
+            "/unilink/invite": (context) => const UnilinkInvite(),
+            "/unilink/accept": (context) => const UnilinkAccept(),
+            //"/": (context) => const AddCommunity(),
+            "/create": (context) => const CreateCoven(),
+            "/join": (context) => const Add(),
+            "/settings": (context) => const Settings(),
+
+            "/coven": (context) => const CovenWidget(),
+            "/coven/room": (context) => const Room(),
+            "/coven/add_person": (context) => const AddPerson(),
+            "/coven/create": (context) => const CreateRoom(),
+            "/coven/onetoone": (context) => const Privates(),
+            "/coven/settings": (context) => const CommunitySettings(),
+            "/content/add": (context) => const ContentAdd(),
+            "/content/upload": (context) => const ContentUpload(),
+            "/content/editor": (context) => const ContentEditor(),
+            "/content/feed": (context) => const ContentFeed(),
+// //        "/apps/content/download": (context) => const DownloadFile(),
+            "/content/actions": (context) => const ContentActions(),
+//         "/apps/invite/list": (context) => const InviteList(),
+          },
+        ),
       ),
     );
   }

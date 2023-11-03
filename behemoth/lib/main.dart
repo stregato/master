@@ -33,5 +33,6 @@ void main() {
 
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     setWindowTitle('Behemoth Desktop');
+    getCurrentScreen().then((screen) {});
   }
 }
