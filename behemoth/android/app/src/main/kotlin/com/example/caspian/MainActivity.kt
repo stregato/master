@@ -1,4 +1,4 @@
-package ch.woland.behemoth
+package rocks.behemoth
 
 import io.flutter.embedding.android.FlutterActivity
 

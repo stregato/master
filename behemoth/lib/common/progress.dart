@@ -33,48 +33,10 @@ Future<T?> progressDialog<T>(
                   });
                 }
               }
-              //return const Text("Waiting dialog");
               return const CatProgressIndicator("Loading...");
-
-              // if (snapshot.hasData) {
-              //   return Container();
-              // } else if (snapshot.hasError) {
-              //   Navigator.pop(context, snapshot.error);
-              //   return Container();
-              // } else if (snapshot.connectionState == ConnectionState.done) {
-              //   Navigator.pop(context);
-              //   return Container();
-              // } else {
-              //   return ProgressDialog(message, getProgress);
-              // }
             },
             future: task,
           ));
-  //         .onError((error, stackTrace) {
-  //   if (successMessage != null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //         backgroundColor: Colors.green, content: Text(successMessage)));
-  //   }
-  //   return null;
-  // }).then((value) {
-  //   if (value is CException || value is Error) {
-  //     if (errorMessage != null) {
-  //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //           backgroundColor: Colors.red,
-  //           content: Text("$errorMessage: $value")));
-  //     }
-  //     if (catchException) {
-  //       return null;
-  //     } else {
-  //       throw value;
-  //     }
-  //   }
-  //   if (successMessage != null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //         backgroundColor: Colors.green, content: Text(successMessage)));
-  //   }
-  //   return value;
-  //});
 }
 
 class ProgressDialog extends StatefulWidget {

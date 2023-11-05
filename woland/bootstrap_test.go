@@ -12,7 +12,7 @@ func TestStart(t *testing.T) {
 	home, err := os.UserHomeDir()
 	core.TestErr(t, err, "cannot get home dir: %v")
 
-	dbPath := filepath.Join(home, ".local", "share", "ch.woland.behemoth", "woland.db")
+	dbPath := filepath.Join(home, ".local", "share", "rocks.behemoth", "woland.db")
 	err = Start(dbPath, "/tmp")
 	core.TestErr(t, err, "cannot start: %v")
 }
