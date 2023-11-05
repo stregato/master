@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:behemoth.rocks</string>
+		<string>https://behemoth.rocks</string>
 	</array>
 </dict>
 </plist>
