@@ -316,91 +316,95 @@ class _ContentFeedState extends State<ContentFeed> {
                 return const CatProgressIndicator("Loading...");
               }
 
-              return Column(
-                children: [
-                  Row(
-                    children: [
-                      const Spacer(),
-                      PlatformIconButton(
-                          onPressed: _read, icon: const Icon(Icons.refresh)),
-                      const SizedBox(width: 10),
-                      PlatformIconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () => _handleAttachmentPressed(context),
+              return SafeArea(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Spacer(),
+                        PlatformIconButton(
+                            onPressed: _read, icon: const Icon(Icons.refresh)),
+                        const SizedBox(width: 10),
+                        PlatformIconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () => _handleAttachmentPressed(context),
+                        ),
+                      ],
+                    ),
+                    if (_pending > 0)
+                      Container(
+                        margin: const EdgeInsets.all(32),
+                        child: Text(
+                          "Loading $_pending...",
+                          style: const TextStyle(fontSize: 20),
+                        ),
                       ),
-                    ],
-                  ),
-                  if (_pending > 0)
-                    Container(
-                      margin: const EdgeInsets.all(32),
-                      child: Text(
-                        "Loading $_pending...",
-                        style: const TextStyle(fontSize: 20),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        itemCount: _headers.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == _headers.length) {
+                            return const Column(children: [
+                              SizedBox(height: 80),
+                              Text("Pull for more",
+                                  style: TextStyle(fontSize: 20)),
+                              SizedBox(height: 80),
+                            ]);
+                          }
+
+                          var h = _headers[index];
+                          var w =
+                              _cache.putIfAbsent(h.fileId, () => _getWidget(h));
+                          var width = MediaQuery.of(context).size.width * 0.9;
+                          var height = w is Video ? width * 9.0 / 16.0 : null;
+                          var likes = _likes[h.fileId] ?? {};
+                          var liking = likes.contains(_safe.currentUser.id);
+
+                          return Card(
+                            elevation: 3.0,
+                            margin: const EdgeInsets.all(8.0),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                    width: width - 20,
+                                    height: height,
+                                    child: w),
+                                SizedBox(
+                                    width: 20.0, // Adjust the width as needed
+                                    child: Align(
+                                      alignment: Alignment.center,
+                                      child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            if (liking)
+                                              IconButton(
+                                                icon: const Icon(Icons.thumb_up,
+                                                    color: Colors.green),
+                                                onPressed: () {
+                                                  _setLiking(h.fileId, !liking);
+                                                },
+                                              )
+                                            else
+                                              IconButton(
+                                                icon: const Icon(Icons.thumb_up,
+                                                    color: Colors.black),
+                                                onPressed: () {
+                                                  _setLiking(h.fileId, !liking);
+                                                },
+                                              ),
+                                            Text("(${likes.length})"),
+                                          ]),
+                                    )),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      itemCount: _headers.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == _headers.length) {
-                          return const Column(children: [
-                            SizedBox(height: 80),
-                            Text("Pull for more",
-                                style: TextStyle(fontSize: 20)),
-                            SizedBox(height: 80),
-                          ]);
-                        }
-
-                        var h = _headers[index];
-                        var w =
-                            _cache.putIfAbsent(h.fileId, () => _getWidget(h));
-                        var width = MediaQuery.of(context).size.width * 0.9;
-                        var height = w is Video ? width * 9.0 / 16.0 : null;
-                        var likes = _likes[h.fileId] ?? {};
-                        var liking = likes.contains(_safe.currentUser.id);
-
-                        return Card(
-                          elevation: 3.0,
-                          margin: const EdgeInsets.all(8.0),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                  width: width - 20, height: height, child: w),
-                              SizedBox(
-                                  width: 20.0, // Adjust the width as needed
-                                  child: Align(
-                                    alignment: Alignment.center,
-                                    child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          if (liking)
-                                            IconButton(
-                                              icon: const Icon(Icons.thumb_up,
-                                                  color: Colors.green),
-                                              onPressed: () {
-                                                _setLiking(h.fileId, !liking);
-                                              },
-                                            )
-                                          else
-                                            IconButton(
-                                              icon: const Icon(Icons.thumb_up,
-                                                  color: Colors.black),
-                                              onPressed: () {
-                                                _setLiking(h.fileId, !liking);
-                                              },
-                                            ),
-                                          Text("(${likes.length})"),
-                                        ]),
-                                  )),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               );
             }),
       ),

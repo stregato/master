@@ -32,7 +32,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
 
     var current = Profile.current();
     var desktopLink = 'mg://a/$_access';
-    var mobileLink = 'https://behemoth.space/a/$_access';
+    var mobileLink = 'https://behemoth.rocks/a/$_access';
 
     Widget shareButton;
     if (Platform.isAndroid || Platform.isIOS) {

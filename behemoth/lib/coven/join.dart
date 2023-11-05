@@ -18,7 +18,7 @@ class _JoinState extends State<Join> {
   String? _errorText;
   String _name = "";
   String _access = "";
-  List<String> accessPrefixes = ['https://behemoth.space/a/', 'mg://a/'];
+  List<String> accessPrefixes = ['https://behemoth.rocks/a/', 'mg://a/'];
   final TextEditingController _linkController = TextEditingController();
 
   _JoinState() {
@@ -64,7 +64,7 @@ class _JoinState extends State<Join> {
     var currentUserId = profile.identity.id;
     var desktopLink = 'bm://i/$currentUserId/${profile.identity.nick}';
     var mobileLink =
-        'https://behemoth.space/i/$currentUserId/${profile.identity.nick}';
+        'https://behemoth.rocks/i/$currentUserId/${profile.identity.nick}';
 
     var shareIdSection = <Widget>[
       const Text(
