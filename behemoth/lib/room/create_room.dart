@@ -60,81 +60,89 @@ class _CreateRoomState extends State<CreateRoom> {
       appBar: PlatformAppBar(
         title: const Text("Create Room"),
       ),
-      body: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-        child: Builder(
-          builder: (context) => Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  initialValue: name,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                  onChanged: (val) => setState(() => name = val),
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                const Text(
-                  "People",
-                  style: TextStyle(color: Colors.black54, fontSize: 14),
-                ),
-                AutocompleteIdentity(
-                  identities: identities
-                      .where((element) => _users.contains(element) == false)
-                      .toList(),
-                  onSelect: (identity) {
-                    setState(() {
-                      if (_users.contains(identity) == false) {
-                        _users.add(identity);
-                      }
-                    });
-                  },
-                ),
-                ListView.builder(
-                  scrollDirection: Axis.vertical,
-                  shrinkWrap: true,
-                  itemCount: _users.length,
-                  itemBuilder: (context, index) => ListTile(
-                    leading: const Icon(Icons.share),
-                    trailing: PlatformIconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () {
-                          setState(() {
-                            _users.removeAt(index);
-                          });
-                        }),
-                    title: Text(_users[index].nick),
+      body: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+          child: Builder(
+            builder: (context) => Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  PlatformTextFormField(
+                    material: (_, __) => MaterialTextFormFieldData(
+                      decoration: const InputDecoration(labelText: 'Name'),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                    ),
+                    cupertino: (_, __) => CupertinoTextFormFieldData(
+                      placeholder: 'Name',
+                    ),
+                    initialValue: name,
+                    onChanged: (val) => setState(() => name = val),
                   ),
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 16.0, horizontal: 16.0),
-                  child: PlatformElevatedButton(
-                    onPressed: _validConfig()
-                        ? () async {
-                            await progressDialog(
-                                context,
-                                "opening portal, please wait",
-                                _createRoom(coven, name, {
-                                  for (var e in _users) e.id: permissionRead
-                                }),
-                                successMessage:
-                                    "Congrats! You successfully created $name",
-                                errorMessage: "Creation failed");
-                            if (!mounted) return;
-                            Navigator.pop(context);
-                          }
-                        : null,
-                    child: const Text('Create'),
+                  const SizedBox(
+                    height: 20,
                   ),
-                ),
-              ],
+                  PlatformText(
+                    "People",
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                  AutocompleteIdentity(
+                    identities: identities
+                        .where((element) => _users.contains(element) == false)
+                        .toList(),
+                    onSelect: (identity) {
+                      setState(() {
+                        if (_users.contains(identity) == false) {
+                          _users.add(identity);
+                        }
+                      });
+                    },
+                  ),
+                  ListView.builder(
+                    scrollDirection: Axis.vertical,
+                    shrinkWrap: true,
+                    itemCount: _users.length,
+                    itemBuilder: (context, index) => ListTile(
+                      leading: const Icon(Icons.share),
+                      trailing: PlatformIconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            setState(() {
+                              _users.removeAt(index);
+                            });
+                          }),
+                      title: Text(_users[index].nick),
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 16.0, horizontal: 16.0),
+                    child: PlatformElevatedButton(
+                      onPressed: _validConfig()
+                          ? () async {
+                              await progressDialog(
+                                  context,
+                                  "opening portal, please wait",
+                                  _createRoom(coven, name, {
+                                    for (var e in _users) e.id: permissionRead
+                                  }),
+                                  successMessage:
+                                      "Congrats! You successfully created $name",
+                                  errorMessage: "Creation failed");
+                              if (!mounted) return;
+                              Navigator.pop(context);
+                            }
+                          : null,
+                      child: const Text('Create'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

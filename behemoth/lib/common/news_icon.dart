@@ -53,12 +53,25 @@ class _NewsIconState extends State<NewsIcon> {
     }
   }
 
-  void showNotifications(Map<Safe, int> news) {
+  void showNotifications(Map<Safe, int> news) async {
+    var news = await checkNotifications();
     var entries = news.entries.toList();
     entries.sort((a, b) => a.key.name.compareTo(b.key.name));
     var notificationsList = entries.map(
       (e) {
         var safe = e.key;
+        Safe lounge;
+        Future<Safe> future() async {
+          return safe;
+        }
+
+        if (safe.name.endsWith("/lounge")) {
+          lounge = safe;
+        } else {
+          var parts = covenAndRoom(safe.name);
+          lounge = Coven.safes["${parts[0]}/lounge"]!;
+        }
+
         var count = e.value;
         return Card(
           child: ListTile(
@@ -66,13 +79,18 @@ class _NewsIconState extends State<NewsIcon> {
             onTap: () {
               _news.remove(safe);
               Navigator.pop(context);
-              Navigator.pushNamed(context, "/coven/room",
-                  arguments: {"name": safe.name, "future": safe});
+              Navigator.pushNamed(context, "/coven/room", arguments: {
+                "name": safe.name,
+                "future": future(),
+                "lounge": lounge,
+              });
             },
           ),
         );
       },
     ).toList();
+
+    if (!mounted) return;
 
     showModalBottomSheet<void>(
         context: context,

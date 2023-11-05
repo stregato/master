@@ -84,7 +84,7 @@ class _CovenWidgetState extends State<CovenWidget> {
     var headers = await _lounge!.listFiles(
         "chat",
         ListOptions(
-          // privateId: _coven.identity.id,
+          privateId: _coven.identity.id,
           contentType: "application/x-behemoth-invite",
         ));
 
