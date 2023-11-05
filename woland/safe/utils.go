@@ -1,9 +1,12 @@
 package safe
 
 import (
+	"encoding/base64"
 	"fmt"
 	"path"
 	"regexp"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 var ErrInvalidTag = fmt.Errorf("invalid tag. Only alphanumeric characters are allowed")
@@ -29,13 +32,8 @@ func getDir(name string) string {
 }
 
 func hashPath(dir string) string {
-	return dir
-	// parts := strings.Split(dir, "/")
-	// for idx, part := range parts {
-	// 	hash := blake2b.Sum256([]byte(part))
-	// 	parts[idx] = core.Encode(hash[:])
-	// }
-	// return path.Join(parts...)
+	h := blake2b.Sum256([]byte(dir))
+	return base64.StdEncoding.EncodeToString(h[:])
 }
 
 func isAlphanumeric(s string) bool {

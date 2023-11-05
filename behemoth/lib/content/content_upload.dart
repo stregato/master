@@ -28,7 +28,7 @@ class _ContentUploadState extends State<ContentUpload> {
   Future<String> _uploadFile(
       String name, FileSelection selection, PutOptions options) async {
     try {
-      await _safe.putFile(name, selection.path, options);
+      await _safe.putFile("content", name, selection.path, options);
       return "";
     } catch (e) {
       return e.toString();
@@ -60,8 +60,7 @@ class _ContentUploadState extends State<ContentUpload> {
                   File(_selection.path).copySync(localPath);
                   options.source = localPath;
                 }
-                _uploadFile(
-                        "content/$_folder/$_targetName", _selection, options)
+                _uploadFile("$_folder/$_targetName", _selection, options)
                     .then((value) {
                   setState(() {
                     _uploading = false;

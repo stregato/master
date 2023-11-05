@@ -1,4 +1,5 @@
 //import 'package:file_selector/file_selector.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/profile.dart';
@@ -47,19 +48,16 @@ class _Reset extends State<Reset> {
                         start(
                             "$applicationFolder/woland.db", applicationFolder);
                         _fullReset = 5;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                backgroundColor: Colors.green,
-                                content:
-                                    Text("Full Reset completed! Good luck")));
+                        showPlatformSnackbar(
+                            context, "Full Reset completed! Good luck",
+                            backgroundColor: Colors.green);
                         Navigator.pushReplacementNamed(context, "/setup");
                       } else {
                         _fullReset--;
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        showPlatformSnackbar(
+                            context, "$_fullReset clicks to factory reset!",
                             backgroundColor: Colors.red,
-                            duration: const Duration(milliseconds: 300),
-                            content:
-                                Text("$_fullReset clicks to factory reset!")));
+                            duration: const Duration(milliseconds: 300));
                       }
                     })),
           ],

@@ -12,16 +12,34 @@ import (
 
 var HousekeepingMaxDuration = time.Hour * 23
 
-func alignKeysInDir(s *Safe, dir string) error {
-	ls, err := s.stores[0].ReadDir(path.Join(DataFolder, dir), storage.Filter{Suffix: ".h"})
-	if core.IsErr(err, nil, "cannot read directory '%s': %v", dir, err) {
+func alignKeysInSafe(s *Safe) error {
+	ls, err := s.stores[0].ReadDir(path.Join(DataFolder), storage.Filter{OnlyFolders: true})
+	if core.IsErr(err, nil, "cannot read directory '%s': %v", DataFolder, err) {
+		return err
+	}
+
+	for _, l := range ls {
+		bucket := l.Name()
+		err = alignKeysInBucket(s, bucket)
+		if core.IsErr(err, nil, "cannot align keys in bucket '%s': %v", bucket, err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func alignKeysInBucket(s *Safe, bucket string) error {
+	ls, err := s.stores[0].ReadDir(path.Join(DataFolder, bucket, HeaderFolder), storage.Filter{})
+	if core.IsErr(err, nil, "cannot read directory '%s': %v", bucket, err) {
 		return err
 	}
 
 	var files []string
 	var headers []Header
 	for _, l := range ls {
-		headers2, keyId, err := readHeaders(s.stores[0], s.Name, dir, l.Name(), s.keys)
+		filePath := path.Join(DataFolder, bucket, HeaderFolder, l.Name())
+		headers2, keyId, err := readHeaders(s.stores[0], s.Name, filePath, s.keys)
 		if core.IsErr(err, nil, "cannot read headers from '%s': %v", l.Name(), err) {
 			continue
 		}
@@ -36,7 +54,7 @@ func alignKeysInDir(s *Safe, dir string) error {
 				continue
 			}
 
-			hashedDir := hashPath(dir)
+			hashedDir := hashPath(bucket)
 			fullname := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", h.FileId))
 			_, err = s.stores[0].Stat(fullname)
 			if err == nil {
@@ -48,25 +66,15 @@ func alignKeysInDir(s *Safe, dir string) error {
 	}
 
 	if len(files) > 1 {
-		err = writeHeaders(s.stores[0], s.Name, dir, s.keyId, s.keys, headers)
+		err = writeHeaders(s.stores[0], s.Name, bucket, s.keyId, s.keys, headers)
 		if !core.IsErr(err, nil, "cannot write headers: %v", err) {
 			for _, f := range files {
-				err = s.stores[0].Delete(path.Join(DataFolder, dir, f))
+				err = s.stores[0].Delete(path.Join(DataFolder, bucket, f))
 				core.IsErr(err, nil, "cannot remove file '%s': %v", f, err)
 			}
 		}
 	}
 
-	ls, err = s.stores[0].ReadDir(path.Join(DataFolder, dir), storage.Filter{OnlyFolders: true})
-	if core.IsErr(err, nil, "cannot read directory '%s': %v", dir, err) {
-		return err
-	}
-	for _, l := range ls {
-		err = alignKeysInDir(s, path.Join(dir, l.Name()))
-		if core.IsErr(err, nil, "cannot align keys in directory '%s': %v", l.Name(), err) {
-			continue
-		}
-	}
 	return nil
 }
 

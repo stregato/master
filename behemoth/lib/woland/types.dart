@@ -240,6 +240,8 @@ class OpenOptions {
 class ListOptions {
   String name;
   int depth;
+  String dir;
+  String prefix;
   String suffix;
   String contentType;
   String creator;
@@ -261,6 +263,8 @@ class ListOptions {
   ListOptions(
       {this.name = '',
       this.depth = 0,
+      this.dir = '',
+      this.prefix = '',
       this.suffix = '',
       this.contentType = '',
       this.creator = '',
@@ -282,6 +286,8 @@ class ListOptions {
   Map<String, dynamic> toJson() => {
         'name': name,
         'depth': depth,
+        'dir': dir,
+        'prefix': prefix,
         'suffix': suffix,
         'contentType': contentType,
         'creator': creator,
@@ -303,12 +309,15 @@ class ListOptions {
 }
 
 class ListDirsOptions {
+  String dir;
   int depth;
   bool errorIfNotExist;
 
-  ListDirsOptions({this.depth = 0, this.errorIfNotExist = false});
+  ListDirsOptions(
+      {this.dir = "", this.depth = 0, this.errorIfNotExist = false});
 
   Map<String, dynamic> toJson() => {
+        'dir': dir,
         'depth': depth,
         'errorIfNotExist': errorIfNotExist,
       };

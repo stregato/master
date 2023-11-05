@@ -134,7 +134,7 @@ class _ChatState extends State<Chat> {
         file.writeAsBytesSync(h.attributes.thumbnail);
       } else {
         _safe
-            .getFile(h.name, file.path, GetOptions(fileId: h.fileId))
+            .getFile("chat", h.name, file.path, GetOptions(fileId: h.fileId))
             .then((value) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               backgroundColor: Colors.green,
@@ -337,14 +337,14 @@ class _ChatState extends State<Chat> {
   }
 
   void _handleSendPressed(types.PartialText message) async {
-    var name = 'chat/${Snowflake(nodeId: 0).generate()}';
+    var name = '${Snowflake(nodeId: 0).generate()}';
     var putOptions = PutOptions(
       contentType: "text/plain",
       private: widget.privateId,
       meta: {'text': message.text},
     );
 
-    var header = await _safe.putBytes(name, Uint8List(0), putOptions);
+    var header = await _safe.putBytes("chat", name, Uint8List(0), putOptions);
 
     final textMessage = types.TextMessage(
       author: _currentUser,
@@ -412,8 +412,8 @@ class _ChatState extends State<Chat> {
     options.contentType = lookupMimeType(filePath) ?? '';
 
     var size = File(filePath).lengthSync();
-    var name = 'chat/${ph.basename(filePath)}';
-    var header = await _safe.putFile(name, filePath, options);
+    var name = ph.basename(filePath);
+    var header = await _safe.putFile("chat", name, filePath, options);
 
     final message = types.FileMessage(
       author: _currentUser,
@@ -463,12 +463,12 @@ class _ChatState extends State<Chat> {
     final bytes = await xfile.readAsBytes();
     final image = await decodeImageFromList(bytes);
 
-    var name = "chat/${ph.basename(xfile.path)}";
+    var name = ph.basename(xfile.path);
     var options = PutOptions();
     options.autoThumbnail = true;
     options.contentType = lookupMimeType(xfile.path) ?? '';
 
-    var header = await _safe.putFile(name, xfile.path, options);
+    var header = await _safe.putFile("chat", name, xfile.path, options);
 
     final message = types.ImageMessage(
       author: _currentUser,

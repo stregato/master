@@ -33,7 +33,7 @@ class UploadArgs {
 class _ContentState extends State<Content> {
   AppTheme theme = LightTheme();
 
-  String _folder = "";
+  String _dir = "";
 
   @override
   void initState() {
@@ -88,28 +88,26 @@ class _ContentState extends State<Content> {
     }
   }
 
-  Future<List<Header>> _libraryList(String folder) async {
-    var options = ListOptions();
-    var dir = folder.isEmpty ? "content" : "content/$folder";
-    return widget.safe.listFiles(dir, options);
+  Future<List<Header>> _libraryList(String dir) async {
+    var options = ListOptions(dir: dir);
+    return widget.safe.listFiles("content", options);
   }
 
   Future<List<String>> _libraryDirs(String folder) async {
-    var options = ListDirsOptions();
-    var dir = folder.isEmpty ? "content" : "content/$folder";
-    return widget.safe.listDirs(dir, options);
+    var options = ListDirsOptions(dir: folder);
+    return widget.safe.listDirs("content", options);
   }
 
   _read() async {
-    var headers = await _libraryList(_folder);
-    var dirs = await _libraryDirs(_folder);
+    var headers = await _libraryList(_dir);
+    var dirs = await _libraryDirs(_dir);
     var files = SplayTreeMap<String, List<Header>>();
     for (var header in headers) {
       var versions = files.putIfAbsent(basename(header.name), () => []);
       versions.add(header);
     }
 
-    var d = Directory(path.join(documentsFolder, widget.safe.name, _folder));
+    var d = Directory(path.join(documentsFolder, widget.safe.name, _dir));
     if (!d.existsSync()) {
       d.createSync(recursive: true);
     }
@@ -154,10 +152,10 @@ class _ContentState extends State<Content> {
                 if (isFeed) {
                   Navigator.pushNamed(context, "/content/feed", arguments: {
                     'safe': widget.safe,
-                    'folder': _folder.isEmpty ? e : "$_folder/$e"
+                    'folder': _dir.isEmpty ? e : "$_dir/$e"
                   });
                 } else {
-                  _folder = _folder.isEmpty ? e : "$_folder/$e";
+                  _dir = _dir.isEmpty ? e : "$_dir/$e";
                   _read();
                 }
               }),
@@ -180,7 +178,7 @@ class _ContentState extends State<Content> {
             await Navigator.pushNamed(context, "/content/actions", arguments: {
               "safe": widget.safe,
               "name": name,
-              "folder": _folder,
+              "folder": _dir,
               "headers": headers
             });
             _read();
@@ -191,12 +189,12 @@ class _ContentState extends State<Content> {
 
     var toolbar = Row(
       children: [
-        if (_folder.isNotEmpty)
+        if (_dir.isNotEmpty)
           PlatformIconButton(
             onPressed: () {
-              _folder = _folder
+              _dir = _dir
                   .split("/")
-                  .sublist(0, _folder.split("/").length - 1)
+                  .sublist(0, _dir.split("/").length - 1)
                   .join("/");
               _read();
             },
@@ -205,9 +203,9 @@ class _ContentState extends State<Content> {
         const SizedBox(width: 10),
         GestureDetector(
           onTap: () =>
-              fa.openFile(context, "$documentsFolder/${widget.safe}/$_folder"),
+              fa.openFile(context, "$documentsFolder/${widget.safe}/$_dir"),
           child: Text(
-            _folder.split("/").last,
+            _dir.split("/").last,
             style: const TextStyle(
               fontSize: 18,
               decoration: TextDecoration.underline,
@@ -222,7 +220,7 @@ class _ContentState extends State<Content> {
           icon: const Icon(Icons.add),
           onPressed: () async {
             await Navigator.pushNamed(context, "/content/add",
-                arguments: {'safe': widget.safe, 'folder': _folder});
+                arguments: {'safe': widget.safe, 'folder': _dir});
             _read();
           },
         ),

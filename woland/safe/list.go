@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,8 +17,10 @@ import (
 
 type ListOptions struct {
 	Name            string    `json:"name"`            // Filter on the file name
-	Depth           int       `json:"deep"`            // Level of depth into subfolders in the directory. -1 means infinite
+	Dir             string    `json:"dir"`             // Filter on the directory
+	Prefix          string    `json:"prefix"`          // Filter on the file prefix
 	Suffix          string    `json:"suffix"`          // Filter on the file suffix
+	Depth           int       `json:"deep"`            // Filter on depth of the name when greater than 0
 	ContentType     string    `json:"contentType"`     // Filter on the content type
 	FileId          uint64    `json:"bodyId"`          // Filter on the body ID
 	Tags            []string  `json:"tags"`            // Filter on the tags
@@ -36,10 +39,10 @@ type ListOptions struct {
 	ReverseOrder    bool      `json:"reverseOrder"`    // Order descending when true. Default is false
 }
 
-func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
-	dir = strings.Trim(dir, "/")
-	core.Info("list files '%s'", dir)
-	_, err := synchorize(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), listOptions.Depth, s.keys)
+func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error) {
+	bucket = strings.Trim(bucket, "/")
+	core.Info("list files '%s'", bucket)
+	_, err := synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, bucket, s.keys)
 	if os.IsNotExist(err) && !listOptions.ErrorIfNotExist {
 		return nil, nil
 	}
@@ -50,12 +53,6 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 	tags, err := getTagsArg(listOptions.Tags)
 	if core.IsErr(err, nil, "cannot get tags arg: %v", err) {
 		return nil, err
-	}
-
-	var fromDepth = strings.Count(dir, "/") + 1
-	var toDepth int
-	if listOptions.Depth > 0 {
-		toDepth = fromDepth + listOptions.Depth
 	}
 
 	var key string
@@ -71,11 +68,19 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 		key += "_DESC"
 	}
 
+	var fromDepth int
+	if listOptions.Dir != "" {
+		fromDepth += 1 + strings.Count(listOptions.Dir, "/")
+	}
+	toDepth := fromDepth + listOptions.Depth
+
 	args := sql.Args{
 		"safe":           s.Name,
+		"bucket":         bucket,
 		"name":           listOptions.Name,
 		"fileId":         listOptions.FileId,
-		"dir":            dir,
+		"dir":            listOptions.Dir,
+		"prefix":         listOptions.Prefix,
 		"suffix":         listOptions.Suffix,
 		"contentType":    listOptions.ContentType,
 		"creator":        listOptions.Creator,
@@ -125,46 +130,44 @@ func ListFiles(s *Safe, dir string, listOptions ListOptions) ([]Header, error) {
 				if header.CachedExpires.Before(time.Now()) {
 					continue
 				}
-				_, err := Get(s, header.Name, nil, GetOptions{FileId: header.FileId})
+				_, err := Get(s, bucket, header.Name, nil, GetOptions{FileId: header.FileId})
 				core.IsErr(err, nil, "cannot prefetch file: %v", err)
 			}
 		}()
 	}
 
-	core.Info("found %d headers in %s/%s args %v", len(headers), s.Name, dir, args)
+	core.Info("found %d headers in %s/%s args %v", len(headers), s.Name, bucket, args)
 	return headers, nil
 }
 
 type ListDirsOptions struct {
-	Depth           int  `json:"depth"`           // Level of depth into subfolders in the directory. -1 means infinite
-	ErrorIfNotExist bool `json:"errorIfNotExist"` // Return an error if the directory does not exist. Otherwise, return empty list
+	Dir             string `json:"dir"`             // Filter on the directory
+	Depth           int    `json:"depth"`           // Level of depth into subfolders
+	ErrorIfNotExist bool   `json:"errorIfNotExist"` // Return an error if the directory does not exist. Otherwise, return empty list
 }
 
-func ListDirs(s *Safe, dir string, options ListDirsOptions) ([]string, error) {
-	dir = strings.Trim(dir, "/")
-	core.Info("list dir '%s'", dir)
+func ListDirs(s *Safe, bucket string, listDirsOptions ListDirsOptions) ([]string, error) {
+	listDirsOptions.Dir = strings.Trim(listDirsOptions.Dir, "/")
+	core.Info("list dirs %s/%s", bucket, listDirsOptions.Dir)
 
-	var depthPlusOne int
-	if options.Depth >= 0 {
-		depthPlusOne = options.Depth + 1
-	}
-	_, err := synchorize(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), depthPlusOne, s.keys)
-	if os.IsNotExist(err) && !options.ErrorIfNotExist {
+	_, err := synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, bucket, s.keys)
+	if os.IsNotExist(err) && !listDirsOptions.ErrorIfNotExist {
 		return nil, nil
 	}
 	if core.IsErr(err, nil, "cannot sync safe '%s': %v", s.Name) {
 		return nil, err
 	}
 
-	var fromDepth = strings.Count(dir, "/") + 1
-	var toDepth int
-	if options.Depth >= 0 {
-		toDepth = fromDepth + options.Depth
+	fromDepth := 1
+	if listDirsOptions.Dir != "" {
+		fromDepth += 1 + strings.Count(listDirsOptions.Dir, "/")
 	}
+	toDepth := fromDepth + listDirsOptions.Depth
 
 	rows, err := sql.Query("GET_FOLDERS", sql.Args{
 		"safe":      s.Name,
-		"dir":       dir,
+		"bucket":    bucket,
+		"dir":       listDirsOptions.Dir,
 		"fromDepth": fromDepth,
 		"toDepth":   toDepth,
 	})
@@ -182,27 +185,33 @@ func ListDirs(s *Safe, dir string, options ListDirsOptions) ([]string, error) {
 	return dirs, nil
 }
 
-func synchorize(currentUser security.Identity, store storage.Store, safeName, hashedDir string, depth int, keys map[uint64][]byte) (newFiles int, err error) {
-	if depth != 1 {
-		ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{OnlyFolders: true})
-		if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
-			return 0, err
-		}
-
-		for _, l := range ls {
-			nf, err := synchorize(currentUser, store, safeName, path.Join(hashedDir, l.Name()), depth-1, keys)
-			if core.IsErr(err, nil, "cannot sync dir %s/%s: %v", store, hashedDir, err) {
-				return 0, err
-			}
-			newFiles += nf
-		}
+func getHeadersIds(store storage.Store, safeName, bucket string) (ids []uint64, err error) {
+	r, err := sql.Query("GET_HEADERS_IDS", sql.Args{
+		"safe":   safeName,
+		"bucket": bucket,
+	})
+	if err != sql.ErrNoRows && core.IsErr(err, nil, "cannot get headers ids: %v", err) {
+		return nil, err
 	}
 
+	for r.Next() {
+		var id uint64
+		if core.IsErr(r.Scan(&id), nil, "cannot scan id: %v", err) {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func synchorizeFiles(currentUser security.Identity, store storage.Store, safeName, bucket string, keys map[uint64][]byte) (newFiles int, err error) {
 	var touch time.Time
-	var touchConfigKey = fmt.Sprintf("%s//%s", safeName, hashedDir)
-	last, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchConfigKey)
+
+	dir := hashPath(bucket)
+	touchConfigKey := fmt.Sprintf("%s//%s", safeName, bucket)
+	_, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchConfigKey)
 	if ok {
-		touch, err = GetTouch(store, DataFolder, hashedDir, ".touch")
+		touch, err = GetTouch(store, DataFolder, dir, ".touch")
 		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 			return 0, err
 		}
@@ -215,24 +224,38 @@ func synchorize(currentUser security.Identity, store storage.Store, safeName, ha
 		}
 	}
 
-	ls, err := store.ReadDir(path.Join(DataFolder, hashedDir), storage.Filter{Suffix: ".h"})
-	if os.IsNotExist(err) || core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedDir, err) {
+	ls, err := store.ReadDir(path.Join(DataFolder, dir, HeaderFolder), storage.Filter{})
+	if os.IsNotExist(err) || core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, dir, err) {
 		return 0, err
 	}
 
-	var newLast = last
+	headerIds, err := getHeadersIds(store, safeName, bucket)
+	if core.IsErr(err, nil, "cannot get headers ids: %v", err) {
+		return 0, err
+	}
+
 	for _, l := range ls {
 		name := l.Name()
-		if name <= last {
+		headerId, err := strconv.ParseUint(path.Base(name), 10, 64)
+		if core.IsErr(err, nil, "cannot parse header id: %v", err) {
 			continue
 		}
 
-		headers, _, err := readHeaders(store, safeName, hashedDir, name, keys)
-		if err != nil {
+		var knownHeaderId bool
+		for _, id := range headerIds {
+			if id == headerId {
+				knownHeaderId = true
+				break
+			}
+		}
+		if knownHeaderId {
 			continue
 		}
-		if newLast == "" || newLast < name {
-			newLast = name
+
+		filepath := path.Join(DataFolder, dir, HeaderFolder, name)
+		headers, _, err := readHeaders(store, safeName, filepath, keys)
+		if core.IsErr(err, nil, "cannot read headers: %v", err) {
+			continue
 		}
 
 		for _, header := range headers {
@@ -252,20 +275,20 @@ func synchorize(currentUser security.Identity, store storage.Store, safeName, ha
 
 			core.Info("saving header %s", header.Name)
 			newFiles++
-			err = insertHeaderOrIgnoreToDB(safeName, header)
+			err = insertHeaderOrIgnoreToDB(safeName, bucket, headerId, header)
 			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}
-	touch, err = SetTouch(store, DataFolder, hashedDir, ".touch")
+	touch, err = SetTouch(store, DataFolder, dir, ".touch")
 	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 		return 0, err
 	}
 
-	err = sql.SetConfig("SAFE_TOUCH", touchConfigKey, newLast, touch.Unix(), nil)
+	err = sql.SetConfig("SAFE_TOUCH", touchConfigKey, "", touch.Unix(), nil)
 	if core.IsErr(err, nil, "cannot set safe touch file: %v", err) {
 		return 0, err
 	}
-	core.Info("saved touch information: %v and %s", touch, newLast)
+	core.Info("saved touch information: %v", touch)
 
 	return newFiles, nil
 }

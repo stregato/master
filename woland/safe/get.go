@@ -29,10 +29,11 @@ type GetOptions struct {
 	Range       *storage.Range      `json:"range"`       // Range of bytes to read
 }
 
-func Get(s *Safe, name string, w io.Writer, options GetOptions) (Header, error) {
+func Get(s *Safe, bucket, name string, w io.Writer, options GetOptions) (Header, error) {
 	var data []byte
 	err := sql.QueryRow("GET_LAST_HEADER", sql.Args{
 		"safe":   s.Name,
+		"bucket": bucket,
 		"name":   name,
 		"fileId": options.FileId,
 	}, &data)
@@ -91,12 +92,12 @@ func Get(s *Safe, name string, w io.Writer, options GetOptions) (Header, error) 
 
 	if options.Async != nil {
 		go func() {
-			header, err := writeFile(s.stores[0], s.Name, options, header, w, cacheFile)
+			header, err := writeFile(s.stores[0], s.Name, bucket, options, header, w, cacheFile)
 			options.Async(header, err)
 		}()
 		return header, nil
 	} else {
-		return writeFile(s.stores[0], s.Name, options, header, w, cacheFile)
+		return writeFile(s.stores[0], s.Name, bucket, options, header, w, cacheFile)
 	}
 }
 
@@ -113,7 +114,7 @@ func getCacheFile(header Header) (*os.File, error) {
 	return cacheFile, nil
 }
 
-func writeFile(store storage.Store, safeName string, options GetOptions, header Header, w io.Writer, cacheFile *os.File) (Header, error) {
+func writeFile(store storage.Store, safeName, bucket string, options GetOptions, header Header, w io.Writer, cacheFile *os.File) (Header, error) {
 	var err error
 
 	if w != nil {
@@ -124,8 +125,8 @@ func writeFile(store storage.Store, safeName string, options GetOptions, header 
 		return Header{}, nil
 	}
 
-	hashedDir := hashPath(getDir(header.Name))
-	fullname := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", header.FileId))
+	dir := hashPath(bucket)
+	fullname := path.Join(DataFolder, dir, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
 	err = store.Read(fullname, options.Range, w, nil)
 	if core.IsErr(err, nil, "cannot read file: %v", err) {
@@ -133,7 +134,7 @@ func writeFile(store storage.Store, safeName string, options GetOptions, header 
 	}
 
 	if options.Destination != "" || cacheFile != nil {
-		updateHeaderInDB(safeName, header.FileId, func(h Header) Header {
+		updateHeaderInDB(safeName, bucket, header.FileId, func(h Header) Header {
 			if options.Destination != "" {
 				if h.Downloads == nil {
 					h.Downloads = make(map[string]time.Time)
@@ -186,8 +187,9 @@ func removeOldestCacheFiles() {
 	for currentCacheSize > MaxCacheSize*9/10 {
 		var header Header
 		var saveName string
+		var bucket string
 		var data []byte
-		err := sql.QueryRow("GET_CACHE_EXPIRE", nil, &saveName, &data)
+		err := sql.QueryRow("GET_CACHE_EXPIRE", nil, &saveName, &bucket, &data)
 		if core.IsErr(err, nil, "cannot query file: %v", err) {
 			return
 		}
@@ -198,7 +200,7 @@ func removeOldestCacheFiles() {
 
 		os.Remove(header.Cached)
 		currentCacheSize -= header.Size
-		err = updateHeaderInDB(saveName, header.FileId, func(h Header) Header {
+		err = updateHeaderInDB(saveName, bucket, header.FileId, func(h Header) Header {
 			h.Cached = ""
 			h.CachedExpires = time.Time{}
 			return h

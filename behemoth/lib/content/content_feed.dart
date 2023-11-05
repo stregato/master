@@ -26,7 +26,7 @@ class _ContentFeedState extends State<ContentFeed> {
   int _offset = 0;
   List<Header> _headers = [];
   late Safe _safe;
-  String _folder = "";
+  String _dir = "";
   final Map<int, Widget> _cache = {};
   final List<Player> _players = [];
   final Map<int, Set<String>> _likes = {};
@@ -72,8 +72,7 @@ class _ContentFeedState extends State<ContentFeed> {
       );
     }
 
-    var localpath =
-        join(documentsFolder, _safe.name, _folder, basename(h.name));
+    var localpath = join(documentsFolder, _safe.name, _dir, basename(h.name));
     var localfile = File(localpath);
     if (!localfile.existsSync()) {
       return Text("Missing image ${h.name}");
@@ -87,8 +86,7 @@ class _ContentFeedState extends State<ContentFeed> {
   ) {
     var player = Player();
     var controller = VideoController(player);
-    var localpath =
-        join(documentsFolder, _safe.name, _folder, basename(h.name));
+    var localpath = join(documentsFolder, _safe.name, _dir, basename(h.name));
     var localfile = File(localpath);
     if (!localfile.existsSync()) {
       return Text("Missing video ${h.name}");
@@ -113,14 +111,15 @@ class _ContentFeedState extends State<ContentFeed> {
   Future _readLikes() async {
     var cu = _safe.currentUser.id;
     var headers = await _safe.listFiles(
-        "content/$_folder",
+        "content",
         ListOptions(
+          dir: _dir,
           tags: ['like'],
         ));
     for (var h in headers) {
       var ids = <int>[];
       try {
-        var byteList = await _safe.getBytes(h.name, GetOptions());
+        var byteList = await _safe.getBytes("content", h.name, GetOptions());
         ids = Uint64List.view(byteList.buffer).toList();
       } catch (e) {
         // ignore
@@ -137,8 +136,9 @@ class _ContentFeedState extends State<ContentFeed> {
     }
     await _readLikes();
     var headers = await _safe.listFiles(
-        "content/$_folder",
+        "content",
         ListOptions(
+          dir: _dir,
           tags: ['media'],
           reverseOrder: true,
           orderBy: 'modTime',
@@ -152,10 +152,10 @@ class _ContentFeedState extends State<ContentFeed> {
       }
       try {
         var localpath =
-            join(documentsFolder, _safe.name, _folder, basename(h.name));
+            join(documentsFolder, _safe.name, _dir, basename(h.name));
         var localfile = File(localpath);
         if (!localfile.existsSync()) {
-          await _safe.getFile(h.name, localpath, GetOptions());
+          await _safe.getFile("content", h.name, localpath, GetOptions());
         }
         _headers.add(h);
       } catch (e) {
@@ -180,15 +180,15 @@ class _ContentFeedState extends State<ContentFeed> {
     }
 
     for (var xfile in xfiles) {
-      var name = "content/$_folder/${basename(xfile.name)}";
+      var name = "$_dir/${basename(xfile.name)}";
       var localpath =
-          join(documentsFolder, _safe.name, _folder, basename(xfile.name));
+          join(documentsFolder, _safe.name, _dir, basename(xfile.name));
       xfile.saveTo(localpath);
       var options = PutOptions(
           tags: ['media'],
           contentType: lookupMimeType(xfile.path) ?? '',
           source: localpath);
-      _safe.putFile(name, localpath, options).then((h) {
+      _safe.putFile("content", name, localpath, options).then((h) {
         setState(() {
           _pending--;
           _headers = [h, ..._headers];
@@ -253,16 +253,17 @@ class _ContentFeedState extends State<ContentFeed> {
 
   _setLiking(int fileId, bool liking) async {
     var cu = _safe.currentUser.id;
-    var name = "content/$_folder/$cu";
+    var name = "content/$_dir/$cu";
     var headers = await _safe.listFiles(
-        "content/$_folder",
+        "content",
         ListOptions(
+          dir: _dir,
           name: name,
         ));
     var ids = <int>{};
     if (headers.isNotEmpty) {
       try {
-        var byteList = await _safe.getBytes(name, GetOptions());
+        var byteList = await _safe.getBytes("content", name, GetOptions());
         ids = Uint64List.view(byteList.buffer).toSet();
       } finally {}
     }
@@ -274,7 +275,8 @@ class _ContentFeedState extends State<ContentFeed> {
     }
     var byteList = Uint64List.fromList(ids.toList());
     var options = PutOptions(tags: ['like'], replace: true);
-    await _safe.putBytes(name, byteList.buffer.asUint8List(), options);
+    await _safe.putBytes(
+        "content", name, byteList.buffer.asUint8List(), options);
 
     var likes = _likes.putIfAbsent(fileId, () => {});
     setState(() {
@@ -288,16 +290,16 @@ class _ContentFeedState extends State<ContentFeed> {
 
   @override
   Widget build(BuildContext context) {
-    if (_folder.isEmpty) {
+    if (_dir.isEmpty) {
       var args =
           ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
       _safe = args["safe"] as Safe;
-      _folder = args["folder"] as String;
+      _dir = args["folder"] as String;
     }
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
-        title: Text(_folder.substring(0, _folder.length - 5),
+        title: Text(_dir.substring(0, _dir.length - 5),
             style: const TextStyle(fontSize: 18)),
         trailingActions: [
           const NewsIcon(),

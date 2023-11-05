@@ -1,26 +1,27 @@
 import 'package:behemoth/common/copy_field.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
+import 'package:behemoth/common/qrcode_scan_button.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
-class Add extends StatefulWidget {
-  const Add({super.key});
+class Join extends StatefulWidget {
+  const Join({super.key});
 
   @override
-  State<Add> createState() => _AddState();
+  State<Join> createState() => _JoinState();
 }
 
-class _AddState extends State<Add> {
+class _JoinState extends State<Join> {
   String? _errorText;
   String _name = "";
   String _access = "";
   List<String> accessPrefixes = ['https://behemoth.space/a/', 'mg://a/'];
   final TextEditingController _linkController = TextEditingController();
 
-  _AddState() {
+  _JoinState() {
     _linkController.addListener(() async {
       var link = _linkController.text.trim();
       _access = "";
@@ -77,16 +78,23 @@ class _AddState extends State<Add> {
       const Text(
           "Once you get a link, paste it below and click on 'Join' to join the community"),
       const SizedBox(height: 20),
-      PlatformTextField(
-        material: (context, platform) => MaterialTextFieldData(
-          decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            labelText: 'Access Link',
-            errorText: _errorText,
+      Row(children: [
+        Expanded(
+          child: PlatformTextField(
+            material: (context, platform) => MaterialTextFieldData(
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                labelText: 'Access Link',
+                errorText: _errorText,
+              ),
+            ),
+            controller: _linkController,
           ),
         ),
-        controller: _linkController,
-      ),
+        QRCodeScannerButton(onDetect: (values, bytes) {
+          _linkController.text = values.first;
+        })
+      ]),
       const SizedBox(height: 20),
       PlatformElevatedButton(
         onPressed: (_name.isNotEmpty && _errorText == null)

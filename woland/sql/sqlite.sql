@@ -65,9 +65,11 @@ DELETE FROM Zone WHERE portal=:portal AND name=:name
 -- INIT
 CREATE TABLE IF NOT EXISTS Header (
   safe TEXT NOT NULL,
+  bucket TEXT NOT NULL,
   name TEXT NOT NULL,
   size INTEGER NOT NULL,
   fileId INTEGER NOT NULL,
+  headerId INTEGER NOT NULL,
   base TEXT NOT NULL,
   dir TEXT,
   depth INTEGER NOT NULL,
@@ -80,7 +82,7 @@ CREATE TABLE IF NOT EXISTS Header (
   deleted INTEGER,
   cacheExpires INTEGER,
   header BLOB,
-  PRIMARY KEY (safe, name, fileId)
+  PRIMARY KEY (safe, bucket, name, fileId)
 );
 
 -- INIT
@@ -93,23 +95,28 @@ CREATE INDEX IF NOT EXISTS fileIdIndex ON Header (fileId);
 CREATE INDEX IF NOT EXISTS nameIndex ON Header (name);
 
 -- INSERT_HEADER
-INSERT INTO Header (safe, name, size, fileId, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, cacheExpires, header)
-VALUES (:safe, :name, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :cacheExpires, :header)
-ON CONFLICT (safe, name, fileId)  DO NOTHING;
+INSERT INTO Header (safe, bucket, name, headerId, fileId, size, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, cacheExpires, header)
+VALUES (:safe, :bucket, :name, :headerId, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :cacheExpires, :header)
+ON CONFLICT (safe, bucket, name, fileId) DO UPDATE SET headerId = :headerId;
 
 -- UPDATE_HEADER
-UPDATE Header SET header = :header, cacheExpires=:cacheExpires WHERE safe = :safe AND fileId = :fileId
+UPDATE Header SET header = :header, cacheExpires=:cacheExpires WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
 
 -- SET_DELETED_FILE
 UPDATE Header SET deleted = 1 WHERE safe = :safe AND fileId = :fileId
 
+-- GET_HEADERS_IDS
+SELECT headerId FROM Header WHERE safe = :safe AND bucket = :bucket
+
 -- GET_FILES_NAME
 SELECT header FROM Header
 WHERE safe = :safe
+  AND bucket = :bucket
   AND (:name = '' OR name = :name)
+  AND (:dir = '' OR dir = :dir)
+  AND (:prefix = '' OR name LIKE :prefix || '%')
   AND (:suffix = '' OR name LIKE '%' || :suffix)
   AND (:fileId = 0 OR fileId = :fileId)
-  AND (:dir = '' OR dir = :dir)
   AND (:tags = '' OR tags LIKE '%' || :tags || '%')
   AND (:contentType = '' OR contentType = :contentType)
   AND (:creator = '' OR creator = :creator)
@@ -119,17 +126,19 @@ WHERE safe = :safe
   AND (:after < 0 OR modTime > :after)
   AND (:syncAfter < 0 OR syncTime > :syncAfter)
   AND (depth >= :fromDepth) 
-  AND (:toDepth = 0 OR depth <= :toDepth)
+  AND (depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY name LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_FILES_MODTIME
 SELECT header FROM Header
 WHERE safe = :safe
+  AND bucket = :bucket
   AND (:name = '' OR name = :name)
+  AND (:dir = '' OR dir = :dir)
+  AND (:prefix = '' OR name LIKE :prefix || '%')
   AND (:suffix = '' OR name LIKE '%' || :suffix)
   AND (:fileId = 0 OR fileId = :fileId)
-  AND (:dir = '' OR dir = :dir)
   AND (:tags = '' OR tags LIKE '%' || :tags || '%')
   AND (:contentType = '' OR contentType = :contentType)
   AND (:creator = '' OR creator = :creator)
@@ -139,17 +148,19 @@ WHERE safe = :safe
   AND (:after < 0 OR modTime > :after)
   AND (:syncAfter < 0 OR syncTime > :syncAfter)
   AND (depth >= :fromDepth) 
-  AND (:toDepth = 0 OR depth <= :toDepth)
+  AND (depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY name LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_FILES_NAME_DESC
 SELECT header FROM Header
 WHERE safe = :safe
+  AND bucket = :bucket
   AND (:name = '' OR name = :name)
+  AND (:dir = '' OR dir = :dir)
+  AND (:prefix = '' OR name LIKE :prefix || '%')
   AND (:suffix = '' OR name LIKE '%' || :suffix)
   AND (:fileId = 0 OR fileId = :fileId)
-  AND (:dir = '' OR dir = :dir)
   AND (:tags = '' OR tags LIKE '%' || :tags || '%')
   AND (:contentType = '' OR contentType = :contentType)
   AND (:creator = '' OR creator = :creator)
@@ -159,17 +170,19 @@ WHERE safe = :safe
   AND (:after < 0 OR modTime > :after)
   AND (:syncAfter < 0 OR syncTime > :syncAfter)
   AND (depth >= :fromDepth) 
-  AND (:toDepth = 0 OR depth <= :toDepth)
+  AND (depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY name DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_FILES_MODTIME_DESC
 SELECT header FROM Header
 WHERE safe = :safe
+  AND bucket = :bucket
   AND (:name = '' OR name = :name)
+  AND (:dir = '' OR dir = :dir)
+  AND (:prefix = '' OR name LIKE :prefix || '%')
   AND (:suffix = '' OR name LIKE '%' || :suffix)
   AND (:fileId = 0 OR fileId = :fileId)
-  AND (:dir = '' OR dir = :dir)
   AND (:tags = '' OR tags LIKE '%' || :tags || '%')
   AND (:contentType = '' OR contentType = :contentType)
   AND (:creator = '' OR creator = :creator)
@@ -186,21 +199,23 @@ WHERE safe = :safe
 -- GET_FOLDERS
 SELECT distinct dir FROM Header
 WHERE safe= :safe
+  AND bucket = :bucket
   AND (:dir="" OR dir LIKE :dir || '/%')
   AND (depth >= :fromDepth) 
-  AND (:toDepth = 0 OR depth <= :toDepth)
+  AND (depth <= :toDepth)
 
 -- GET_LAST_HEADER
 SELECT header
 FROM Header
 WHERE safe = :safe
+  AND bucket = :bucket
   AND (:name = "" OR name = :name)
   AND (fileId = :fileId OR :fileId = 0)
 ORDER BY modTime DESC
 LIMIT 1;
 
 -- GET_CACHE_EXPIRE
-SELECT header FROM Header
+SELECT safe, bucket, header FROM Header
 WHERE cacheExpires > 0
 ORDER BY cacheExpires ASC
 LIMIT 1;

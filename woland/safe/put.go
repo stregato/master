@@ -50,23 +50,23 @@ type PutOptions struct {
 
 //func (s *Portal) Put(name string, r io.ReadSeeker, secId uint64, options PutOptions) (Header, error) {
 
-func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, error) {
+func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Header, error) {
 	if strings.HasPrefix(name, "/") {
 		return Header{}, fmt.Errorf(ErrInvalidName, name)
 	}
 
 	applyQuota(0.97, s.QuotaGroup, s.stores, s.Size, s.Quota, true)
 
-	hashedDir := hashPath(getDir(name))
+	dir := hashPath(bucket)
 	now := core.Now()
-	var id uint64
+	var bodyId uint64
 	var secondaryKey []byte
 	iv := core.GenerateRandomBytes(aes.BlockSize)
 
 	if options.UpdateMeta != 0 {
-		id = options.UpdateMeta
+		bodyId = options.UpdateMeta
 	} else {
-		id = snowflake.ID()
+		bodyId = snowflake.ID()
 	}
 
 	if options.Private != "" {
@@ -88,7 +88,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 
 	hsr := hashSizeReader(r, hash, options.Progress)
 	var r2 io.ReadSeeker = hsr
-	bodyFile := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", id))
+	bodyFile := path.Join(DataFolder, dir, BodyFolder, fmt.Sprintf("%d", bodyId))
 	if options.Zip {
 		r2, err = gzipStream(r2)
 		if core.IsErr(err, nil, "cannot compress data: %v", err) {
@@ -133,7 +133,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 
 	var deletables []Header
 	if options.Replace {
-		homonyms, err := ListFiles(s, hashedDir, ListOptions{Name: name})
+		homonyms, err := ListFiles(s, dir, ListOptions{Name: name})
 		if core.IsErr(err, nil, "cannot list homonyms: %v", err) {
 			store.Delete(bodyFile)
 			return Header{}, err
@@ -142,7 +142,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		core.Info("Replacing %d files with name %s", len(homonyms), name)
 	}
 	if options.ReplaceID != 0 {
-		replaceable, err := ListFiles(s, hashedDir, ListOptions{FileId: options.ReplaceID})
+		replaceable, err := ListFiles(s, dir, ListOptions{FileId: options.ReplaceID})
 		if core.IsErr(err, nil, "cannot list replaceable: %v", err) {
 			store.Delete(bodyFile)
 			return Header{}, err
@@ -151,11 +151,12 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		core.Info("Replacing %d files with id %d", len(replaceable), options.ReplaceID)
 	}
 
+	headerId := snowflake.ID()
 	header := Header{
 		Name:      name,
 		Size:      hsr.bytesRead,
 		Creator:   s.CurrentUser.Id,
-		FileId:    id,
+		FileId:    bodyId,
 		IV:        iv,
 		BodyKey:   secondaryKey,
 		PrivateId: options.Private,
@@ -169,6 +170,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 			Extra:       options.Meta,
 		},
 	}
+	filePath := path.Join(DataFolder, dir, HeaderFolder, fmt.Sprintf("%d", headerId))
 	if options.Private != "" {
 		var encryptedHeader = header
 		var encryptedAttributes []byte
@@ -180,23 +182,22 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		encryptedHeader.EncryptedAttributes = encryptedAttributes
 		encryptedHeader.BodyKey = nil
 		encryptedHeader.Attributes = Attributes{}
-		err = writeHeaders(store, s.Name, hashedDir, s.keyId, s.keys, []Header{encryptedHeader})
+		err = writeHeaders(store, s.Name, filePath, s.keyId, s.keys, []Header{encryptedHeader})
 	} else {
-		err = writeHeaders(store, s.Name, hashedDir, s.keyId, s.keys, []Header{header})
+		err = writeHeaders(store, s.Name, filePath, s.keyId, s.keys, []Header{header})
 	}
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
 		store.Delete(bodyFile)
 		return Header{}, err
 	}
 	core.Info("Wrote header for %s[%d]", header.Name, header.FileId)
-	_, err = SetTouch(store, DataFolder, hashedDir, ".touch")
+	_, err = SetTouch(store, DataFolder, dir, ".touch")
 	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 		return Header{}, err
 	}
 
 	for _, file := range deletables {
-		hashedDir := hashPath(getDir(file.Name))
-		deleteFile(s.stores, s.Name, hashedDir, file.FileId)
+		deleteFile(s.stores, s.Name, dir, file.FileId)
 		core.Info("Deleted %s[%d]", file.Name, file.FileId)
 	}
 
@@ -208,7 +209,7 @@ func Put(s *Safe, name string, r io.ReadSeeker, options PutOptions) (Header, err
 		header.Downloads = map[string]time.Time{options.Source: stat.ModTime()}
 		core.Info("Added download location for %s: %s", name, options.Source)
 	}
-	err = insertHeaderOrIgnoreToDB(s.Name, header)
+	err = insertHeaderOrIgnoreToDB(s.Name, bucket, headerId, header)
 	core.IsErr(err, nil, "cannot insert header: %v", err)
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
 

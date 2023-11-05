@@ -31,7 +31,8 @@ class _AddPersonState extends State<AddPerson> {
         aesKey: d.aesKey);
 
     var task = _lounge.putBytes(
-        'chat/${Snowflake(nodeId: 0).generate()}',
+        "chat",
+        '${Snowflake(nodeId: 0).generate()}',
         Uint8List.fromList([]),
         PutOptions(
           contentType: "application/x-behemoth-invite",

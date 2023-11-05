@@ -265,7 +265,7 @@ func wlnd_listFiles(hnd C.int, dir, listOptions *C.char) C.Result {
 }
 
 //export wlnd_listDirs
-func wlnd_listDirs(hnd C.int, dir *C.char, listDirsOptions *C.char) C.Result {
+func wlnd_listDirs(hnd C.int, bucket *C.char, listDirsOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -278,7 +278,7 @@ func wlnd_listDirs(hnd C.int, dir *C.char, listDirsOptions *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	dirs, err := safe.ListDirs(s, C.GoString(dir), options)
+	dirs, err := safe.ListDirs(s, C.GoString(bucket), options)
 	return cResult(dirs, err)
 }
 
@@ -315,7 +315,7 @@ func (w CWriter) Write(p []byte) (n int, err error) {
 }
 
 //export wlnd_putData
-func wlnd_putData(hnd C.int, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
+func wlnd_putData(hnd C.int, bucket, name *C.char, r *C.Reader, putOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -329,7 +329,7 @@ func wlnd_putData(hnd C.int, name *C.char, r *C.Reader, putOptions *C.char) C.Re
 		return cResult(nil, err)
 	}
 
-	header, err := safe.Put(s, C.GoString(name), CReader{r}, options)
+	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), CReader{r}, options)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -338,7 +338,7 @@ func wlnd_putData(hnd C.int, name *C.char, r *C.Reader, putOptions *C.char) C.Re
 }
 
 //export wlnd_putCString
-func wlnd_putCString(hnd C.int, name, data *C.char, putOptions *C.char) C.Result {
+func wlnd_putCString(hnd C.int, bucket, name, data *C.char, putOptions *C.char) C.Result {
 
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
@@ -360,7 +360,7 @@ func wlnd_putCString(hnd C.int, name, data *C.char, putOptions *C.char) C.Result
 
 	r := core.NewBytesReader(bytes)
 
-	header, err := safe.Put(s, C.GoString(name), r, options)
+	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), r, options)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -368,7 +368,7 @@ func wlnd_putCString(hnd C.int, name, data *C.char, putOptions *C.char) C.Result
 }
 
 //export wlnd_putFile
-func wlnd_putFile(hnd C.int, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
+func wlnd_putFile(hnd C.int, bucket, name *C.char, sourceFile *C.char, putOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -387,7 +387,7 @@ func wlnd_putFile(hnd C.int, name *C.char, sourceFile *C.char, putOptions *C.cha
 		return cResult(nil, err)
 	}
 
-	header, err := safe.Put(s, C.GoString(name), r, options)
+	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), r, options)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -395,7 +395,7 @@ func wlnd_putFile(hnd C.int, name *C.char, sourceFile *C.char, putOptions *C.cha
 }
 
 //export wlnd_getData
-func wlnd_getData(hnd C.int, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
+func wlnd_getData(hnd C.int, bucket, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -409,7 +409,7 @@ func wlnd_getData(hnd C.int, name *C.char, w *C.Writer, getOptions *C.char) C.Re
 		return cResult(nil, err)
 	}
 
-	header, err := safe.Get(s, C.GoString(name), CWriter{w}, options)
+	header, err := safe.Get(s, C.GoString(bucket), C.GoString(name), CWriter{w}, options)
 	if core.IsErr(err, nil, "cannot get file: %v") {
 		return cResult(nil, err)
 	}
@@ -418,7 +418,7 @@ func wlnd_getData(hnd C.int, name *C.char, w *C.Writer, getOptions *C.char) C.Re
 }
 
 //export wlnd_getCString
-func wlnd_getCString(hnd C.int, name, getOptions *C.char) C.Result {
+func wlnd_getCString(hnd C.int, bucket, name, getOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -433,7 +433,7 @@ func wlnd_getCString(hnd C.int, name, getOptions *C.char) C.Result {
 	}
 
 	buf := bytes.Buffer{}
-	_, err = safe.Get(s, C.GoString(name), &buf, options)
+	_, err = safe.Get(s, C.GoString(bucket), C.GoString(name), &buf, options)
 	if core.IsErr(err, nil, "cannot get file: %v") {
 		return cResult(nil, err)
 	}
@@ -443,7 +443,7 @@ func wlnd_getCString(hnd C.int, name, getOptions *C.char) C.Result {
 }
 
 //export wlnd_getFile
-func wlnd_getFile(hnd C.int, name, destFile, getOptions *C.char) C.Result {
+func wlnd_getFile(hnd C.int, bucket, name, destFile, getOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -465,7 +465,7 @@ func wlnd_getFile(hnd C.int, name, destFile, getOptions *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	header, err := safe.Get(s, C.GoString(name), w, options)
+	header, err := safe.Get(s, C.GoString(bucket), C.GoString(name), w, options)
 	if core.IsErr(err, nil, "cannot get file: %v") {
 		return cResult(nil, err)
 	}

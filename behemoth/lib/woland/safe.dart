@@ -15,6 +15,8 @@ typedef Args1T<T> = CResult Function(T);
 typedef Args3TSS<T> = CResult Function(T, Pointer<Utf8>, Pointer<Utf8>);
 typedef Args4TSSS<T> = CResult Function(
     T, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
+typedef Args5TSSSS<T> = CResult Function(
+    T, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 
 class Safe {
   DateTime accessed = DateTime.now();
@@ -82,61 +84,63 @@ class Safe {
     accessed = DateTime.now();
   }
 
-  Future<List<Header>> listFiles(String dir, ListOptions options) async {
+  Future<List<Header>> listFiles(String bucket, ListOptions options) async {
     var fun =
         lib.lookupFunction<Args3TSS<Int>, Args3TSS<int>>("wlnd_listFiles");
-    var l = fun(hnd, dir.toNativeUtf8(), jsonEncode(options).toNativeUtf8())
+    var l = fun(hnd, bucket.toNativeUtf8(), jsonEncode(options).toNativeUtf8())
         .unwrapList();
     return l.map((e) => Header.fromJson(e)).toList();
   }
 
-  Future<List<String>> listDirs(String dir, ListDirsOptions options) async {
+  Future<List<String>> listDirs(String bucket, ListDirsOptions options) async {
     var fun = lib.lookupFunction<Args3TSS<Int>, Args3TSS<int>>("wlnd_listDirs");
-    var l = fun(hnd, dir.toNativeUtf8(), jsonEncode(options).toNativeUtf8())
+    var l = fun(hnd, bucket.toNativeUtf8(), jsonEncode(options).toNativeUtf8())
         .unwrapList();
     return l.cast<String>();
   }
 
   Future<Header> putBytes(
-      String name, Uint8List data, PutOptions putOptions) async {
+      String bucket, String name, Uint8List data, PutOptions putOptions) async {
     var base64 = base64Encode(data);
     var fun =
-        lib.lookupFunction<Args4TSSS<Int>, Args4TSSS<int>>("wlnd_putCString");
-    var m = fun(hnd, name.toNativeUtf8(), base64.toNativeUtf8(),
-            jsonEncode(putOptions).toNativeUtf8())
+        lib.lookupFunction<Args5TSSSS<Int>, Args5TSSSS<int>>("wlnd_putCString");
+    var m = fun(hnd, bucket.toNativeUtf8(), name.toNativeUtf8(),
+            base64.toNativeUtf8(), jsonEncode(putOptions).toNativeUtf8())
         .unwrapMap();
     return Header.fromJson(m);
   }
 
-  Future<Header> putFile(
-      String name, String filepath, PutOptions putOptions) async {
+  Future<Header> putFile(String bucket, String name, String filepath,
+      PutOptions putOptions) async {
     return Isolate.run<Header>(() {
       var fun =
-          lib.lookupFunction<Args4TSSS<Int>, Args4TSSS<int>>("wlnd_putFile");
-      var m = fun(hnd, name.toNativeUtf8(), filepath.toNativeUtf8(),
-              jsonEncode(putOptions).toNativeUtf8())
+          lib.lookupFunction<Args5TSSSS<Int>, Args5TSSSS<int>>("wlnd_putFile");
+      var m = fun(hnd, bucket.toNativeUtf8(), name.toNativeUtf8(),
+              filepath.toNativeUtf8(), jsonEncode(putOptions).toNativeUtf8())
           .unwrapMap();
       return Header.fromJson(m);
     });
   }
 
-  Future<Uint8List> getBytes(String name, GetOptions getOptions) async {
+  Future<Uint8List> getBytes(
+      String bucket, String name, GetOptions getOptions) async {
     return Isolate.run(() {
       var fun =
-          lib.lookupFunction<Args3TSS<Int>, Args3TSS<int>>("wlnd_getCString");
-      var s =
-          fun(hnd, name.toNativeUtf8(), jsonEncode(getOptions).toNativeUtf8())
-              .unwrapString();
+          lib.lookupFunction<Args4TSSS<Int>, Args4TSSS<int>>("wlnd_getCString");
+      var s = fun(hnd, bucket.toNativeUtf8(), name.toNativeUtf8(),
+              jsonEncode(getOptions).toNativeUtf8())
+          .unwrapString();
       return base64Decode(s);
     });
   }
 
-  Future getFile(String name, String filepath, GetOptions getOptions) async {
+  Future getFile(String bucket, String name, String filepath,
+      GetOptions getOptions) async {
     return Isolate.run(() {
       var fun =
-          lib.lookupFunction<Args4TSSS<Int>, Args4TSSS<int>>("wlnd_getFile");
-      fun(hnd, name.toNativeUtf8(), filepath.toNativeUtf8(),
-              jsonEncode(getOptions).toNativeUtf8())
+          lib.lookupFunction<Args5TSSSS<Int>, Args5TSSSS<int>>("wlnd_getFile");
+      fun(hnd, bucket.toNativeUtf8(), name.toNativeUtf8(),
+              filepath.toNativeUtf8(), jsonEncode(getOptions).toNativeUtf8())
           .unwrapVoid();
     });
   }

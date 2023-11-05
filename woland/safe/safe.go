@@ -25,6 +25,8 @@ func init() {
 const (
 	ConfigFolder = "config"
 	DataFolder   = "data"
+	HeaderFolder = "h"
+	BodyFolder   = "b"
 )
 
 const KeySize = 32

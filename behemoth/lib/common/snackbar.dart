@@ -6,13 +6,16 @@ void showPlatformSnackbar(
   BuildContext context,
   String message, {
   Color? backgroundColor,
+  Duration? duration,
 }) {
-  if (isMac) {
+  if (isApple) {
     // Display a Cupertino-style Snackbar on iOS
-    showCupertinoSnackbar(context, message, backgroundColor: backgroundColor);
+    showCupertinoSnackbar(context, message,
+        backgroundColor: backgroundColor, duration: duration);
   } else {
     // Display a Material-style Snackbar on Android
-    showMaterialSnackbar(context, message, backgroundColor: backgroundColor);
+    showMaterialSnackbar(context, message,
+        backgroundColor: backgroundColor, duration: duration);
   }
 }
 
@@ -20,6 +23,7 @@ void showCupertinoSnackbar(
   BuildContext context,
   String message, {
   Color? backgroundColor,
+  Duration? duration,
 }) {
   final overlayState = Overlay.of(context);
 
@@ -42,7 +46,7 @@ void showCupertinoSnackbar(
   overlayState.insert(overlayEntry);
 
   // Remove the overlay after a delay (e.g., 3 seconds)
-  Future.delayed(const Duration(seconds: 3), () {
+  Future.delayed(duration ?? const Duration(seconds: 3), () {
     overlayEntry.remove();
   });
 }
@@ -51,12 +55,13 @@ void showMaterialSnackbar(
   BuildContext context,
   String message, {
   Color? backgroundColor,
+  Duration? duration,
 }) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(message),
       backgroundColor: backgroundColor,
-      duration: const Duration(seconds: 3),
+      duration: duration ?? const Duration(seconds: 3),
     ),
   );
 }

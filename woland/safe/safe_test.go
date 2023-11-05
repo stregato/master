@@ -72,34 +72,34 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	data := []byte("Hello, World!")
 	r := core.NewBytesReader(data)
 
-	file, err := Put(s, "sub/file1", r, PutOptions{
+	file, err := Put(s, "bucket", "file1", r, PutOptions{
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
 	})
 	core.TestErr(t, err, "cannot put file: %v")
-	core.Assert(t, file.Name == "sub/file1", "Expected file name to be 'file1', got '%s'", file.Name)
+	core.Assert(t, file.Name == "file1", "Expected file name to be 'file1', got '%s'", file.Name)
 
 	r = core.NewBytesReader(data)
-	file, err = Put(s, "sub/file2", r, PutOptions{
+	file, err = Put(s, "bucket", "file2", r, PutOptions{
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
 	})
 	core.TestErr(t, err, "cannot put file: %v")
-	core.Assert(t, file.Name == "sub/file2", "Expected file name to be 'file1', got '%s'", file.Name)
+	core.Assert(t, file.Name == "file2", "Expected file name to be 'file1', got '%s'", file.Name)
 
 	r = core.NewBytesReader(data)
-	file, err = Put(s, "sub/file3", r, PutOptions{
+	file, err = Put(s, "bucket", "file3", r, PutOptions{
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
 	})
 	core.TestErr(t, err, "cannot put file: %v")
-	core.Assert(t, file.Name == "sub/file3", "Expected file name to be 'file1', got '%s'", file.Name)
+	core.Assert(t, file.Name == "file3", "Expected file name to be 'file1', got '%s'", file.Name)
 
-	files, err := ListFiles(s, "sub", ListOptions{OrderBy: "modTime", ReverseOrder: true})
+	files, err := ListFiles(s, "bucket", ListOptions{OrderBy: "modTime", ReverseOrder: true})
 	core.TestErr(t, err, "cannot list files: %v")
 	core.Assert(t, len(files) == 3, "Expected 1 file, got %d", len(files))
 	file = files[0]
-	if file.Name != "sub/file3" {
+	if file.Name != "file3" {
 		t.Errorf("Expected file name to be 'file1', got '%s'", file.Name)
 	}
 	if file.Size != int64(len(data)) {
@@ -107,21 +107,29 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	}
 
 	b := bytes.Buffer{}
-	_, err = Get(s, "sub/file1", &b, GetOptions{Destination: "sub/file1"})
+	_, err = Get(s, "bucket", "file1", &b, GetOptions{Destination: "bucket/file1"})
 	core.TestErr(t, err, "cannot get file: %v")
 	core.Assert(t, bytes.Equal(data, b.Bytes()), "Expected data to be '%s', got '%s'", data, b.Bytes())
 
-	files, err = ListFiles(s, "sub", ListOptions{OrderBy: "modTime", ReverseOrder: true})
+	files, err = ListFiles(s, "bucket", ListOptions{OrderBy: "modTime"})
 	core.TestErr(t, err, "cannot list files: %v")
 	file = files[0]
 	core.Assert(t, file.Cached != "", "Expected cached to be set")
 	core.Assert(t, len(file.Downloads) == 1, "Expected 1 download, got %d", len(file.Downloads))
 
-	dirs, err := ListDirs(s, "", ListDirsOptions{})
+	r = core.NewBytesReader(data)
+	file, err = Put(s, "bucket", "dir0/file2", r, PutOptions{
+		Tags:        []string{"tag1", "tag2"},
+		ContentType: "text/plain",
+	})
+	core.TestErr(t, err, "cannot put file: %v")
+	core.Assert(t, file.Name == "dir0/file2", "Expected file name to be 'file1', got '%s'", file.Name)
+
+	dirs, err := ListDirs(s, "bucket", ListDirsOptions{})
 	core.TestErr(t, err, "cannot list dirs: %v")
 	core.Assert(t, len(dirs) == 1, "Expected 1 dir, got %d", len(dirs))
 
-	files, err = ListFiles(s, "sub", ListOptions{})
+	files, err = ListFiles(s, "bucket", ListOptions{})
 	core.TestErr(t, err, "cannot list files: %v")
 	file = files[0]
 	core.Assert(t, file.Cached != "", "Expected cached to be set")
@@ -134,7 +142,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	core.TestErr(t, err, "cannot create temp file: %v")
 	defer os.Remove(f.Name())
 	f.Write(data)
-	h, err := Put(s, "sub/file1", f, PutOptions{
+	h, err := Put(s, "bucket", "file1", f, PutOptions{
 		Source:      f.Name(),
 		Private:     second.Id,
 		Tags:        []string{"tag1", "tag2"},
@@ -162,11 +170,11 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	s, err = Open(second, access, OpenOptions{})
 	core.TestErr(t, err, "cannot open safe: %v")
 
-	files, err = ListFiles(s, "sub", ListOptions{})
+	files, err = ListFiles(s, "bucket", ListOptions{Name: "file1"})
 	core.TestErr(t, err, "cannot list files: %v")
 	core.Assert(t, len(files) == 2, "Expected 2 files, got %d", len(files))
 
-	h, err = Get(s, "sub/file1", &b, GetOptions{FileId: h.FileId})
+	h, err = Get(s, "bucket", "file1", &b, GetOptions{FileId: h.FileId})
 	core.TestErr(t, err, "cannot get file: %v")
 	core.Assert(t, bytes.Equal(data, b.Bytes()), "Expected data to be '%s', got '%s'", data, b.Bytes())
 	core.Assert(t, h.Attributes.ContentType == "text/plain", "Expected content type to be 'text/plain', got '%s'", h.Attributes.ContentType)

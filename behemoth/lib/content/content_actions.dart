@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:intl/intl.dart';
 import 'package:behemoth/common/file_access.dart' as fa;
@@ -133,16 +134,12 @@ class _ContentActionsState extends State<ContentActions> {
                 try {
                   var options = PutOptions();
                   options.source = localPath;
-                  var dest = _folder.isEmpty
-                      ? "content/$_name"
-                      : "content/$_folder/$_name";
-                  await _safe.putFile(dest, localPath, options);
+                  var dest = _folder.isEmpty ? _name : "$_folder/$_name";
+                  await _safe.putFile("content", dest, localPath, options);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        backgroundColor: Colors.green,
-                        content: Text(
-                          "$_name uploaded to ${_safe.prettyName}",
-                        )));
+                    showPlatformSnackbar(
+                        context, "$_name uploaded to ${_safe.prettyName}",
+                        backgroundColor: Colors.green);
                     Navigator.pop(context);
                   }
                 } catch (e) {
@@ -222,7 +219,8 @@ class _ContentActionsState extends State<ContentActions> {
                 var name = path.joinAll(path.split(h.name).skip(1));
                 options.destination = "$libraryFolder/$name";
                 options.fileId = h.fileId;
-                await _safe.getFile(h.name, options.destination, options);
+                await _safe.getFile(
+                    "content", h.name, options.destination, options);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       backgroundColor: Colors.green,

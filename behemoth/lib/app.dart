@@ -12,7 +12,7 @@ import 'package:behemoth/coven/unilink.dart';
 import 'package:behemoth/common/io.dart';
 
 import 'package:behemoth/common/profile.dart';
-import 'package:behemoth/coven/add.dart';
+import 'package:behemoth/coven/join.dart';
 import 'package:behemoth/coven/create_coven.dart';
 import 'package:behemoth/room/create_room.dart';
 import 'package:behemoth/coven/home.dart';
@@ -42,7 +42,7 @@ class _BehemothAppState extends State<BehemothApp> {
 
   _BehemothAppState() {
     try {
-      start("$applicationFolder/woland.db", applicationFolder);
+      getLibrary();
     } catch (e) {
       initialRoot = "/nolib";
       err = e.toString();
@@ -50,6 +50,7 @@ class _BehemothAppState extends State<BehemothApp> {
     }
 
     try {
+      start("$applicationFolder/woland.db", applicationFolder);
       if (!Profile.hasProfile()) {
         initialRoot = "/setup";
       }
@@ -98,9 +99,9 @@ class _BehemothAppState extends State<BehemothApp> {
       settings: PlatformSettingsData(
         iosUsesMaterialWidgets: true,
         iosUseZeroPaddingForAppbarPlatformIcon: true,
-        platformStyle: const PlatformStyleData(
-          linux: PlatformStyle.Cupertino,
-        ),
+        // platformStyle: const PlatformStyleData(
+        //   linux: PlatformStyle.Cupertino,
+        // ),
       ),
       builder: (context) => PlatformTheme(
         themeMode: themeMode,
@@ -135,7 +136,7 @@ class _BehemothAppState extends State<BehemothApp> {
             "/unilink/accept": (context) => const UnilinkAccept(),
             //"/": (context) => const AddCommunity(),
             "/create": (context) => const CreateCoven(),
-            "/join": (context) => const Add(),
+            "/join": (context) => const Join(),
             "/settings": (context) => const Settings(),
 
             "/coven": (context) => const CovenWidget(),

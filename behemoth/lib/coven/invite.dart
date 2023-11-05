@@ -1,9 +1,11 @@
 import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/common/qrcode_scan_button.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/copy_field.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class Invite extends StatefulWidget {
   const Invite({super.key});
@@ -100,14 +102,33 @@ class _InviteState extends State<Invite> {
                 ),
               ),
               const SizedBox(height: 20),
-              TextFormField(
-                maxLines: 4,
-                controller: _idController,
-                decoration: InputDecoration(
-                  labelText: 'Enter the link',
-                  errorText: _errorText,
-                ),
-                autovalidateMode: AutovalidateMode.onUserInteraction,
+              Row(
+                children: [
+                  Expanded(
+                    child: PlatformTextFormField(
+                      maxLines: 4,
+                      controller: _idController,
+                      material: (_, __) => MaterialTextFormFieldData(
+                        decoration: InputDecoration(
+                          labelText: 'Enter the link',
+                          errorText: _errorText,
+                        ),
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                      ),
+                      cupertino: (_, __) => CupertinoTextFormFieldData(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4.0),
+                        ),
+                        placeholder: 'Enter the link',
+                      ),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                    ),
+                  ),
+                  QRCodeScannerButton(onDetect: (values, bytes) {
+                    _idController.text = values.first;
+                  }),
+                ],
               ),
               const SizedBox(height: 20),
               CheckboxListTile(
@@ -125,7 +146,7 @@ class _InviteState extends State<Invite> {
               if (_id.isNotEmpty && _access.isEmpty)
                 Container(
                   constraints: const BoxConstraints(minWidth: 200),
-                  child: ElevatedButton(
+                  child: PlatformElevatedButton(
                     onPressed: _add,
                     child: Text("Add ${_nick.isEmpty ? _id : _nick}"),
                   ),

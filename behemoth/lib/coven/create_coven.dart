@@ -2,7 +2,8 @@ import 'dart:math';
 
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
-import 'package:behemoth/coven/addstorage.dart';
+import 'package:behemoth/common/snackbar.dart';
+import 'package:behemoth/coven/add_storage.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
@@ -77,15 +78,44 @@ class _CreateCovenState extends State<CreateCoven> {
                 children: [
                   const Text(
                       "Enter a name and at least a storage, i.e. sftp or s3"),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Name'),
+                  PlatformTextFormField(
+                    material: (_, __) => MaterialTextFormFieldData(
+                      decoration: const InputDecoration(labelText: 'Name'),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                    ),
+                    cupertino: (_, __) => CupertinoTextFormFieldData(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            width: 0,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                      placeholder: 'Name',
+                    ),
                     validator: (value) {
                       return null;
                     },
                     onChanged: (val) => setState(() => _name = val),
                   ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Description'),
+                  PlatformTextFormField(
+                    material: (_, __) => MaterialTextFormFieldData(
+                      decoration:
+                          const InputDecoration(labelText: 'Description'),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                    ),
+                    cupertino: (_, __) => CupertinoTextFormFieldData(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            width: 0,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                      placeholder: 'Description',
+                    ),
                     validator: (value) {
                       return null;
                     },
@@ -94,9 +124,10 @@ class _CreateCovenState extends State<CreateCoven> {
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      const Text(
+                      PlatformText(
                         "Storages",
-                        style: TextStyle(color: Colors.black54, fontSize: 14),
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                       const Spacer(),
                       PlatformIconButton(
@@ -137,9 +168,10 @@ class _CreateCovenState extends State<CreateCoven> {
                   ),
                   Row(
                     children: [
-                      const Text(
+                      PlatformText(
                         "Same storage as",
-                        style: TextStyle(color: Colors.black54, fontSize: 14),
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -167,9 +199,9 @@ class _CreateCovenState extends State<CreateCoven> {
                   const SizedBox(
                     height: 20,
                   ),
-                  const Text(
+                  PlatformText(
                     "Limit storage",
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -192,9 +224,9 @@ class _CreateCovenState extends State<CreateCoven> {
                   ),
                   Row(
                     children: [
-                      const Text(
+                      PlatformText(
                         "Wipe (danger)",
-                        style: TextStyle(color: Colors.red, fontSize: 14),
+                        style: const TextStyle(color: Colors.red, fontSize: 14),
                       ),
                       const Spacer(),
                       Switch(
@@ -204,12 +236,9 @@ class _CreateCovenState extends State<CreateCoven> {
                             _wipe = value;
                           });
                           if (value) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Danger: wipe will delete all data in the community'),
-                              ),
-                            );
+                            showPlatformSnackbar(context,
+                                'Danger: wipe will delete all data in the community',
+                                backgroundColor: Colors.red);
                           }
                         },
                       ),
@@ -241,7 +270,7 @@ class _CreateCovenState extends State<CreateCoven> {
                                   context, (route) => route.isFirst);
                             }
                           : null,
-                      child: const Text('Create'),
+                      child: PlatformText('Create'),
                     ),
                   ),
                 ],

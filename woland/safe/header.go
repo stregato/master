@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/godruoyi/go-snowflake"
-
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
@@ -105,13 +103,12 @@ func unmarshalHeaders(ciphertext []byte, keys map[uint64][]byte) (headers []Head
 	return headers, keyId, nil
 }
 
-func writeHeaders(store storage.Store, safeName string, dir string, keyId uint64, keys Keys, headers []Header) error {
+func writeHeaders(store storage.Store, safeName string, filePath string, keyId uint64, keys Keys, headers []Header) error {
 	data, err := marshalHeaders(headers, keyId, keys[keyId])
 	if core.IsErr(err, nil, "cannot encrypt header: %v", err) {
 		return nil
 	}
 
-	filePath := path.Join(DataFolder, dir, fmt.Sprintf("%d.h", snowflake.ID()))
 	hr := core.NewBytesReader(data)
 	err = store.Write(filePath, hr, nil)
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
@@ -121,11 +118,10 @@ func writeHeaders(store storage.Store, safeName string, dir string, keyId uint64
 	return nil
 }
 
-func readHeaders(store storage.Store, safeName string, hashedDir, name string, keys Keys) (headers []Header, keyId uint64, err error) {
+func readHeaders(store storage.Store, safeName string, filePath string, keys Keys) (headers []Header, keyId uint64, err error) {
 	var buf bytes.Buffer
-	name = path.Join(DataFolder, hashedDir, name)
-	err = store.Read(name, nil, &buf, nil)
-	if core.IsErr(err, nil, "cannot read file %s/%s: %v", store, name, err) {
+	err = store.Read(filePath, nil, &buf, nil)
+	if core.IsErr(err, nil, "cannot read file %s/%s: %v", store, filePath, err) {
 		return nil, 0, err
 	}
 
@@ -136,21 +132,25 @@ func readHeaders(store storage.Store, safeName string, hashedDir, name string, k
 	return headers, keyId, nil
 }
 
-func insertHeaderOrIgnoreToDB(safeName string, header Header) error {
+func insertHeaderOrIgnoreToDB(safeName, bucket string, headerId uint64, header Header) error {
 	data, err := json.Marshal(header)
 	if core.IsErr(err, nil, "cannot marshal header: %v", err) {
 		return err
 	}
 
+	header.Name = path.Clean(header.Name)
+	depth := strings.Count(header.Name, "/")
 	tags := strings.Join(header.Attributes.Tags, " ") + " "
 	r, err := sql.Exec("INSERT_HEADER", sql.Args{
 		"safe":         safeName,
+		"bucket":       bucket,
 		"name":         header.Name,
 		"size":         header.Size,
 		"fileId":       header.FileId,
+		"headerId":     headerId,
 		"base":         path.Base(header.Name),
 		"dir":          getDir(header.Name),
-		"depth":        strings.Count(header.Name, "/"),
+		"depth":        depth,
 		"modTime":      header.ModTime.Unix(),
 		"syncTime":     time.Now().Unix(),
 		"tags":         tags,
@@ -164,6 +164,7 @@ func insertHeaderOrIgnoreToDB(safeName string, header Header) error {
 	if core.IsErr(err, nil, "cannot save header: %v", err) {
 		return err
 	}
+
 	if count, _ := r.RowsAffected(); count == 0 {
 		core.Info("Header %s already exists", header.Name)
 		return nil
@@ -173,10 +174,13 @@ func insertHeaderOrIgnoreToDB(safeName string, header Header) error {
 	return nil
 }
 
-func updateHeaderInDB(safeName string, fileId uint64, update func(Header) Header) error {
+func updateHeaderInDB(safeName, bucket string, fileId uint64, update func(Header) Header) error {
 	var data []byte
 
-	err := sql.QueryRow("GET_LAST_HEADER", sql.Args{"safe": safeName, "name": "",
+	err := sql.QueryRow("GET_LAST_HEADER", sql.Args{
+		"safe":   safeName,
+		"bucket": bucket,
+		"name":   "",
 		"fileId": fileId}, &data)
 	if core.IsErr(err, nil, "cannot get header: %v", err) {
 		return err
@@ -194,8 +198,12 @@ func updateHeaderInDB(safeName string, fileId uint64, update func(Header) Header
 		return err
 	}
 
-	_, err = sql.Exec("UPDATE_HEADER", sql.Args{"safe": safeName, "fileId": fileId,
-		"cacheExpires": header.CachedExpires.Unix(), "header": data})
+	_, err = sql.Exec("UPDATE_HEADER", sql.Args{
+		"safe":         safeName,
+		"bucket":       bucket,
+		"fileId":       fileId,
+		"cacheExpires": header.CachedExpires.Unix(),
+		"header":       data})
 	if core.IsErr(err, nil, "cannot update header: %v", err) {
 		return err
 	}

@@ -69,7 +69,7 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 
 		var align = func() {
 			time.Sleep(options.AlignDelay)
-			err = alignKeysInDir(s, "")
+			err = alignKeysInSafe(s)
 			core.IsErr(err, nil, "cannot align keys in directory: %v", err)
 		}
 		if options.SyncAlign {
