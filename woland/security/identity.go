@@ -65,6 +65,31 @@ func NewIdentity(nick string) (Identity, error) {
 	return identity, nil
 }
 
+func NewIdentityFromId(nick, privateId string) (Identity, error) {
+	var identity Identity
+
+	if len(privateId) == secp256k1PublicKeySize+ed25519.PublicKeySize {
+		return identity, ErrInvalidID
+	}
+	privateCrypt, privateSign, err := DecodeKeys(privateId)
+	if core.IsErr(err, nil, "invalid private id: %v") {
+		return identity, err
+	}
+	publicCrypt, err := eciesgo.NewPublicKeyFromBytes(privateCrypt)
+	if core.IsErr(err, nil, "cannot convert bytes to secp256k1 public key: %v") {
+		return identity, err
+	}
+	publicSign := ed25519.PrivateKey(privateSign).Public().(ed25519.PublicKey)
+
+	identity.ModTime = core.Now()
+	identity.Nick = nick
+	identity.Id = core.EncodeBinary(append(publicCrypt.Bytes(true), publicSign[:]...))
+	identity.Private = core.EncodeBinary(append(privateCrypt, privateSign[:]...))
+
+	return identity, nil
+
+}
+
 func (i Identity) Public() Identity {
 	return Identity{
 		Id:      i.Id,

@@ -1,7 +1,9 @@
 import 'package:behemoth/content/content_add.dart';
 import 'package:behemoth/content/content_editor.dart';
 import 'package:behemoth/content/content_feed.dart';
+import 'package:behemoth/settings/import_profile.dart';
 import 'package:behemoth/settings/nolib.dart';
+import 'package:behemoth/settings/update_private_key.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/one_to_one.dart';
@@ -138,6 +140,8 @@ class _BehemothAppState extends State<BehemothApp> {
             "/create": (context) => const CreateCoven(),
             "/join": (context) => const Join(),
             "/settings": (context) => const Settings(),
+            "/settings/update_key": (context) => const UpdatePrivateKey(),
+            "/settings/import_profile": (context) => const ImportProfile(),
 
             "/coven": (context) => const CovenWidget(),
             "/coven/room": (context) => const Room(),

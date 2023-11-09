@@ -19,6 +19,7 @@ class _SetupState extends State<Setup> {
   late Uint8List _avatar;
   var nick = TextEditingController();
   var email = TextEditingController();
+  var privateId = TextEditingController();
   bool isSubmitButtonDisabled = true;
 
   _SetupState() {
@@ -87,6 +88,12 @@ class _SetupState extends State<Setup> {
                     TextFormField(
                       decoration:
                           const InputDecoration(labelText: 'Your email'),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      controller: email,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                          labelText: 'Your private id (optional)'),
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       controller: email,
                     ),
