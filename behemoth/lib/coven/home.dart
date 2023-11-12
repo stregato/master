@@ -52,20 +52,24 @@ class _HomeState extends State<Home> {
     if (_unilink == null) {
       return;
     }
+    var segments = _unilink!.pathSegments;
+    switch (segments[0]) {
+      case "i":
+        if (segments.length == 2) {
+          var token = Uri.decodeComponent(segments[1]);
+          Future.delayed(const Duration(milliseconds: 100),
+              () => Navigator.pushNamed(context, "/token", arguments: token));
+        }
+        break;
+      case "p":
+        if (segments.length == 2) {
+          Navigator.pushNamed(context, "/settings/import_id",
+              arguments: _unilink);
+        }
+        break;
+    }
 
     setState(() {
-      var segments = _unilink!.pathSegments;
-      switch (segments[0]) {
-        case "invite":
-          if (segments.length == 2) {
-            var token = Uri.decodeComponent(segments[1]);
-            Future.delayed(const Duration(milliseconds: 100),
-                () => Navigator.pushNamed(context, "/token", arguments: token));
-          }
-          break;
-        case "id":
-          break;
-      }
       _unilink = null;
     });
   }

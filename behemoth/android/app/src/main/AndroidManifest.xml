@@ -1,9 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="rocks.behemoth">
+        <!-- Internet Permission -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Camera Permission -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Read and Write External Storage Permissions -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- Required only for apps that need access to shared storage spaces other than their own and for apps that target Android 9 (API level 28) or lower. -->
+
    <application
-        android:label="behemoth"
+        android:label="Behemoth by Woland"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -32,7 +45,7 @@
                 <!-- Accepts URIs that begin with https://YOUR_HOST -->
                 <data
                 android:scheme="https"
-                android:host="unilinks.woland.ch" />
+                android:host="behemoth.rocks" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
