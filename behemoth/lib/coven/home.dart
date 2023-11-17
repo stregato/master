@@ -28,6 +28,7 @@ class _HomeState extends State<Home> {
     super.initState();
     _timer =
         Timer.periodic(const Duration(seconds: 10), (_) => setState(() {}));
+
     if (!isDesktop && linkSub == null) {
       try {
         getInitialUri().then((uri) {
@@ -55,12 +56,28 @@ class _HomeState extends State<Home> {
     var segments = _unilink!.pathSegments;
     switch (segments[0]) {
       case "i":
-        if (segments.length == 2) {
-          var token = Uri.decodeComponent(segments[1]);
-          Future.delayed(const Duration(milliseconds: 100),
-              () => Navigator.pushNamed(context, "/token", arguments: token));
+        if (segments.length == 3) {
+          var url = _unilink.toString();
+          _timer.cancel();
+          Future.delayed(
+              const Duration(milliseconds: 100),
+              () => Navigator.pushNamed(context, "/invite", arguments: {
+                    "url": url,
+                  }));
         }
         break;
+      case "a":
+        if (segments.length == 2) {
+          var url = _unilink.toString();
+          _timer.cancel();
+          Future.delayed(
+              const Duration(milliseconds: 100),
+              () => Navigator.pushNamed(
+                    context,
+                    "/join",
+                    arguments: url,
+                  ));
+        }
       case "p":
         if (segments.length == 2) {
           Navigator.pushNamed(context, "/settings/import_id",
@@ -78,6 +95,10 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     _processUnilink(context);
     _refresh = false;
+    if (!_timer.isActive) {
+      _timer =
+          Timer.periodic(const Duration(seconds: 10), (_) => setState(() {}));
+    }
 
     if (!Profile.hasProfile()) {
       return PlatformScaffold(
@@ -91,8 +112,10 @@ class _HomeState extends State<Home> {
         return Card(
           child: PlatformListTile(
             title: PlatformText(community.name),
-            onTap: () =>
-                Navigator.pushNamed(context, "/coven", arguments: community),
+            onTap: () {
+              _timer.cancel();
+              Navigator.pushNamed(context, "/coven", arguments: community);
+            },
           ),
         );
       },
@@ -114,6 +137,7 @@ class _HomeState extends State<Home> {
           const SizedBox(width: 10),
           PlatformIconButton(
               onPressed: () {
+                _timer.cancel();
                 Navigator.pushNamed(context, "/settings")
                     .then((value) => setState(() {
                           _refresh = true;
@@ -133,12 +157,14 @@ class _HomeState extends State<Home> {
           setState(() {});
           switch (idx) {
             case 1:
+              _timer.cancel();
               Navigator.pushNamed(context, "/join")
                   .then((value) => setState(() {
                         _refresh = true;
                       }));
               break;
             case 2:
+              _timer.cancel();
               Navigator.pushNamed(context, "/create")
                   .then((value) => setState(() {
                         _refresh = true;

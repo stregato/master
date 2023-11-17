@@ -280,7 +280,8 @@ class _CovenWidgetState extends State<CovenWidget> {
                     arguments: _coven);
                 break;
               case 2:
-                Navigator.pushNamed(context, "/invite", arguments: _lounge);
+                Navigator.pushNamed(context, "/invite",
+                    arguments: {"safe": _lounge});
                 break;
             }
           },

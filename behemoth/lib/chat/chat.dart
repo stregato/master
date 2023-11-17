@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
+import 'package:intl/intl.dart';
 import 'package:snowflake_dart/snowflake_dart.dart';
 
 import 'package:behemoth/common/image.dart';
@@ -36,7 +37,7 @@ class Chat extends StatefulWidget {
 
 class _ChatState extends State<Chat> {
   List<types.Message> _messages = [];
-  DateTime _from = DateTime.now().add(-const Duration(days: 1));
+  DateTime _from = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _to = DateTime.now();
   Timer? _timer;
   DateTime _nextRefresh = DateTime(0);

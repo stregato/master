@@ -136,7 +136,7 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 		}()
 	}
 
-	core.Info("found %d headers in %s/%s args %v", len(headers), s.Name, bucket, args)
+	core.Info("found %d headers in %s/%s: key %s args %v", len(headers), s.Name, bucket, key, args)
 	return headers, nil
 }
 

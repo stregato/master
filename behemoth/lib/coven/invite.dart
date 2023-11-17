@@ -19,12 +19,13 @@ class _InviteState extends State<Invite> {
   String _access = "";
   String _nick = "";
   String _id = "";
+  String? _url;
   bool _anonymousInvite = false;
+  List<Widget> _selection = <Widget>[];
 
   final TextEditingController _idController = TextEditingController();
-  late Safe _safe;
-  late String _covenName;
-  late String _roomName;
+  Safe? _safe;
+  Coven? _coven;
 
   _InviteState() {
     _idController.addListener(() {
@@ -66,34 +67,78 @@ class _InviteState extends State<Invite> {
   }
 
   _add() async {
+    if (_safe == null) {
+      return;
+    }
+
     var profile = Profile.current();
-    await _safe.setUsers(
+    await _safe!.setUsers(
         {_id: permissionRead + permissionWrite + permissionAdmin},
         SetUsersOptions());
-    var d = decodeAccess(profile.identity, _safe.access);
+    var d = decodeAccess(profile.identity, _safe!.access);
     setState(() {
       _access =
-          encodeAccess(_id, _safe.name, d.creatorId, d.urls, aesKey: d.aesKey);
+          encodeAccess(_id, _safe!.name, d.creatorId, d.urls, aesKey: d.aesKey);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    _safe = ModalRoute.of(context)!.settings.arguments as Safe;
-    var lastSlash = _safe.name.lastIndexOf("/");
-    _roomName = _safe.name.substring(lastSlash + 1);
-    _covenName = _safe.name.substring(0, lastSlash);
+    var args = ModalRoute.of(context)!.settings.arguments as Map;
+
+    _safe ??= args['safe'];
+    _url ??= args['url'];
+    if (_url != null) {
+      _processUrl(_url!);
+    }
+
+    if (_safe == null || _selection.isNotEmpty) {
+      var covens = Profile.current().covens.values;
+      _selection = covens.map((coven) {
+        return Card(
+          child: PlatformListTile(
+            trailing:
+                _coven?.name == coven.name ? const Icon(Icons.check) : null,
+            title: PlatformText(coven.name),
+            onTap: () async {
+              var safe = await coven.getLounge();
+              setState(() {
+                _safe = safe;
+                _coven = coven;
+              });
+            },
+          ),
+        );
+      }).toList();
+    }
+
+    // var lastSlash = _safe.name.lastIndexOf("/");
+    // _roomName = _safe.name.substring(lastSlash + 1);
+    // _covenName = _safe.name.substring(0, lastSlash);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text("Invite to $_roomName@$_covenName"),
+        title:
+            Text(_safe != null ? "Invite to ${_safe!.prettyName}" : "Invite"),
       ),
       body: SingleChildScrollView(
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
           child: Column(
             children: [
+              if (_selection.isNotEmpty)
+                Column(
+                  children: [
+                    const Text("Select the coven you want to invite to"),
+                    const SizedBox(height: 20),
+                    ListView(
+                      shrinkWrap: true,
+                      children: _selection,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               const Text(
                 "Scan the QR code or insert the link of the peer you want to invite",
                 style: TextStyle(
@@ -105,25 +150,29 @@ class _InviteState extends State<Invite> {
               Row(
                 children: [
                   Expanded(
-                    child: PlatformTextFormField(
-                      maxLines: 4,
-                      controller: _idController,
-                      material: (_, __) => MaterialTextFormFieldData(
-                        decoration: InputDecoration(
-                          labelText: 'Enter the link',
-                          errorText: _errorText,
-                        ),
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                      ),
-                      cupertino: (_, __) => CupertinoTextFormFieldData(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4.0),
-                        ),
-                        placeholder: 'Enter the link',
-                      ),
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                    ),
+                    child: _url == null
+                        ? PlatformTextFormField(
+                            maxLines: 4,
+                            controller: _idController,
+                            material: (_, __) => MaterialTextFormFieldData(
+                              decoration: InputDecoration(
+                                labelText: 'Enter the link',
+                                errorText: _errorText,
+                              ),
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
+                            ),
+                            cupertino: (_, __) => CupertinoTextFormFieldData(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(4.0),
+                              ),
+                              placeholder: 'Enter the link',
+                            ),
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                          )
+                        : Text(_url!),
                   ),
                   QRCodeScannerButton(onDetect: (values, bytes) {
                     _idController.text = values.first;
@@ -143,12 +192,13 @@ class _InviteState extends State<Invite> {
                 },
               ),
               const SizedBox(height: 40),
-              if (_id.isNotEmpty && _access.isEmpty)
+              if (_id.isNotEmpty && _access.isEmpty && _safe != null)
                 Container(
                   constraints: const BoxConstraints(minWidth: 200),
                   child: PlatformElevatedButton(
                     onPressed: _add,
-                    child: Text("Add ${_nick.isEmpty ? _id : _nick}"),
+                    child: Text(
+                        "Add ${_nick.isEmpty ? _id : _nick} to ${_safe?.prettyName}"),
                   ),
                 ),
               if (_access.isNotEmpty)

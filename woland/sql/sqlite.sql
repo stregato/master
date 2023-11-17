@@ -150,7 +150,7 @@ WHERE safe = :safe
   AND (depth >= :fromDepth) 
   AND (depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
-  ORDER BY name LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
+  ORDER BY modTime LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_FILES_NAME_DESC
 SELECT header FROM Header
@@ -194,7 +194,7 @@ WHERE safe = :safe
   AND (depth >= :fromDepth) 
   AND (:toDepth = 0 OR depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
-  ORDER BY name DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
+  ORDER BY modTime DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_FOLDERS
 SELECT distinct dir FROM Header

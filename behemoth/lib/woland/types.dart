@@ -42,14 +42,14 @@ class Identity {
   Identity.fromJson(Map<String, dynamic> json)
       : id = json['i'],
         nick = json['n'],
-        email = json['m'] ?? "",
+        email = json['e'] ?? "",
         private = json['p'] ?? "",
         avatar = base64Decode(json["a"] ?? "");
 
   Map<String, dynamic> toJson() => {
         'i': id,
         'n': nick,
-        'm': email.isNotEmpty ? email : null,
+        'e': email.isNotEmpty ? email : null,
         'p': private.isNotEmpty ? private : null,
         'a': avatar.isNotEmpty ? base64Encode(avatar) : null,
       };
