@@ -63,35 +63,40 @@ class _CovenWidgetState extends State<CovenWidget> {
     return widgets;
   }
 
-  _checkInvites() async {
+  _checkInvites() {
     if (_lounge == null) {
       return;
     }
-    var headers = await _lounge!.listFiles(
-        "chat",
-        ListOptions(
-          privateId: _coven.identity.id,
-          contentType: "application/x-behemoth-invite",
-        ));
-
-    var invites = <Header>[];
-    var diff = false;
-    for (var h in headers) {
-      var name = h.attributes.extra['name'] as String;
-      var access = h.attributes.extra['access'] as String;
-      if (!_coven.rooms.containsKey(name)) {
-        invites.add(h);
-        diff |= _invites
-            .where((h) => h.attributes.extra['access'] == access)
-            .isNotEmpty;
+    Future.delayed(const Duration(seconds: 1), () async {
+      if (!mounted) {
+        return;
       }
-    }
+      var headers = await _lounge!.listFiles(
+          "chat",
+          ListOptions(
+            privateId: _coven.identity.id,
+            contentType: "application/x-behemoth-invite",
+          ));
 
-    if (diff || invites.length != _invites.length) {
-      setState(() {
-        _invites = invites;
-      });
-    }
+      var invites = <Header>[];
+      var diff = false;
+      for (var h in headers) {
+        var name = h.attributes.extra['name'] as String;
+        var access = h.attributes.extra['access'] as String;
+        if (!_coven.rooms.containsKey(name)) {
+          invites.add(h);
+          diff |= _invites
+              .where((h) => h.attributes.extra['access'] == access)
+              .isNotEmpty;
+        }
+      }
+
+      if (diff || invites.length != _invites.length) {
+        setState(() {
+          _invites = invites;
+        });
+      }
+    });
   }
 
   _waitingRoom() {
@@ -99,16 +104,26 @@ class _CovenWidgetState extends State<CovenWidget> {
         DateTime.now().difference(lastWaitingUsersUpdate).inMinutes < 5) {
       return;
     }
-    var profile = Profile.current();
+    Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) {
+        return;
+      }
+      var profile = Profile.current();
 
-    var users = _lounge!.getUsersSync();
-    _myPermission = users[profile.identity.id] ?? 0;
-    _waitingUsers = users.entries
-        .where((e) => e.value == permissionWait)
-        .map((e) => e.key)
-        .toList();
-    _waitingUsers = _waitingUsers;
-    lastWaitingUsersUpdate = DateTime.now();
+      var users = _lounge!.getUsersSync();
+      _myPermission = users[profile.identity.id] ?? 0;
+      var waitingUsers = users.entries
+          .where((e) => e.value == permissionWait)
+          .map((e) => e.key)
+          .toList();
+
+      if (waitingUsers != _waitingUsers) {
+        setState(() {
+          _waitingUsers = waitingUsers;
+        });
+      }
+      lastWaitingUsersUpdate = DateTime.now();
+    });
   }
 
   @override
