@@ -30,7 +30,6 @@ class _RoomState extends State<Room> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
   }
 
   @override
@@ -42,6 +41,8 @@ class _RoomState extends State<Room> {
 
   @override
   Widget build(BuildContext context) {
+    NewsIcon.onChange = (_) => setState(() {});
+
     var args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     var future = args['future'] as Future<Safe>;

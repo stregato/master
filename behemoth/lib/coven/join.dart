@@ -23,77 +23,88 @@ class _JoinState extends State<Join> {
 
   _JoinState() {
     _linkController.addListener(() async {
-      var link = _linkController.text.trim();
-      _access = "";
-      if (link.isEmpty) {
-        return;
-      }
-      var f = accessPrefixes
-          .map((p) => link.startsWith(p) ? link.substring(p.length) : "")
-          .where((e) => e.isNotEmpty);
-      if (f.isEmpty) {
-        setState(() {
-          _errorText = "invalid access link";
-        });
-        return;
-      }
-
-      _access = f.first;
-
-      var name = "";
-      try {
-        var d = decodeAccess(Profile.current().identity, _access);
-        setState(() {
-          _errorText = null;
-          _name = Safe.pretty(d.safeName);
-        });
-      } catch (e) {
-        setState(() {
-          _errorText =
-              name.isEmpty ? "invalid link" : "cannot access $name: $e";
-          _name = name;
-        });
-      }
+      parseLink(_linkController.text.trim());
     });
+  }
+
+  void parseLink(String link) {
+    _access = "";
+    if (link.isEmpty) {
+      return;
+    }
+    var f = accessPrefixes
+        .map((p) => link.startsWith(p) ? link.substring(p.length) : "")
+        .where((e) => e.isNotEmpty);
+    if (f.isEmpty) {
+      setState(() {
+        _errorText = "invalid access link";
+      });
+      return;
+    }
+
+    _access = f.first;
+
+    var name = "";
+    try {
+      var d = decodeAccess(Profile.current().identity, _access);
+      setState(() {
+        _errorText = null;
+        _name = Safe.pretty(d.safeName);
+      });
+    } catch (e) {
+      setState(() {
+        _errorText = name.isEmpty ? "invalid link" : "cannot access $name: $e";
+        _name = name;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     var profile = Profile.current();
+    var link = ModalRoute.of(context)!.settings.arguments as String?;
+    if (link != null) {
+      parseLink(link);
+    }
 
     var currentUserId = profile.identity.id;
-    var desktopLink = 'bm://i/$currentUserId/${profile.identity.nick}';
+//    var desktopLink = 'bm://i/$currentUserId/${profile.identity.nick}';
     var mobileLink =
         'https://behemoth.rocks/i/$currentUserId/${profile.identity.nick}';
 
     var shareIdSection = <Widget>[
-      const Text(
-          "Below is your id in qrcode (mobile device) and Link (desktop). "
-          " Share with your peer to get an invite. "),
-      const SizedBox(height: 20),
-      CopyField("Mobile", mobileLink),
-      const SizedBox(height: 20),
-      CopyField("Desktop", desktopLink),
-      const SizedBox(height: 40),
-      const Text(
-          "Once you get a link, paste it below and click on 'Join' to join the community"),
-      const SizedBox(height: 20),
+      if (link == null)
+        Column(
+          children: [
+            const Text("Below is your id if link. "
+                " Share with your peer to get an invite. "),
+            const SizedBox(height: 20),
+            CopyField("Mobile", mobileLink),
+            const SizedBox(height: 40),
+            const Text(
+                "Once you get a link, paste it below and click on 'Join' to join the community"),
+            const SizedBox(height: 20),
+          ],
+        ),
       Row(children: [
         Expanded(
-          child: PlatformTextField(
-            material: (context, platform) => MaterialTextFieldData(
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                labelText: 'Access Link',
-                errorText: _errorText,
-              ),
-            ),
-            controller: _linkController,
-          ),
+          child: link == null
+              ? PlatformTextField(
+                  material: (context, platform) => MaterialTextFieldData(
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      labelText: 'Access Link',
+                      errorText: _errorText,
+                    ),
+                  ),
+                  controller: _linkController,
+                )
+              : Text(link),
         ),
-        QRCodeScannerButton(onDetect: (values, bytes) {
-          _linkController.text = values.first;
-        })
+        if (link == null)
+          QRCodeScannerButton(onDetect: (values, bytes) {
+            _linkController.text = values.first;
+          })
       ]),
       const SizedBox(height: 20),
       PlatformElevatedButton(

@@ -29,6 +29,7 @@ class _ContentActionsState extends State<ContentActions> {
   late List<Header> _headers;
   late List<Identity> _identities;
   int _deleteCount = 3;
+  int _downloading = 0;
   @override
   void initState() {
     super.initState();
@@ -204,7 +205,9 @@ class _ContentActionsState extends State<ContentActions> {
           child: ListTile(
             title: Text(
                 "$action v$version from ${getNick(h.creator)}\n${DateFormat('dd/MM HH:mm').format(h.modTime)}"),
-            leading: const Icon(Icons.file_download),
+            leading: _downloading == h.fileId
+                ? const CircularProgressIndicator()
+                : const Icon(Icons.file_download),
             onTap: () async {
               try {
                 if (localExists) {
@@ -216,27 +219,31 @@ class _ContentActionsState extends State<ContentActions> {
                   File(localPath).copySync(prevPath);
                 }
                 var options = GetOptions();
-                var name = path.joinAll(path.split(h.name).skip(1));
+                var name = path.basename(h.name);
                 options.destination = "$libraryFolder/$name";
                 options.fileId = h.fileId;
+                setState(() {
+                  _downloading = h.fileId;
+                });
                 await _safe.getFile(
                     "content", h.name, options.destination, options);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      backgroundColor: Colors.green,
-                      content: Text(
-                        "${h.name} downloaded to $libraryFolder",
-                      )));
-                  Navigator.pop(context);
-                }
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    backgroundColor: Colors.green,
+                    content: Text(
+                      "${h.name} downloaded to $libraryFolder",
+                    )));
+                setState(() {
+                  _downloading = 0;
+                });
+                Navigator.pop(context);
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      backgroundColor: Colors.red,
-                      content: Text(
-                        "Cannot download ${h.name}: $e",
-                      )));
-                }
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    backgroundColor: Colors.red,
+                    content: Text(
+                      "Cannot download ${h.name}: $e",
+                    )));
               }
             },
           ),
@@ -244,22 +251,7 @@ class _ContentActionsState extends State<ContentActions> {
       );
       version--;
     }
-    //     items.add(
-    //       Card(
-    //         child: ListTile(
-    //           title: const Text("Share"),
-    //           leading: const Icon(Icons.share),
-    //           onTap: () {
-    //             final box = context.findRenderObject() as RenderBox?;
-    //             Share.shareXFiles([XFile(d.localPath)],
-    //                 subject: "Can you add me to your pool?",
-    //                 sharePositionOrigin:
-    //                     box!.localToGlobal(Offset.zero) & box.size);
-    //           },
-    //         ),
-    //       ),
-    //     );
-    //   }
+
     return PlatformScaffold(
       appBar: PlatformAppBar(
         title: Text(_name, style: const TextStyle(fontSize: 18)),

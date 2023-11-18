@@ -116,6 +116,12 @@ func wlnd_newIdentity(nick *C.char) C.Result {
 	return cResult(i, err)
 }
 
+//export wlnd_newIdentityFromId
+func wlnd_newIdentityFromId(nick, privateId *C.char) C.Result {
+	i, err := security.NewIdentityFromId(C.GoString(nick), C.GoString(privateId))
+	return cResult(i, err)
+}
+
 //export wlnd_setIdentity
 func wlnd_setIdentity(identity *C.char) C.Result {
 	var i security.Identity

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:behemoth/common/file_access.dart';
 import 'package:behemoth/common/io.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/woland/types.dart';
@@ -25,14 +26,9 @@ class _ContentUploadState extends State<ContentUpload> {
   bool _copyLocally = false;
   bool _uploading = false;
 
-  Future<String> _uploadFile(
+  Future<Header> _uploadFile(
       String name, FileSelection selection, PutOptions options) async {
-    try {
-      await _safe.putFile("content", name, selection.path, options);
-      return "";
-    } catch (e) {
-      return e.toString();
-    }
+    return await _safe.putFile("content", name, selection.path, options);
   }
 
   @override
@@ -48,7 +44,7 @@ class _ContentUploadState extends State<ContentUpload> {
     var action = _uploading
         ? const CircularProgressIndicator()
         : PlatformElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               try {
                 setState(() {
                   _uploading = true;
@@ -60,19 +56,19 @@ class _ContentUploadState extends State<ContentUpload> {
                   File(_selection.path).copySync(localPath);
                   options.source = localPath;
                 }
-                _uploadFile("$_folder/$_targetName", _selection, options)
-                    .then((value) {
-                  setState(() {
-                    _uploading = false;
-                  });
-                  Navigator.pop(context);
+                await _uploadFile(
+                    join(_folder, _targetName), _selection, options);
+                setState(() {
+                  _uploading = false;
                 });
+                if (!mounted) return;
+
+                showPlatformSnackbar(context, "Uploaded $_targetName",
+                    backgroundColor: Colors.green);
+                Navigator.pop(context);
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    backgroundColor: Colors.red,
-                    content: Text(
-                      "Cannot upload $_targetName: $e",
-                    )));
+                showPlatformSnackbar(context, "Cannot upload $_targetName: $e",
+                    backgroundColor: Colors.green);
               }
             },
             child: const Text('Upload'),

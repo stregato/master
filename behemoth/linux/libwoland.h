@@ -86,6 +86,7 @@ extern Result wlnd_factoryReset();
 extern Result wlnd_getConfig(char* node, char* key);
 extern Result wlnd_setConfig(char* node, char* key, char* value);
 extern Result wlnd_newIdentity(char* nick);
+extern Result wlnd_newIdentityFromId(char* nick, char* privateId);
 extern Result wlnd_setIdentity(char* identity);
 extern Result wlnd_getIdentity(char* id);
 extern Result wlnd_encodeAccess(char* userId, char* safeName, char* creatorId, char* urls, char* aesKey);

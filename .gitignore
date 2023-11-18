@@ -63,6 +63,7 @@ poland/windows/
 woland/dist/
 
 go.work.sum
+**/key.properties
 **/libwoland.*
 **/woland.a
 *.snap

@@ -128,6 +128,7 @@ class _CovenWidgetState extends State<CovenWidget> {
   @override
   Widget build(BuildContext context) {
     _coven = ModalRoute.of(context)!.settings.arguments as Coven;
+    NewsIcon.onChange = (_) => setState(() {});
 
     var settingsIcon = PlatformIconButton(
         onPressed: () async {
@@ -280,7 +281,8 @@ class _CovenWidgetState extends State<CovenWidget> {
                     arguments: _coven);
                 break;
               case 2:
-                Navigator.pushNamed(context, "/invite", arguments: _lounge);
+                Navigator.pushNamed(context, "/invite",
+                    arguments: {"safe": _lounge});
                 break;
             }
           },

@@ -147,32 +147,35 @@ DecodeAccess(access string) (urls []string, path string, creator string, err err
 
 Create   (access string, options CreateOptions) (safe, error)
 Open     (access string) (safe, error)
-List     (safe safe, prefix string, options ListOptions) ([]File, error)
-Prefixes (safe safe, path string, option PrefixesOptions) ([]string, error)
-Put      (safe safe, path string, r io.reader, options PutOptions) error
-Get      (safe safe, path string, w io.writer, options GetOptions) ([]byte, error)
-Remove   (safe safe, path string) error
-SetUsers (safe safe, users [string]Level) error
-GetUsers (safe safe) (users [string]Level, err error)
+ListFiles     (safe, bucket string, options ListOptions) ([]File, error)
+ListDirs (safe Safe, bucket string, options ListDirOptions) ([]string, error)
+Put      (safe Safe, bucket, name string, r io.reader, options PutOptions) error
+Get      (safe Safe, bucket, name string, w io.writer, options GetOptions) ([]byte, error)
+Remove   (safe Safe, bucket, name string) error
+SetUsers (safe Safe, users [string]Level) error
+GetUsers (safe Safe) (users [string]Level, err error)
 
 ```
 
 ## Sample application
 A demonstration application highlights effective patterns to use Woland.
-The application is called Behemoth and similar to Microsoft Teams, it includes chat rooms and file sharing. The application is written in flutter and runs on Android, iOS, Windows, Mac and Linux. Both the binary and the source code are available at http://github.com/stregato/master/behemoth For Linux a snap package is available at http://snapcraft.io/bbehemoth
+The application is called Behemoth and similar to Microsoft Teams, it includes chat rooms and file sharing. The application is written in flutter and runs on Android, iOS, Windows, Mac and Linux. Both the binary and the source code are available at http://github.com/stregato/master/behemoth For Linux a snap package is available at http://snapcraft.io/behemoth
 
-The application is built on the concept of community. Each community has a main space called _welcome_ and users can create new spaces as needed. Each space has a chat room and a file sharing area. The chat room is a simple chat with text messages and images. The file sharing area is a hierarchical structure of folders and files.
+The application is built on the concept of covens. Each coven has a main room called _lounge_ and users can create new rooms as needed. Each room has a chat  and a file sharing area. The chat allows text messages and images. The file sharing area is a hierarchical structure of folders and files.
 
-In the design of the application, the first step is to define how communities and spaces are represented. Behemoth uses a safe for each space. Initially only a space _welcome_ is available. 
-As an example let's assume a community for people living in New York whose storage is available at https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/behemoth The first space would be _welcome_ and the related safe would be named new_york_city/welcome.
+In the design of the application, the first step is to define how covens and rooms are represented. Behemoth uses a safe for each room. Initially only a room _lounge_ is available. 
+As an example let's assume a coven for people living in New York whose storage is available at https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/behemoth The first space would be _lounge_ and the related safe would be named new_york_city/lounge.
 The access token would be built from:
 - URL: https://d93838592ed8198272ca9113568.r2.cloudflarestorage.com/behemoth
-- name: new_york_city/welcome
+- name: new_york_city/lounge
 - creator: the public key of the person that creates the community
 
-A single space is not enough and users can create new spaces as needed. Each new space is indeed a new safe, created by the user who creates the space. And the user that creates the space decides which other users can access.
+A single room is not enough and users can create new rooms as needed. Each new room is indeed a new safe, created by the user who creates the room. And the user that creates the room decides which other users can access.
 
 Each safe has a simple structure with two root folders:
 - chat: contains the messages, one file for each message
-- files: contains the files shared in the chat room and it can have subfolders
+- content: contains the files shared in the chat room and it can have subfolders
 
+
+## Conclusion
+This example application demonstrates the efficacy of leveraging unique cloud storage infrastructure to construct peer-to-peer applications. This approach maintains data ownership and control, ensuring a robust and user-centric experience.

@@ -23,29 +23,29 @@ var ErrInvalidHeaders = fmt.Errorf("headers are invalid")
 var ErrNoEncryptionKey = fmt.Errorf("no encryption key")
 
 type Attributes struct {
-	Hash        []byte         `json:"ha,omitempty"`
-	ContentType string         `json:"co,omitempty"`
-	Zip         bool           `json:"zi,omitempty"`
-	Thumbnail   []byte         `json:"th,omitempty"`
-	Tags        []string       `json:"ta,omitempty"`
-	Extra       map[string]any `json:"ex,omitempty"`
+	Hash        []byte         `json:"ha,omitempty"` // Hash of the file
+	ContentType string         `json:"co,omitempty"` // Content type of the file
+	Zip         bool           `json:"zi,omitempty"` // True if the file is zipped
+	Thumbnail   []byte         `json:"th,omitempty"` // Thumbnail of the file
+	Tags        []string       `json:"ta,omitempty"` // Tags of the file
+	Extra       map[string]any `json:"ex,omitempty"` // Extra attributes of the file
 }
 
 type Header struct {
-	Name                string               `json:"na"`
-	Creator             string               `json:"cr"`
-	Size                int64                `json:"si"`
-	ModTime             time.Time            `json:"mo"`
-	FileId              uint64               `json:"fi"`
-	IV                  []byte               `json:"iv"`
-	Attributes          Attributes           `json:"at,omitempty"`
-	EncryptedAttributes []byte               `json:"en,omitempty"`
-	BodyKey             []byte               `json:"bo,omitempty"`
-	PrivateId           string               `json:"pr,omitempty"`
-	Deleted             bool                 `json:"de,omitempty"`
-	Downloads           map[string]time.Time `json:"do,omitempty"`
-	Cached              string               `json:"ca,omitempty"`
-	CachedExpires       time.Time            `json:"cac,omitempty"`
+	Name                string               `json:"na"`            // Full path of the file
+	Creator             string               `json:"cr"`            // Creator of the file
+	Size                int64                `json:"si"`            //	Size of the file
+	ModTime             time.Time            `json:"mo"`            // Last modification time of the file
+	FileId              uint64               `json:"fi"`            // ID used in the storage to identify the file
+	IV                  []byte               `json:"iv"`            // IV used to encrypt the attributes
+	Attributes          Attributes           `json:"at,omitempty"`  // Attributes of the file
+	EncryptedAttributes []byte               `json:"en,omitempty"`  // Encrypted attributes of the file
+	BodyKey             []byte               `json:"bo,omitempty"`  // Key used to encrypt the body
+	PrivateId           string               `json:"pr,omitempty"`  // ID of the user in case of private encryption
+	Deleted             bool                 `json:"de,omitempty"`  // True if the file is deleted
+	Downloads           map[string]time.Time `json:"do,omitempty"`  // Map of download locations and times
+	Cached              string               `json:"ca,omitempty"`  // Location where the file is cached
+	CachedExpires       time.Time            `json:"cac,omitempty"` // Time when the cache expires
 }
 
 func marshalHeaders(files []Header, keyId uint64, keyValue []byte) ([]byte, error) {

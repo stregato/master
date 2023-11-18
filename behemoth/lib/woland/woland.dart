@@ -157,6 +157,12 @@ Identity newIdentity(String nick) {
   return Identity.fromJson(m);
 }
 
+Identity newIdentityFromId(String nick, String privateId) {
+  var fun = lib.lookupFunction<Args2SS, Args2SS>("wlnd_newIdentityFromId");
+  var m = fun(nick.toNativeUtf8(), privateId.toNativeUtf8()).unwrapMap();
+  return Identity.fromJson(m);
+}
+
 void setIdentity(Identity identity) {
   var fun = lib.lookupFunction<Args1S, Args1S>("wlnd_setIdentity");
   var j = jsonEncode(identity);
