@@ -17,32 +17,40 @@ class NewsIcon extends StatefulWidget {
   static Map<Safe, int> notifications = {};
 
   static Timer? _timer;
+  static DateTime _lastUpdate = DateTime(0);
   static Function(Map<Safe, int>)? _onChange;
 
   static set onChange(Function(Map<Safe, int>)? f) {
     if (f == _onChange) return;
 
     _onChange = f;
-    _timer ??= Timer(const Duration(seconds: 30), () async {
-      notifications = {};
-      for (var safe in Coven.safes.values) {
-        try {
-          var files = await safe.listFiles(
-              "chat", ListOptions(knownSince: safe.accessed));
-          if (files.isNotEmpty) {
-            notifications[safe] = files.length;
-          }
-          files.where((e) => e.name.endsWith(".i")).forEach((element) {});
-        } catch (e) {
-          continue;
-        }
-      }
+    _timer?.cancel();
+    _timer = Timer(const Duration(seconds: 30), _updateNotifications);
+    if (DateTime.now().difference(_lastUpdate).inSeconds > 30) {
+      _updateNotifications();
+    }
+  }
+
+  static _updateNotifications() async {
+    notifications = {};
+    for (var safe in Coven.safes.values) {
       try {
-        _onChange?.call(notifications);
+        var files = await safe.listFiles(
+            "chat", ListOptions(knownSince: safe.accessed));
+        if (files.isNotEmpty) {
+          notifications[safe] = files.length;
+        }
+        files.where((e) => e.name.endsWith(".i")).forEach((element) {});
       } catch (e) {
-        //ignore
+        continue;
       }
-    });
+    }
+    try {
+      _onChange?.call(notifications);
+    } catch (e) {
+      //ignore
+    }
+    _lastUpdate = DateTime.now();
   }
 }
 
