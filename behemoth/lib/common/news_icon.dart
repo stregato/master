@@ -13,29 +13,52 @@ class NewsIcon extends StatefulWidget {
 
   @override
   State<NewsIcon> createState() => _NewsIconState();
+
+  static Map<Safe, int> notifications = {};
+
+  static Timer? _timer;
+  static Function(Map<Safe, int>)? _onChange;
+
+  static set onChange(Function(Map<Safe, int>)? f) {
+    if (f == _onChange) return;
+
+    _onChange = f;
+    _timer ??= Timer(const Duration(seconds: 30), () async {
+      notifications = {};
+      for (var safe in Coven.safes.values) {
+        try {
+          var files = await safe.listFiles(
+              "chat", ListOptions(knownSince: safe.accessed));
+          if (files.isNotEmpty) {
+            notifications[safe] = files.length;
+          }
+          files.where((e) => e.name.endsWith(".i")).forEach((element) {});
+        } catch (e) {
+          continue;
+        }
+      }
+      try {
+        _onChange?.call(notifications);
+      } catch (e) {
+        //ignore
+      }
+    });
+  }
 }
 
 class _NewsIconState extends State<NewsIcon> {
-  Timer? _timer;
   static DateTime _nextRefresh = DateTime(0);
   static Map<Safe, int> _news = {};
 
   @override
   void initState() {
     super.initState();
-//    _timer = Timer.periodic(const Duration(seconds: 10), _refresh);
     if (_nextRefresh.year == 0) {
       var sib = getConfig("news", "next_refresh");
       if (!sib.missing) {
         _nextRefresh = DateTime.fromMillisecondsSinceEpoch(sib.i);
       }
     }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   _refresh() async {
@@ -142,13 +165,16 @@ class _NewsIconState extends State<NewsIcon> {
   Widget build(BuildContext context) {
     _refresh();
     return PlatformIconButton(
-      icon: _news.isEmpty
-          ? const Icon(Icons
-              .notifications_none) // Display the alarm_off icon when _news is empty
+      icon: NewsIcon.notifications.isEmpty
+          ? const Icon(
+              Icons.home) // Display the alarm_off icon when _news is empty
           : const Icon(Icons
               .notifications_active), // Display the alarm icon when _news is not empty
       onPressed: () {
-        showNotifications(_news);
+        Navigator.pushNamed(
+          context,
+          "/",
+        );
       },
     );
   }

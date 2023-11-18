@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:uni_links/uni_links.dart';
@@ -18,16 +19,13 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   static StreamSubscription<Uri?>? linkSub;
   Uri? _unilink;
-  late Timer _timer;
+  bool _connecting = false;
 
   // ignore: unused_field
-  bool _refresh = false;
 
   @override
   void initState() {
     super.initState();
-    _timer =
-        Timer.periodic(const Duration(seconds: 10), (_) => setState(() {}));
 
     if (!isDesktop && linkSub == null) {
       try {
@@ -43,12 +41,6 @@ class _HomeState extends State<Home> {
     }
   }
 
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
   void _processUnilink(BuildContext context) {
     if (_unilink == null) {
       return;
@@ -58,7 +50,6 @@ class _HomeState extends State<Home> {
       case "i":
         if (segments.length == 3) {
           var url = _unilink.toString();
-          _timer.cancel();
           Future.delayed(
               const Duration(milliseconds: 100),
               () => Navigator.pushNamed(context, "/invite", arguments: {
@@ -69,7 +60,6 @@ class _HomeState extends State<Home> {
       case "a":
         if (segments.length == 2) {
           var url = _unilink.toString();
-          _timer.cancel();
           Future.delayed(
               const Duration(milliseconds: 100),
               () => Navigator.pushNamed(
@@ -91,14 +81,69 @@ class _HomeState extends State<Home> {
     });
   }
 
+  List<Card> getNotificationsWidgets() {
+    var entries = NewsIcon.notifications.entries.toList();
+    entries.sort((a, b) => a.key.name.compareTo(b.key.name));
+    return entries.map(
+      (e) {
+        var safe = e.key;
+        Safe lounge;
+        Future<Safe> future() async {
+          return safe;
+        }
+
+        if (safe.name.endsWith("/lounge")) {
+          lounge = safe;
+        } else {
+          var parts = covenAndRoom(safe.name);
+          lounge = Coven.safes["${parts[0]}/lounge"]!;
+        }
+
+        var count = e.value;
+        return Card(
+          child: PlatformListTile(
+            title: PlatformText("${safe.prettyName} ($count)"),
+            trailing: const Icon(Icons.notifications),
+            onTap: () async {
+              NewsIcon.notifications.remove(safe);
+              Navigator.of(context).popUntil((route) => route.isFirst);
+              await Navigator.pushNamed(context, "/coven/room", arguments: {
+                "name": safe.name,
+                "future": future(),
+                "lounge": lounge,
+              });
+              setState(() {});
+            },
+          ),
+        );
+      },
+    ).toList();
+  }
+
+  connectAll() async {
+    setState(() {
+      _connecting = true;
+    });
+
+    List<Coven> covens = Profile.current().covens.values.toList();
+    for (var coven in covens) {
+      try {
+        await coven.getLounge();
+      } catch (e) {
+        //ignore
+      }
+    }
+    setState(() {
+      _connecting = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     _processUnilink(context);
-    _refresh = false;
-    if (!_timer.isActive) {
-      _timer =
-          Timer.periodic(const Duration(seconds: 10), (_) => setState(() {}));
-    }
+    NewsIcon.onChange = (_) {
+      setState(() {});
+    };
 
     if (!Profile.hasProfile()) {
       return PlatformScaffold(
@@ -107,19 +152,27 @@ class _HomeState extends State<Home> {
     }
 
     var profile = Profile.current();
-    var widgets = profile.covens.values.map(
-      (community) {
+    var widgets = getNotificationsWidgets();
+    widgets.addAll(profile.covens.values.map(
+      (coven) {
         return Card(
           child: PlatformListTile(
-            title: PlatformText(community.name),
-            onTap: () {
-              _timer.cancel();
-              Navigator.pushNamed(context, "/coven", arguments: community);
+            title: PlatformText(coven.name),
+            trailing: Coven.safes.keys.contains("${coven.name}/lounge")
+                ? const Icon(Icons.link)
+                : _connecting
+                    ? const CircularProgressIndicator()
+                    : const Icon(Icons.lock),
+            onTap: () async {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+              await Navigator.pushNamed(context, "/coven", arguments: coven);
+              setState(() {});
             },
+//
           ),
         );
       },
-    ).toList();
+    ).toList());
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
@@ -133,23 +186,37 @@ class _HomeState extends State<Home> {
           ),
         ]),
         trailingActions: [
-          const NewsIcon(),
-          const SizedBox(width: 10),
           PlatformIconButton(
               onPressed: () {
-                _timer.cancel();
+                Navigator.of(context).popUntil((route) => route.isFirst);
                 Navigator.pushNamed(context, "/settings")
-                    .then((value) => setState(() {
-                          _refresh = true;
-                        }));
+                    .then((value) => setState(() {}));
               },
               icon: const Icon(Icons.settings)),
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(8),
-          children: widgets,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              ListView(
+                shrinkWrap: true,
+                children: widgets,
+              ),
+              SizedBox(
+                width: double
+                    .infinity, // This will make the container fill the width of the Column
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: PlatformElevatedButton(
+                    onPressed: connectAll,
+                    child: const Text("Connect all"),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavBar: PlatformNavBar(
@@ -157,18 +224,14 @@ class _HomeState extends State<Home> {
           setState(() {});
           switch (idx) {
             case 1:
-              _timer.cancel();
+              Navigator.of(context).popUntil((route) => route.isFirst);
               Navigator.pushNamed(context, "/join")
-                  .then((value) => setState(() {
-                        _refresh = true;
-                      }));
+                  .then((value) => setState(() {}));
               break;
             case 2:
-              _timer.cancel();
+              Navigator.of(context).popUntil((route) => route.isFirst);
               Navigator.pushNamed(context, "/create")
-                  .then((value) => setState(() {
-                        _refresh = true;
-                      }));
+                  .then((value) => setState(() {}));
               break;
           }
         },

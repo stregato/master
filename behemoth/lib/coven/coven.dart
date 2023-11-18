@@ -128,6 +128,7 @@ class _CovenWidgetState extends State<CovenWidget> {
   @override
   Widget build(BuildContext context) {
     _coven = ModalRoute.of(context)!.settings.arguments as Coven;
+    NewsIcon.onChange = (_) => setState(() {});
 
     var settingsIcon = PlatformIconButton(
         onPressed: () async {

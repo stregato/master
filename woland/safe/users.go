@@ -92,27 +92,25 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 func GetUsers(s *Safe) (Users, error) {
 	store := s.stores[0]
 
-	if s.lastIdentitiesUpdate.Before(core.Now().Add(-5 * time.Minute)) {
-		users, newestChangeFile, err := readChangeLogs(store, s.Name, s.CurrentUser, s.CreatorId, "")
-		if core.IsErr(err, nil, "cannot read change logs in %s: %v", s.Name) {
-			return nil, err
-		}
-		identities, err := readIdentities(store)
-		if core.IsErr(err, nil, "cannot read identities in %s: %v", s.Name) {
-			return nil, err
-		}
-
-		for _, identity := range identities {
-			if _, ok := users[identity.Id]; !ok {
-				users[identity.Id] = PermissionWait
-				core.Info("identity '%s' is waiting for access", identity.Id)
-			}
-		}
-
-		s.users = users
-		s.newestChangeFile = newestChangeFile
-		s.lastIdentitiesUpdate = core.Now()
+	users, newestChangeFile, err := readChangeLogs(store, s.Name, s.CurrentUser, s.CreatorId, "")
+	if core.IsErr(err, nil, "cannot read change logs in %s: %v", s.Name) {
+		return nil, err
 	}
+	identities, err := readIdentities(store)
+	if core.IsErr(err, nil, "cannot read identities in %s: %v", s.Name) {
+		return nil, err
+	}
+
+	for _, identity := range identities {
+		if _, ok := users[identity.Id]; !ok {
+			users[identity.Id] = PermissionWait
+			core.Info("identity '%s' is waiting for access", identity.Id)
+		}
+	}
+
+	s.users = users
+	s.newestChangeFile = newestChangeFile
+	s.lastIdentitiesUpdate = core.Now()
 
 	return s.users, nil
 }
