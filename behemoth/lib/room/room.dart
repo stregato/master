@@ -21,23 +21,10 @@ class Room extends StatefulWidget {
 
 class _RoomState extends State<Room> {
   int _currentItem = 0;
-  Timer? _timer;
   String _title = "";
   List<Widget> _items = [];
   late Safe _lounge;
   Safe? _safe;
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _timer = null;
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

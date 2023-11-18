@@ -24,23 +24,9 @@ class _CovenWidgetState extends State<CovenWidget> {
   late Coven _coven;
   List<String> _waitingUsers = [];
   Permission _myPermission = 0;
-  Timer? _timer;
   DateTime lastWaitingUsersUpdate = DateTime(0);
   Safe? _lounge;
   List<Header> _invites = [];
-
-  @override
-  void initState() {
-    super.initState();
-    // _timer =
-    //     Timer.periodic(const Duration(seconds: 10), (_) => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
 
   List<Widget> getInvites(BuildContext context) {
     var widgets = <Widget>[];
