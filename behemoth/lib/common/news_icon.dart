@@ -23,13 +23,14 @@ class NewsIcon extends StatefulWidget {
   static set onChange(Function(Map<Safe, int>)? f) {
     if (f == _onChange) return;
 
-    _onChange = f;
-    _timer?.cancel();
-
-    _timer = Timer(const Duration(seconds: 30), _updateNotifications);
-    if (DateTime.now().difference(_lastUpdate).inSeconds > 30) {
-      Future.delayed(const Duration(seconds: 1), _updateNotifications);
-    }
+    Future.delayed(const Duration(seconds: 1), () {
+      _onChange = f;
+      _timer?.cancel();
+      _timer = Timer(const Duration(seconds: 30), _updateNotifications);
+      if (DateTime.now().difference(_lastUpdate).inSeconds > 30) {
+        _updateNotifications();
+      }
+    });
   }
 
   static _updateNotifications() async {

@@ -53,43 +53,45 @@ class _ContentEditorState extends State<ContentEditor> {
       appBar: PlatformAppBar(
         title: Text(basename(filename)),
         trailingActions: [
-          PlatformElevatedButton(
+          PlatformIconButton(
             onPressed: () => saveMarkdownContent(context),
-            child: const Text('Save'),
+            icon: const Icon(Icons.save),
           ),
         ],
       ),
-      body: FutureBuilder<bool>(
-        future: loadMarkdownContent(),
-        builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
-          return _ready
-              ? IndexedStack(index: _currentPanelIdx, children: [
-                  Markdown(data: _textEditingController!.text),
-                  Expanded(
-                    child: PlatformTextField(
-                      controller: _textEditingController,
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
+      body: SafeArea(
+        child: FutureBuilder<bool>(
+          future: loadMarkdownContent(),
+          builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
+            return _ready
+                ? IndexedStack(index: _currentPanelIdx, children: [
+                    Markdown(data: _textEditingController!.text),
+                    Expanded(
+                      child: PlatformTextField(
+                        controller: _textEditingController,
+                        maxLines: null,
+                        keyboardType: TextInputType.multiline,
+                      ),
                     ),
-                  ),
-                  Column(
-                    children: [
-                      Expanded(
-                        child: PlatformTextField(
-                          controller: _textEditingController,
-                          maxLines: null,
-                          keyboardType: TextInputType.multiline,
-                          onChanged: (_) => setState(() {}),
+                    Column(
+                      children: [
+                        Expanded(
+                          child: PlatformTextField(
+                            controller: _textEditingController,
+                            maxLines: null,
+                            keyboardType: TextInputType.multiline,
+                            onChanged: (_) => setState(() {}),
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: Markdown(data: _textEditingController!.text),
-                      ),
-                    ],
-                  ),
-                ])
-              : const CatProgressIndicator('Loading file...');
-        },
+                        Expanded(
+                          child: Markdown(data: _textEditingController!.text),
+                        ),
+                      ],
+                    ),
+                  ])
+                : const CatProgressIndicator('Loading file...');
+          },
+        ),
       ),
       bottomNavBar: PlatformNavBar(
         currentIndex: _currentPanelIdx,
