@@ -27,7 +27,7 @@ class _ContentActionsState extends State<ContentActions> {
   late String _name;
   late String _folder;
   late List<Header> _headers;
-  late List<Identity> _identities;
+
   int _deleteCount = 3;
   int _downloading = 0;
   @override
@@ -36,9 +36,8 @@ class _ContentActionsState extends State<ContentActions> {
   }
 
   String getNick(String id) {
-    var identity =
-        _identities.firstWhere((i) => i.id == id, orElse: () => Identity());
-    return identity.nick.isNotEmpty ? identity.nick : id.substring(0, 10);
+    var identity = getCachedIdentity(id);
+    return identity.nick.isNotEmpty ? identity.nick : "unknown";
   }
 
   @override
@@ -50,8 +49,6 @@ class _ContentActionsState extends State<ContentActions> {
     _folder = args["folder"] as String;
     _headers = args["headers"] as List<Header>;
     _headers.sort((a, b) => b.modTime.compareTo(a.modTime));
-    _identities =
-        _safe.getUsersSync().keys.map((e) => getCachedIdentity(e)).toList();
 
     var libraryFolder = path.join(documentsFolder, _safe.name);
     var localPath = path.join(documentsFolder, _safe.name, _folder, _name);

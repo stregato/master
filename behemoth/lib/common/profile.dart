@@ -12,15 +12,11 @@ void clearIdentities() {
 }
 
 Identity getCachedIdentity(String id) {
-  return identities.putIfAbsent(id, () {
-    try {
-      return getIdentity(id);
-    } catch (e) {
-      var i = Identity();
-      i.id = id;
-      return i;
-    }
-  });
+  try {
+    return identities.putIfAbsent(id, () => getIdentity(id));
+  } catch (e) {
+    return Identity(id: id, nick: "unknown");
+  }
 }
 
 List<String> covenAndRoom(String safeName) {

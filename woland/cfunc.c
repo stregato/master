@@ -11,3 +11,8 @@ int callSeek(Reader *r, int offset, int whence) {
 int callWrite(Writer *w, void* data, int size) {
 	return w->write(w->fd, data, size);
 }
+
+void callCallback(Callback f, Result result) {
+	f(result);
+}
+

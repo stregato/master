@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/storage"
@@ -46,13 +45,13 @@ type Safe struct {
 	QuotaGroup  string              `json:"quotaGroup"`  // QuotaGroup is the common prefix for the safes that share the quota
 	Size        int64               `json:"size"`        // Size of the safe in bytes
 
-	users                Users // Users and their permissions
-	keyId                uint64
-	keys                 Keys
-	identities           []security.Identity
-	stores               []storage.Store
-	newestChangeFile     string
-	lastIdentitiesUpdate time.Time
+	users Users // Users and their permissions
+	keyId uint64
+	keys  Keys
+	//identities []security.Identity
+	stores []storage.Store
+	//	newestChangeFile     string
+	//	lastIdentitiesUpdate time.Time
 }
 
 // Admins defines the users who are administrators of a box and for each those that have level2, i.e. can add or remove other administrators

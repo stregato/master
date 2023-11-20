@@ -37,7 +37,7 @@ class Identity {
 
   Uint8List avatar = Uint8List(0);
 
-  Identity();
+  Identity({this.id = "", this.nick = "", this.email = "", this.private = ""});
 
   Identity.fromJson(Map<String, dynamic> json)
       : id = json['i'],
@@ -235,6 +235,30 @@ class OpenOptions {
         'adaptiveSync': adaptiveSync,
         'syncPeriod': syncPeriod.inMicroseconds * 1000,
       };
+}
+
+class SyncOptions {
+  String bucket;
+  bool replicate;
+  bool users;
+
+  SyncOptions({this.bucket = '', this.replicate = false, this.users = false});
+  Map<String, dynamic> toJson() => {
+        'replicate': replicate,
+        'users': users,
+        'bucket': bucket,
+      };
+}
+
+class SyncResult {
+  int files;
+  int users;
+
+  SyncResult({this.files = 0, this.users = 0});
+
+  SyncResult.fromJson(Map<String, dynamic> json)
+      : files = json['files'] ?? 0,
+        users = json['users'] ?? 0;
 }
 
 class ListOptions {

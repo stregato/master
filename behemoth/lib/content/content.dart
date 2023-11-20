@@ -99,6 +99,7 @@ class _ContentState extends State<Content> {
   }
 
   _read() async {
+    await widget.safe.sync(SyncOptions(bucket: "content"));
     var headers = await _libraryList(_dir);
     var dirs = await _libraryDirs(_dir);
     var files = SplayTreeMap<String, List<Header>>();

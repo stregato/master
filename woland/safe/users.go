@@ -8,6 +8,8 @@ import (
 
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
+	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 const (
@@ -59,7 +61,6 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		keyId = snowflake.ID()
 		key = core.GenerateRandomBytes(KeySize)
 		keys[keyId] = key
-
 		err = writeKeyStore(s.stores[0], s.Name, s.CurrentUser, keyId, key, users)
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
@@ -90,31 +91,64 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 }
 
 func GetUsers(s *Safe) (Users, error) {
-	store := s.stores[0]
+	return getSafeUsers(s.Name)
+}
 
-	users, newestChangeFile, err := readChangeLogs(store, s.Name, s.CurrentUser, s.CreatorId, "")
-	if core.IsErr(err, nil, "cannot read change logs in %s: %v", s.Name) {
+func getSafeUsers(name string) (Users, error) {
+	rows, err := sql.Query("GET_USERS", sql.Args{"safe": name})
+	if core.IsErr(err, nil, "cannot query users: %v", err) {
 		return nil, err
 	}
-	identities, err := readIdentities(store)
-	if core.IsErr(err, nil, "cannot read identities in %s: %v", s.Name) {
-		return nil, err
+
+	users := make(Users)
+	for rows.Next() {
+		var userId string
+		var permission int
+		if core.IsErr(rows.Scan(&userId, &permission), nil, "cannot scan user: %v", err) {
+			continue
+		}
+		users[userId] = Permission(permission)
+	}
+	return users, nil
+}
+
+func syncUsers(store storage.Store, name string, currentUser security.Identity, creatorId string) (users Users, diff int, err error) {
+	users_, err := getSafeUsers(name)
+	if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
+		return Users{}, 0, err
+	}
+
+	users2, _, err := readChangeLogs(store, name, currentUser, creatorId, "")
+	if core.IsErr(err, nil, "cannot read change logs in %s: %v", name) {
+		return Users{}, 0, err
+	}
+	identities, err := syncIdentities(store, name, currentUser)
+	if core.IsErr(err, nil, "cannot read identities in %s: %v", name) {
+		return Users{}, 0, err
 	}
 
 	for _, identity := range identities {
-		if _, ok := users[identity.Id]; !ok {
-			users[identity.Id] = PermissionWait
+		if _, ok := users2[identity.Id]; !ok {
+			users2[identity.Id] = PermissionWait
 			core.Info("identity '%s' is waiting for access", identity.Id)
 		}
 	}
 
-	s.users = users
-	s.newestChangeFile = newestChangeFile
-	s.lastIdentitiesUpdate = core.Now()
+	var count int
+	for userId, permission := range users2 {
+		if p, ok := users_[userId]; !ok || p != permission {
+			sql.Exec("SET_USER", sql.Args{
+				"safe":       name,
+				"id":         userId,
+				"permission": permission,
+			})
+			count++
+			core.Info("update user '%s' with permission %d", userId, permission)
+		}
+	}
 
-	return s.users, nil
-}
+	//s.newestChangeFile = newestChangeFile
 
-func GetIdentities(s *Safe) ([]security.Identity, error) {
-	return s.identities, nil
+	core.Info("synchronized %d users in %s", count, name)
+	return users, count, nil
 }

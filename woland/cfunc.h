@@ -27,4 +27,7 @@ extern int callRead(Reader* r, void* data, int size);
 extern int callSeek(Reader *r, int offset, int whence);
 extern int callWrite(Writer *w, void* data, int size);
 
+typedef void(*Callback)(Result result);
+extern void callCallback(Callback f, Result result);
+
 #endif

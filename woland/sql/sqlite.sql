@@ -2,12 +2,8 @@
 CREATE TABLE IF NOT EXISTS identities (
     id VARCHAR(256),
     data BLOB,
-    trusted INTEGER,
     PRIMARY KEY(id)
 );
-
--- INIT
-CREATE INDEX IF NOT EXISTS idx_identities_trust ON identities(trusted);
 
 -- GET_IDENTITIES
 SELECT data FROM identities
@@ -45,22 +41,20 @@ INSERT INTO configs(node,k,s,i,b) VALUES(:node,:key,:s,:i,:b)
 DELETE FROM configs WHERE node=:node
 
 -- INIT
-CREATE TABLE IF NOT EXISTS Zone (
-    portal TEXT PRIMARY KEY,
-    name TEXT,
-    value BLOB
+CREATE TABLE IF NOT EXISTS Users (
+  safe TEXT NOT NULL,
+  id TEXT NOT NULL,
+  permission INTEGER NOT NULL,
+  PRIMARY KEY (safe, id)
 );
 
--- GET_ZONES
-SELECT name, value FROM Zone WHERE portal=:portal
+-- GET_USERS
+SELECT id, permission FROM Users WHERE safe=:safe
 
--- SET_ZONE
-INSERT INTO Zone(portal,name,value) VALUES(:portal,:name,:value)
-  ON CONFLICT(portal) DO UPDATE SET value=:value, name=:name
-  WHERE portal=:portal
-
--- DELETE_ZONE
-DELETE FROM Zone WHERE portal=:portal AND name=:name
+-- SET_USER
+INSERT INTO Users(safe,id,permission) VALUES(:safe,:id,:permission)
+  ON CONFLICT(safe,id) DO UPDATE SET permission=:permission
+  WHERE safe=:safe AND id=:id
 
 -- INIT
 CREATE TABLE IF NOT EXISTS Header (

@@ -43,26 +43,28 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	}
 
 	store := stores[0]
-	identities, err := syncIdentities(store, name, currentUser)
-	if core.IsErr(err, nil, "cannot sync identities in %s: %v", name) {
-		return nil, err
-	}
-
 	manifest, err := readManifestFile(store, creatorId)
 	if core.IsErr(err, nil, "cannot read manifest file in %s: %v", name) {
 		return nil, err
 	}
 
-	users, newestChangeFile, err := readChangeLogs(store, name, currentUser, creatorId, "")
-	if core.IsErr(err, nil, "cannot read change logs in %s: %v", name) {
-		return nil, err
-	}
+	users, _, err := syncUsers(store, name, currentUser, creatorId)
 
-	for _, identity := range identities {
-		if _, ok := users[identity.Id]; !ok {
-			users[identity.Id] = PermissionWait
-		}
-	}
+	// identities, err := syncIdentities(store, name, currentUser)
+	// if core.IsErr(err, nil, "cannot sync identities in %s: %v", name) {
+	// 	return nil, err
+	// }
+
+	// users, newestChangeFile, err := readChangeLogs(store, name, currentUser, creatorId, "")
+	// if core.IsErr(err, nil, "cannot read change logs in %s: %v", name) {
+	// 	return nil, err
+	// }
+
+	// for _, identity := range identities {
+	// 	if _, ok := users[identity.Id]; !ok {
+	// 		users[identity.Id] = PermissionWait
+	// 	}
+	// }
 
 	keyId, key, keys, _, err := readKeystores(store, name, currentUser, users)
 	if core.IsErr(err, nil, "cannot read keystores in %s: %v", name) {
@@ -91,12 +93,12 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		Size:        size,
 		users:       users,
 
-		keyId:                keyId,
-		keys:                 keys,
-		identities:           identities,
-		stores:               stores,
-		newestChangeFile:     newestChangeFile,
-		lastIdentitiesUpdate: core.Now(),
+		keyId: keyId,
+		keys:  keys,
+		//identities: identities,
+		stores: stores,
+		//	newestChangeFile:     newestChangeFile,
+		//	lastIdentitiesUpdate: core.Now(),
 	}
 	safesCounterLock.Unlock()
 

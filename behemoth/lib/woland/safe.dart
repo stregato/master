@@ -6,13 +6,19 @@ import 'dart:typed_data';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 
 List<T> dynamicToList<T>(dynamic value) {
   return ((value ?? []) as List<dynamic>).map((e) => e as T).toList();
 }
 
+typedef CallbackC = Void Function(CResult);
+typedef CallbackP = Pointer<NativeFunction<CallbackC>>;
+
 typedef Args1T<T> = CResult Function(T);
+typedef Args2TS<T> = CResult Function(T, Pointer<Utf8>);
 typedef Args3TSS<T> = CResult Function(T, Pointer<Utf8>, Pointer<Utf8>);
+typedef Args3TST<T1, T2> = CResult Function(T1, Pointer<Utf8>, T2);
 typedef Args4TSSS<T> = CResult Function(
     T, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 typedef Args5TSSSS<T> = CResult Function(
@@ -82,6 +88,26 @@ class Safe {
 
   void touch() {
     accessed = DateTime.now();
+  }
+
+  // Future<SyncResult> sync(SyncOptions options,
+  //     {Function(SyncResult)? async}) async {
+  //   void wf(CResult r) {
+  //     var json = r.unwrapMap();
+  //     async!(SyncResult.fromJson(json));
+  //   }
+
+  //   var callback = Pointer.fromFunction<CallbackC>(wf);
+  //   var fun = lib.lookupFunction<Args3TTS<Int32, CallbackP>,
+  //       Args3TTS<int, CallbackP>>("wlnd_sync");
+  //   var m = fun(hnd, callback, jsonEncode(options).toNativeUtf8()).unwrapMap();
+  //   return SyncResult.fromJson(m);
+  // }
+
+  Future<SyncResult> sync(SyncOptions options) async {
+    var fun = lib.lookupFunction<Args2TS<Int32>, Args2TS<int>>("wlnd_syncSafe");
+    var m = fun(hnd, jsonEncode(options).toNativeUtf8()).unwrapMap();
+    return SyncResult.fromJson(m);
   }
 
   Future<List<Header>> listFiles(String bucket, ListOptions options) async {

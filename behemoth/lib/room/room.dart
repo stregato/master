@@ -22,7 +22,9 @@ class Room extends StatefulWidget {
 class _RoomState extends State<Room> {
   int _currentItem = 0;
   String _title = "";
-  List<Widget> _items = [];
+  Chat? _chat;
+  Content? _content;
+  People? _people;
   late Safe _lounge;
   Safe? _safe;
 
@@ -77,28 +79,29 @@ class _RoomState extends State<Room> {
           future: future,
           builder: (context, snapshot) {
             if (snapshot.hasData) {
-              if (_items.isEmpty) {
-                _safe = snapshot.data!;
-                _items = [
-                  Chat(_safe!, ""),
-                  Content(_safe!),
-                  People(_safe!, _lounge),
-                ];
+              _safe = snapshot.data!;
+              switch (_currentItem) {
+                case 0:
+                  _chat ??= Chat(_safe!, "");
+                  return _chat!;
+                case 1:
+                  _content ??= Content(_safe!);
+                  return _content!;
+                case 2:
+                  _people ??= People(_safe!, _lounge);
+                  return _people!;
+                default:
+                  return const Text("Unknown screen");
               }
 
-              var stack = <Widget>[];
-              for (var i = 0; i < _items.length; i++) {
-                var e = _items[i];
-                stack.add(ExcludeFocus(
-                  excluding: i != _currentItem,
-                  child: e,
-                ));
-              }
-
-              return IndexedStack(
-                index: _currentItem,
-                children: stack,
-              );
+              // var stack = <Widget>[];
+              // for (var i = 0; i < _items.length; i++) {
+              //   var e = _items[i];
+              //   stack.add(ExcludeFocus(
+              //     excluding: i != _currentItem,
+              //     child: e,
+              //   ));
+              // }
             } else {
               return CatProgressIndicator("opening $_title");
             }

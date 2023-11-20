@@ -95,6 +95,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, file.Name == "file3", "Expected file name to be 'file1', got '%s'", file.Name)
 
+	Sync(s, SyncOptions{Bucket: "bucket"}, nil)
 	files, err := ListFiles(s, "bucket", ListOptions{OrderBy: "modTime", ReverseOrder: true})
 	core.TestErr(t, err, "cannot list files: %v")
 	core.Assert(t, len(files) == 3, "Expected 1 file, got %d", len(files))

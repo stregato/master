@@ -97,6 +97,11 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		return nil, err
 	}
 
+	_, err = sql.Exec("SET_USER", sql.Args{"safe": name, "id": currentUser.Id, "permission": PermissionSuperAdmin})
+	if core.IsErr(err, nil, "cannot set user: %v", err) {
+		return nil, err
+	}
+
 	core.Info("safe created: name %s, creator %s, description %s, quota %d", name, currentUser.Id,
 		options.Description, options.Quota)
 

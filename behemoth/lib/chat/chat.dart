@@ -54,10 +54,17 @@ class _ChatState extends State<Chat> {
   void initState() {
     super.initState();
     _safe = widget.safe;
-    _loadMoreMessages();
+    var currentUser = Profile.current().identity;
+    _currentUser = types.User(
+        id: currentUser.id,
+        firstName: currentUser.nick,
+        lastName: currentUser.email);
+
+    Future.delayed(const Duration(seconds: 1), _refresh);
     _focusNode.addListener(() {
       if (_focusNode.hasFocus) {
-        _timer ??= Timer.periodic(const Duration(seconds: 10), _refresh);
+        _timer ??=
+            Timer.periodic(const Duration(seconds: 10), (_) => _refresh());
       } else {
         _timer?.cancel();
         _timer = null;
@@ -65,33 +72,28 @@ class _ChatState extends State<Chat> {
     });
   }
 
-  void _refresh(Timer timer) async {
-    if (mounted && DateTime.now().isAfter(_nextRefresh)) {
-      NewsIcon.notifications;
-      await _loadMoreMessages();
-      _safe.touch();
-      var secs = DateTime.now().difference(_lastMessage).inSeconds / 4;
-      secs = min(secs, 30);
-      if (mounted) {
-        setState(() {
-          _nextRefresh = DateTime.now().add(Duration(seconds: secs.toInt()));
-        });
-      }
-    }
-  }
+  void _refresh() async {
+    if (!mounted) return;
 
-  void _setUsers() {
-    var currentUser = Profile.current().identity;
-    var users = _safe.getUsersSync();
-    _currentUser = types.User(
-        id: currentUser.id,
-        firstName: currentUser.nick,
-        lastName: currentUser.email);
-
-    for (var id in users.keys) {
-      Identity i = getCachedIdentity(id);
-      _users[id] = types.User(id: id, firstName: i.nick, lastName: i.email);
+    var options = SyncOptions(
+      bucket: "chat",
+    );
+    var res = await _safe.sync(options);
+    if (res.files > 0) {
+      _loadMoreMessages();
     }
+
+    // if (mounted && DateTime.now().isAfter(_nextRefresh)) {
+    //   await _loadMoreMessages();
+    //   _safe.touch();
+    //   var secs = DateTime.now().difference(_lastMessage).inSeconds / 4;
+    //   secs = min(secs, 30);
+    //   if (mounted) {
+    //     setState(() {
+    //       _nextRefresh = DateTime.now().add(Duration(seconds: secs.toInt()));
+    //     });
+    //   }
+    // }
   }
 
   types.Message _convertHtml(Header h, types.User user) {
@@ -171,7 +173,10 @@ class _ChatState extends State<Chat> {
 
   types.Message _convert(Header h) {
     try {
-      var user = _users[h.creator] ?? types.User(id: h.creator);
+      var user = _users.putIfAbsent(h.creator, () {
+        Identity i = getCachedIdentity(h.creator);
+        return types.User(id: h.creator, firstName: i.nick, lastName: i.email);
+      });
       var contentType = h.attributes.contentType;
       _loaded.add(h.name);
 
@@ -229,16 +234,18 @@ class _ChatState extends State<Chat> {
             context, "Getting messages", _listFiles(widget, _from, _to))
         : await _listFiles(widget, _from, _to);
 
+    if (!mounted) return;
     if (headers == null || headers.isEmpty) {
       return;
     }
 
     headers = headers.reversed.toList();
-
+    var anyNew = false;
     for (var header in headers) {
       if (!_loaded.contains(header.name)) {
         _messages.insert(0, _convert(header));
         _loaded.add(header.name);
+        anyNew = true;
       }
     }
 
@@ -248,7 +255,7 @@ class _ChatState extends State<Chat> {
     if (_from.isAfter(_lastMessage)) {
       _lastMessage = _from;
     }
-    if (mounted) {
+    if (anyNew) {
       setState(() {
         _messages = _messages;
       });
@@ -580,10 +587,7 @@ class _ChatState extends State<Chat> {
 
   @override
   Widget build(BuildContext context) {
-    if (_users.isEmpty) {
-      _setUsers();
-    }
-
+    _loadMoreMessages();
     var chatWidget = Focus(
       focusNode: _focusNode,
       child: DropTarget(

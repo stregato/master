@@ -1,3 +1,4 @@
+import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
@@ -18,13 +19,18 @@ class People extends StatefulWidget {
 
 class _PeopleState extends State<People> {
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     var safe = widget.safe;
 
     var users = safe.getUsersSync();
     var items =
         users.entries.where((e) => e.value & permissionRead > 0).map((e) {
-      var identity = getIdentity(e.key);
+      var identity = getCachedIdentity(e.key);
       var nick = identity.nick;
 
       return ListTile(

@@ -66,6 +66,7 @@ func cUnmarshal(i *C.char, v any) error {
 func wlnd_start(dbPath, appPath *C.char) C.Result {
 	err := Start(C.GoString(dbPath), C.GoString(appPath))
 	if core.IsErr(err, nil, "cannot start: %v") {
+
 		return cResult(nil, err)
 	}
 
@@ -250,6 +251,32 @@ func wlnd_closeSafe(hnd C.int) C.Result {
 	safe.Close(s)
 	delete(safes, int(hnd))
 	return cResult(nil, nil)
+}
+
+type SyncState struct {
+	Files int `json:"files"`
+	Users int `json:"users"`
+}
+
+//export wlnd_syncSafe
+func wlnd_syncSafe(hnd C.int, syncOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
+	if !ok {
+		return cResult(nil, ErrSafeNotFound)
+	}
+	var options safe.SyncOptions
+	err := cUnmarshal(syncOptions, &options)
+	if core.IsErr(err, nil, "cannot unmarshal syncOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	files, users, err := safe.Sync(s, options, nil)
+	if core.IsErr(err, nil, "cannot sync safe: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(SyncState{files, users}, nil)
 }
 
 //export wlnd_listFiles
@@ -541,22 +568,6 @@ func wlnd_getUsers(hnd C.int) C.Result {
 // 	}
 // 	return cResult(updates, nil)
 // }
-
-//export wlnd_getIdentities
-func wlnd_getIdentities(hnd C.int) C.Result {
-	safesSync.Lock()
-	s, ok := safes[int(hnd)]
-	safesSync.Unlock()
-	if !ok {
-		return cResult(nil, ErrSafeNotFound)
-	}
-
-	identities, err := safe.GetIdentities(s)
-	if err != nil {
-		return cResult(nil, err)
-	}
-	return cResult(identities, nil)
-}
 
 //export wlnd_getAllIdentities
 func wlnd_getAllIdentities() C.Result {
