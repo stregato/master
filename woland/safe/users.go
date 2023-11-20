@@ -38,9 +38,7 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		return err
 	}
 
-	if options.ReplaceUsers {
-		s.users = users
-	} else {
+	if !options.ReplaceUsers {
 		for userId, permission := range s.users {
 			if _, ok := users[userId]; !ok {
 				users[userId] = permission
@@ -85,6 +83,10 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 			return err
 		}
 	}
+	users, _, err = syncUsers(s.stores[0], s.Name, s.CurrentUser, s.CreatorId)
+	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
+		return err
+	}
 	s.users = users
 
 	return nil
@@ -118,7 +120,7 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 		return Users{}, 0, err
 	}
 
-	users2, _, err := readChangeLogs(store, name, currentUser, creatorId, "")
+	users, _, err = readChangeLogs(store, name, currentUser, creatorId, "")
 	if core.IsErr(err, nil, "cannot read change logs in %s: %v", name) {
 		return Users{}, 0, err
 	}
@@ -128,14 +130,14 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 	}
 
 	for _, identity := range identities {
-		if _, ok := users2[identity.Id]; !ok {
-			users2[identity.Id] = PermissionWait
+		if _, ok := users[identity.Id]; !ok {
+			users[identity.Id] = PermissionWait
 			core.Info("identity '%s' is waiting for access", identity.Id)
 		}
 	}
 
 	var count int
-	for userId, permission := range users2 {
+	for userId, permission := range users {
 		if p, ok := users_[userId]; !ok || p != permission {
 			sql.Exec("SET_USER", sql.Args{
 				"safe":       name,
@@ -144,6 +146,18 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 			})
 			count++
 			core.Info("update user '%s' with permission %d", userId, permission)
+		}
+	}
+
+	for userId := range users_ {
+		if _, ok := users[userId]; !ok {
+			sql.Exec("SET_USER", sql.Args{
+				"safe":       name,
+				"id":         userId,
+				"permission": PermissionNone,
+			})
+			count++
+			core.Info("delete user '%s'", userId)
 		}
 	}
 

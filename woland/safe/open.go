@@ -49,6 +49,9 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	}
 
 	users, _, err := syncUsers(store, name, currentUser, creatorId)
+	if core.IsErr(err, nil, "cannot sync users in %s: %v", name) {
+		return nil, err
+	}
 
 	// identities, err := syncIdentities(store, name, currentUser)
 	// if core.IsErr(err, nil, "cannot sync identities in %s: %v", name) {

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:behemoth/common/profile.dart';
@@ -52,8 +53,8 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
           label: const Text("Copy to the clipboard"),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: desktopLink)).then((_) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Link copied to clipboard")));
+              showPlatformSnackbar(context, "Link copied to clipboard",
+                  backgroundColor: Colors.green);
             });
           });
     }

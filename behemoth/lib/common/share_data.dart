@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
@@ -39,8 +40,8 @@ class ShareData extends StatelessWidget {
             label: const Text("Copy to clipboard"),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: _value)).then((_) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Link copied to clipboard")));
+                showPlatformSnackbar(context, "Link copied to clipboard",
+                    backgroundColor: Colors.green);
               });
               Navigator.pop(context);
             }),

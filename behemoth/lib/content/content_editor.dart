@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:behemoth/common/cat_progress_indicator.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
@@ -36,9 +37,8 @@ class _ContentEditorState extends State<ContentEditor> {
     final String updatedContent = _textEditingController!.text;
     await _markdownFile.writeAsString(updatedContent);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Markdown file saved.')),
-      );
+      showPlatformSnackbar(context, 'Markdown file saved.',
+          backgroundColor: Colors.green);
     }
   }
 

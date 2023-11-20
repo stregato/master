@@ -112,10 +112,9 @@ class _ContentActionsState extends State<ContentActions> {
                   });
                 } else {
                   File(localPath).deleteSync();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text("${path.basename(localPath)} deleted")),
-                  );
+                  showPlatformSnackbar(
+                      context, "${path.basename(localPath)} deleted",
+                      backgroundColor: Colors.green);
                   Navigator.pop(context);
                 }
               }),
@@ -142,11 +141,8 @@ class _ContentActionsState extends State<ContentActions> {
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        backgroundColor: Colors.red,
-                        content: Text(
-                          "Cannot $action $_name: $e",
-                        )));
+                    showPlatformSnackbar(context, "Cannot $action $_name: $e",
+                        backgroundColor: Colors.red);
                   }
                 }
               },
@@ -225,22 +221,17 @@ class _ContentActionsState extends State<ContentActions> {
                 await _safe.getFile(
                     "content", h.name, options.destination, options);
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    backgroundColor: Colors.green,
-                    content: Text(
-                      "${h.name} downloaded to $libraryFolder",
-                    )));
+                showPlatformSnackbar(
+                    context, "${h.name} downloaded to $libraryFolder",
+                    backgroundColor: Colors.green);
                 setState(() {
                   _downloading = 0;
                 });
                 Navigator.pop(context);
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    backgroundColor: Colors.red,
-                    content: Text(
-                      "Cannot download ${h.name}: $e",
-                    )));
+                showPlatformSnackbar(context, "Cannot download ${h.name}: $e",
+                    backgroundColor: Colors.red);
               }
             },
           ),

@@ -1,4 +1,5 @@
 import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 
 class CommunitySettings extends StatefulWidget {
@@ -54,11 +55,9 @@ class _CommunitySettingsState extends State<CommunitySettings> {
                 var p = Profile.current();
                 p.covens.remove(coven.name);
                 p.save();
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    backgroundColor: Colors.green,
-                    content: Text(
-                      "you successfully left ${coven.name}}",
-                    )));
+                showPlatformSnackbar(
+                    context, "you successfully left ${coven.name}",
+                    backgroundColor: Colors.green);
 
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },

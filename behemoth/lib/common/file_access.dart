@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:behemoth/common/snackbar.dart';
 import 'package:file_picker/file_picker.dart';
 //import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/material.dart';
@@ -37,14 +38,8 @@ Future<bool> openFile(BuildContext context, String filePath) {
 }
 
 void deleteError(BuildContext context, String filePath, Object? e) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      backgroundColor: Colors.red,
-      content: Text(
-        "Cannot delete $filePath: $e",
-      ),
-    ),
-  );
+  showPlatformSnackbar(context, "Cannot delete $filePath: $e",
+      backgroundColor: Colors.red);
   Navigator.pop(context, false);
 }
 

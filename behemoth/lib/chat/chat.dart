@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/news_icon.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:snowflake_dart/snowflake_dart.dart';
@@ -140,9 +141,8 @@ class _ChatState extends State<Chat> {
         _safe
             .getFile("chat", h.name, file.path, GetOptions(fileId: h.fileId))
             .then((value) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              backgroundColor: Colors.green,
-              content: Text("${h.name} downloaded")));
+          showPlatformSnackbar(context, "${h.name} downloaded",
+              backgroundColor: Colors.green);
         });
       }
     }
