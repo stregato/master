@@ -40,7 +40,7 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 	core.Info("list files '%s'", bucket)
 
 	if listOptions.Sync {
-		_, _, err := Sync(s, SyncOptions{Bucket: bucket}, nil)
+		_, err := SyncBucket(s, bucket, SyncOptions{}, nil)
 		if core.IsErr(err, nil, "cannot sync files: %v", err) {
 			return nil, err
 		}

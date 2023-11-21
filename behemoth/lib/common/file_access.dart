@@ -5,6 +5,7 @@ import 'package:behemoth/common/snackbar.dart';
 import 'package:file_picker/file_picker.dart';
 //import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/material.dart';
+import 'package:open_file/open_file.dart' as of;
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 // ignore: import_of_legacy_library_into_null_portal
@@ -12,29 +13,19 @@ import 'package:url_launcher/url_launcher.dart';
 
 late Directory applicationSupportDirectory;
 
-Future<bool> openFile(BuildContext context, String filePath) {
-  // try {
-  // if (Platform.isAndroid || Platform.isIOS) {
-  //   return of.OpenFile.open(filePath).then((value) {
-  //     return value.message;
-  //   });
-  // } else {
-  //   await launchUrl(filePath);
-  //   w.fileOpen(filePath);
-  //   return Future.value("");
-  // }
-
-  var url = File(filePath).uri;
-  return launchUrl(url);
-
-  // } catch (e) {
-  //    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //                         backgroundColor: Colors.red,
-  //                         content: Text(
-  //                           "Cannot upload $_targetName: $e",
-  //                         )));
-  //                   }
-  // }
+Future<bool> openFile(BuildContext context, String filePath) async {
+  try {
+    if (Platform.isAndroid || Platform.isIOS) {
+      var res = await of.OpenFile.open(filePath);
+      return res.type == of.ResultType.done;
+    }
+    var url = File(filePath).uri;
+    return launchUrl(url);
+  } catch (e) {
+    showPlatformSnackbar(context, "Cannot open $filePath: $e",
+        backgroundColor: Colors.red);
+    return false;
+  }
 }
 
 void deleteError(BuildContext context, String filePath, Object? e) {

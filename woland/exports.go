@@ -253,13 +253,8 @@ func wlnd_closeSafe(hnd C.int) C.Result {
 	return cResult(nil, nil)
 }
 
-type SyncState struct {
-	Files int `json:"files"`
-	Users int `json:"users"`
-}
-
-//export wlnd_syncSafe
-func wlnd_syncSafe(hnd C.int, syncOptions *C.char) C.Result {
+//export wlnd_syncBucket
+func wlnd_syncBucket(hnd C.int, bucket, syncOptions *C.char) C.Result {
 	safesSync.Lock()
 	s, ok := safes[int(hnd)]
 	safesSync.Unlock()
@@ -272,11 +267,27 @@ func wlnd_syncSafe(hnd C.int, syncOptions *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	files, users, err := safe.Sync(s, options, nil)
+	changes, err := safe.SyncBucket(s, C.GoString(bucket), options, nil)
 	if core.IsErr(err, nil, "cannot sync safe: %v") {
 		return cResult(nil, err)
 	}
-	return cResult(SyncState{files, users}, nil)
+	return cResult(changes, nil)
+}
+
+//export wlnd_syncUsers
+func wlnd_syncUsers(hnd C.int) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
+	if !ok {
+		return cResult(nil, ErrSafeNotFound)
+	}
+
+	changes, err := safe.SyncUsers(s)
+	if core.IsErr(err, nil, "cannot sync safe: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(changes, nil)
 }
 
 //export wlnd_listFiles

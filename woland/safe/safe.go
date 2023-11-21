@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/storage"
@@ -45,11 +46,15 @@ type Safe struct {
 	QuotaGroup  string              `json:"quotaGroup"`  // QuotaGroup is the common prefix for the safes that share the quota
 	Size        int64               `json:"size"`        // Size of the safe in bytes
 
-	users Users // Users and their permissions
-	keyId uint64
-	keys  Keys
+	keyId     uint64          // Key ID of the safe
+	keys      Keys            // Encryption keys of the safe
+	stores    []storage.Store // Stores of the safe
+	users     Users           // Users and their permissions
+	usersLock sync.Mutex      // Lock for users
+	syncUsers *time.Ticker    // Ticker for synchronizing users
+	wg        sync.WaitGroup  // Wait group for background tasks
+
 	//identities []security.Identity
-	stores []storage.Store
 	//	newestChangeFile     string
 	//	lastIdentitiesUpdate time.Time
 }

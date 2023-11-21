@@ -3,7 +3,8 @@ import 'package:behemoth/common/io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 
-Future<List<XFile>> pickImage({bool multiple = false}) async {
+Future<List<XFile>> pickImage(ImageSource source,
+    {bool multiple = false}) async {
   if (isDesktop) {
     var pickerResult = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -38,7 +39,7 @@ Future<List<XFile>> pickImage({bool multiple = false}) async {
   var xfile = await ImagePicker().pickImage(
     imageQuality: 70,
     maxWidth: 1440,
-    source: ImageSource.gallery,
+    source: source,
   );
   return (xfile != null) ? [xfile] : [];
 }

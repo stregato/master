@@ -14,35 +14,23 @@ import (
 )
 
 type SyncOptions struct {
-	Bucket    string `json:"bucket"`
-	Replicate bool   `json:"replicate"`
-	Users     bool   `json:"users"`
+	Replicate bool `json:"replicate"`
 }
 
-func Sync(s *Safe, SyncOptions SyncOptions, async func(int, int, error)) (files, users int, err error) {
+func SyncBucket(s *Safe, bucket string, SyncOptions SyncOptions, async func(int, error)) (changes int, err error) {
 	if async != nil {
 		go func() {
-			files, users, err = Sync(s, SyncOptions, nil)
-			async(files, users, err)
+			changes, err = SyncBucket(s, bucket, SyncOptions, nil)
+			async(changes, err)
 		}()
-		return 0, 0, nil
+		return 0, nil
 	}
 
-	if SyncOptions.Bucket != "" {
-		files, err = synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, SyncOptions.Bucket, s.keys)
-		if core.IsErr(err, nil, "cannot synchronize files: %v", err) {
-			return 0, 0, err
-		}
+	changes, err = synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, bucket, s.keys)
+	if core.IsErr(err, nil, "cannot synchronize files: %v", err) {
+		return 0, err
 	}
-
-	if SyncOptions.Users {
-		_, users, err = syncUsers(s.stores[0], s.Name, s.CurrentUser, s.CreatorId)
-		if core.IsErr(err, nil, "cannot synchronize users: %v", err) {
-			return 0, 0, err
-		}
-	}
-
-	return files, users, nil
+	return changes, nil
 }
 
 func synchorizeFiles(currentUser security.Identity, store storage.Store, safeName, bucket string, keys map[uint64][]byte) (newFiles int, err error) {

@@ -16,13 +16,14 @@ var ErrNoStoreAvailable = fmt.Errorf("no store available")
 var UsersFolder = "users"
 var UserFile = ".user"
 var MaxACLFilesInZone = 4
+var DefaultSyncUsersRefreshRate = 10 * time.Minute
 
 type OpenOptions struct {
 	//ForceCreate
 	ForceCreate bool
 
-	//SyncPeriod is the period for synchronization with the remote storage
-	SyncPeriod time.Duration
+	//SyncUsersRefreshRate is the period for refreshing the access control list. Default is 10 minutes.
+	SyncUsersRefreshRate time.Duration
 
 	// AdaptiveSync dynamically modifies the sync period based on data availability and API calls
 	AdaptiveSync bool
@@ -94,18 +95,33 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		Quota:       manifest.Quota,
 		QuotaGroup:  manifest.QuotaGroup,
 		Size:        size,
-		users:       users,
 
-		keyId: keyId,
-		keys:  keys,
-		//identities: identities,
-		stores: stores,
-		//	newestChangeFile:     newestChangeFile,
-		//	lastIdentitiesUpdate: core.Now(),
+		keyId:     keyId,
+		keys:      keys,
+		stores:    stores,
+		users:     users,
+		usersLock: sync.Mutex{},
+		wg:        sync.WaitGroup{},
 	}
+	s.syncUsers = getSyncUsersTicker(&s, options.SyncUsersRefreshRate)
 	safesCounterLock.Unlock()
 
 	return &s, nil
+}
+
+func getSyncUsersTicker(s *Safe, refreshRate time.Duration) *time.Ticker {
+	if refreshRate == 0 {
+		refreshRate = DefaultSyncUsersRefreshRate
+	}
+
+	t := time.NewTicker(refreshRate)
+
+	go func() {
+		for range t.C {
+			SyncUsers(s)
+		}
+	}()
+	return t
 }
 
 func syncIdentities(store storage.Store, name string, currentUser security.Identity) ([]security.Identity, error) {

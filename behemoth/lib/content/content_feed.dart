@@ -170,7 +170,7 @@ class _ContentFeedState extends State<ContentFeed> {
     List<XFile> xfiles;
     switch (mediaType) {
       case "image":
-        xfiles = await pickImage();
+        xfiles = await pickImage(ImageSource.gallery);
         break;
       case "video":
         xfiles = await pickVideo();

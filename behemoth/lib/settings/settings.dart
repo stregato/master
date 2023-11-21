@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/services.dart';
@@ -30,7 +31,7 @@ class _SettingsState extends State<Settings> {
   Uint8List _avatar = Uint8List(0);
 
   _selectAvatar() async {
-    var xfiles = await pickImage();
+    var xfiles = await pickImage(ImageSource.gallery);
     if (xfiles.isEmpty) return;
 
     var bytes = await xfiles[0].readAsBytes();

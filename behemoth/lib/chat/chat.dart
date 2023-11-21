@@ -41,7 +41,7 @@ class _ChatState extends State<Chat> {
   DateTime _from = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _to = DateTime.now();
   Timer? _timer;
-  DateTime _nextRefresh = DateTime(0);
+  DateTime _lastSync = DateTime(0);
   DateTime _lastMessage = DateTime(0);
   late types.User _currentUser;
   final Map<String, types.User> _users = {};
@@ -61,11 +61,11 @@ class _ChatState extends State<Chat> {
         firstName: currentUser.nick,
         lastName: currentUser.email);
 
-    Future.delayed(const Duration(seconds: 1), _refresh);
+    Future.delayed(const Duration(seconds: 3), _refresh);
     _focusNode.addListener(() {
       if (_focusNode.hasFocus) {
         _timer ??=
-            Timer.periodic(const Duration(seconds: 10), (_) => _refresh());
+            Timer.periodic(const Duration(seconds: 2), (_) => _refresh());
       } else {
         _timer?.cancel();
         _timer = null;
@@ -76,25 +76,14 @@ class _ChatState extends State<Chat> {
   void _refresh() async {
     if (!mounted) return;
 
-    var options = SyncOptions(
-      bucket: "chat",
-    );
-    var res = await _safe.sync(options);
-    if (res.files > 0) {
-      _loadMoreMessages();
+    var now = DateTime.now();
+    var diff = now.difference(_lastSync).inSeconds;
+    if (diff < 20 || diff > 60) {
+      if (await _safe.syncBucket("chat", SyncOptions()) > 0) {
+        _loadMoreMessages();
+        _lastSync = now;
+      }
     }
-
-    // if (mounted && DateTime.now().isAfter(_nextRefresh)) {
-    //   await _loadMoreMessages();
-    //   _safe.touch();
-    //   var secs = DateTime.now().difference(_lastMessage).inSeconds / 4;
-    //   secs = min(secs, 30);
-    //   if (mounted) {
-    //     setState(() {
-    //       _nextRefresh = DateTime.now().add(Duration(seconds: secs.toInt()));
-    //     });
-    //   }
-    // }
   }
 
   types.Message _convertHtml(Header h, types.User user) {
@@ -371,9 +360,23 @@ class _ChatState extends State<Chat> {
       context: context,
       builder: (BuildContext context) => SafeArea(
         child: SizedBox(
-          height: 200,
+          height: isMobile ? 300 : 200,
           child: ListView(
             children: [
+              if (isMobile)
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.camera_alt),
+                    title: const Text('Camera'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _handleCameraSelection(context);
+                    },
+                  ),
+                ),
+              const SizedBox(
+                height: 4,
+              ),
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.photo),
@@ -385,7 +388,7 @@ class _ChatState extends State<Chat> {
                 ),
               ),
               const SizedBox(
-                height: 10,
+                height: 4,
               ),
               Card(
                 child: ListTile(
@@ -398,7 +401,7 @@ class _ChatState extends State<Chat> {
                 ),
               ),
               const SizedBox(
-                height: 10,
+                height: 4,
               ),
               Card(
                 child: ListTile(
@@ -494,8 +497,14 @@ class _ChatState extends State<Chat> {
     _addMessage(message);
   }
 
+  void _handleCameraSelection(BuildContext context) async {
+    for (var xfile in await pickImage(ImageSource.camera)) {
+      _addImage(xfile);
+    }
+  }
+
   void _handleImageSelection(BuildContext context) async {
-    for (var xfile in await pickImage()) {
+    for (var xfile in await pickImage(ImageSource.gallery, multiple: true)) {
       _addImage(xfile);
     }
   }

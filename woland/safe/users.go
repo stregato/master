@@ -29,17 +29,23 @@ type SetUsersOptions struct {
 // SetUsers sets some users with corresponding permissions for a zone.
 func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 	currentUserId := s.CurrentUser.Id
-	if s.users[currentUserId]&PermissionAdmin == 0 {
+
+	users_, err := GetUsers(s)
+	if core.IsErr(err, nil, "cannot get users in %s: %v", s.Name) {
+		return err
+	}
+
+	if users_[currentUserId]&PermissionAdmin == 0 {
 		return fmt.Errorf(ErrNotAdmin, currentUserId, s.Name)
 	}
 
-	err := writePermissionChange(s.stores[0], s.Name, s.CurrentUser, users)
+	err = writePermissionChange(s.stores[0], s.Name, s.CurrentUser, users)
 	if core.IsErr(err, nil, "cannot write permission change in %s: %v", s.Name) {
 		return err
 	}
 
 	if !options.ReplaceUsers {
-		for userId, permission := range s.users {
+		for userId, permission := range users_ {
 			if _, ok := users[userId]; !ok {
 				users[userId] = permission
 			}
@@ -83,17 +89,27 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 			return err
 		}
 	}
-	users, _, err = syncUsers(s.stores[0], s.Name, s.CurrentUser, s.CreatorId)
-	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
-		return err
-	}
-	s.users = users
 
-	return nil
+	SetTouch(s.stores[0], ConfigFolder, ".touch")
+	_, err = SyncUsers(s)
+	return err
 }
 
 func GetUsers(s *Safe) (Users, error) {
 	return getSafeUsers(s.Name)
+}
+
+func SyncUsers(s *Safe) (int, error) {
+	core.Info("synchronizing users in %s", s.Name)
+	s.usersLock.Lock()
+	defer s.usersLock.Unlock()
+	users, count, err := syncUsers(s.stores[0], s.Name, s.CurrentUser, s.CreatorId)
+	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
+		return 0, err
+	}
+	s.users = users
+	core.Info("synchronized %d users in %s", count, s.Name)
+	return count, nil
 }
 
 func getSafeUsers(name string) (Users, error) {
@@ -118,6 +134,20 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 	users_, err := getSafeUsers(name)
 	if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
 		return Users{}, 0, err
+	}
+
+	var touch time.Time
+	_, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", name)
+	if ok {
+		touch, err = GetTouch(store, ConfigFolder, ".touch")
+		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
+			return users, 0, err
+		}
+		var diff = touch.Unix() - modTime
+		if diff < 2 {
+			core.Info("users in '%s' are up to date: touch %v is %d seconds older", name, touch, diff)
+			return users, 0, nil
+		}
 	}
 
 	users, _, err = readChangeLogs(store, name, currentUser, creatorId, "")
@@ -161,7 +191,7 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 		}
 	}
 
-	//s.newestChangeFile = newestChangeFile
+	sql.SetConfig("SAFE_TOUCH", name, "", touch.Unix(), nil)
 
 	core.Info("synchronized %d users in %s", count, name)
 	return users, count, nil

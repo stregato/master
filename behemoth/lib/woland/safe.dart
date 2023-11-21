@@ -90,24 +90,16 @@ class Safe {
     accessed = DateTime.now();
   }
 
-  // Future<SyncResult> sync(SyncOptions options,
-  //     {Function(SyncResult)? async}) async {
-  //   void wf(CResult r) {
-  //     var json = r.unwrapMap();
-  //     async!(SyncResult.fromJson(json));
-  //   }
+  Future<int> syncBucket(String bucket, SyncOptions options) async {
+    var fun =
+        lib.lookupFunction<Args3TSS<Int32>, Args3TSS<int>>("wlnd_syncBucket");
+    return fun(hnd, bucket.toNativeUtf8(), jsonEncode(options).toNativeUtf8())
+        .unwrapInt();
+  }
 
-  //   var callback = Pointer.fromFunction<CallbackC>(wf);
-  //   var fun = lib.lookupFunction<Args3TTS<Int32, CallbackP>,
-  //       Args3TTS<int, CallbackP>>("wlnd_sync");
-  //   var m = fun(hnd, callback, jsonEncode(options).toNativeUtf8()).unwrapMap();
-  //   return SyncResult.fromJson(m);
-  // }
-
-  Future<SyncResult> sync(SyncOptions options) async {
-    var fun = lib.lookupFunction<Args2TS<Int32>, Args2TS<int>>("wlnd_syncSafe");
-    var m = fun(hnd, jsonEncode(options).toNativeUtf8()).unwrapMap();
-    return SyncResult.fromJson(m);
+  Future<int> syncUsers(String bucket, SyncOptions options) async {
+    var fun = lib.lookupFunction<Args1T<Int32>, Args1T<int>>("wlnd_syncUsers");
+    return fun(hnd).unwrapInt();
   }
 
   Future<List<Header>> listFiles(String bucket, ListOptions options) async {

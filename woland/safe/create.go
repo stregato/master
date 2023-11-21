@@ -3,6 +3,7 @@ package safe
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/godruoyi/go-snowflake"
@@ -96,6 +97,7 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	if core.IsErr(err, nil, "cannot write keystore in %s: %v", name) {
 		return nil, err
 	}
+	SetTouch(stores[0], ConfigFolder, ".touch")
 
 	_, err = sql.Exec("SET_USER", sql.Args{"safe": name, "id": currentUser.Id, "permission": PermissionRead | PermissionWrite | PermissionAdmin | PermissionSuperAdmin})
 	if core.IsErr(err, nil, "cannot set user: %v", err) {
@@ -109,7 +111,7 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	defer safesCounterLock.Unlock()
 	safesCounter++
 
-	return &Safe{
+	s := &Safe{
 		Hnd:         safesCounter,
 		CurrentUser: currentUser,
 		CreatorId:   creatorId,
@@ -120,9 +122,13 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		Quota:       options.Quota,
 		QuotaGroup:  options.QuotaGroup,
 		Size:        0,
-		users:       users,
 		keyId:       keyId,
 		keys:        keys,
 		stores:      stores,
-	}, nil
+		users:       users,
+		usersLock:   sync.Mutex{},
+		wg:          sync.WaitGroup{},
+	}
+	s.syncUsers = getSyncUsersTicker(s, options.ChangeLogWatch)
+	return s, nil
 }
