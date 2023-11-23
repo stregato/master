@@ -44,13 +44,28 @@ type PutOptions struct {
 	ContentType   string         `json:"contentType"`   // Content type of the file
 	Zip           bool           `json:"zip"`           // Zip the file if it is smaller than 64MB
 	Meta          map[string]any `json:"meta"`          // Metadata associated with the file
-	Source        string         `json:"source"`        // Track the source of the file as download location
 	Private       string         `json:"private"`       // Id of the target user in case of private message
 }
 
 //func (s *Portal) Put(name string, r io.ReadSeeker, secId uint64, options PutOptions) (Header, error) {
 
-func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Header, error) {
+func Put(s *Safe, bucket, name string, src any, options PutOptions) (Header, error) {
+	var r io.ReadSeeker
+	var err error
+
+	sourceFile, ok := src.(string)
+	if ok {
+		r, err = os.Open(sourceFile)
+		if core.IsErr(err, nil, "cannot open source file: %v", err) {
+			return Header{}, err
+		}
+	} else {
+		r, ok = src.(io.ReadSeeker)
+		if !ok {
+			return Header{}, fmt.Errorf("source must be a filename or io.ReadSeeker: %v", src)
+		}
+	}
+
 	if strings.HasPrefix(name, "/") {
 		return Header{}, fmt.Errorf(ErrInvalidName, name)
 	}
@@ -80,7 +95,6 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 		secondaryKey = core.GenerateRandomBytes(KeySize)
 	}
 
-	var err error
 	hash, err := blake2b.New384(nil)
 	if core.IsErr(err, nil, "cannot create hash: %v", err) {
 		return Header{}, err
@@ -89,17 +103,17 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 	hsr := hashSizeReader(r, hash, options.Progress)
 	var r2 io.ReadSeeker = hsr
 	bodyFile := path.Join(DataFolder, dir, BodyFolder, fmt.Sprintf("%d", bodyId))
+
+	r2, err = encryptReader(r2, secondaryKey, iv)
+	if core.IsErr(err, nil, "cannot create encrypting reader: %v", err) {
+		return Header{}, err
+	}
 	if options.Zip {
 		r2, err = gzipStream(r2)
 		if core.IsErr(err, nil, "cannot compress data: %v", err) {
 			return Header{}, err
 		}
 		core.Info("Using compression for file %s", name)
-	}
-
-	r2, err = encryptReader(r2, secondaryKey, iv)
-	if core.IsErr(err, nil, "cannot create encrypting reader: %v", err) {
-		return Header{}, err
 	}
 
 	store := s.stores[0]
@@ -133,7 +147,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 
 	var deletables []Header
 	if options.Replace {
-		homonyms, err := ListFiles(s, dir, ListOptions{Name: name})
+		homonyms, err := ListFiles(s, bucket, ListOptions{Name: name})
 		if core.IsErr(err, nil, "cannot list homonyms: %v", err) {
 			store.Delete(bodyFile)
 			return Header{}, err
@@ -142,7 +156,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 		core.Info("Replacing %d files with name %s", len(homonyms), name)
 	}
 	if options.ReplaceID != 0 {
-		replaceable, err := ListFiles(s, dir, ListOptions{FileId: options.ReplaceID})
+		replaceable, err := ListFiles(s, bucket, ListOptions{FileId: options.ReplaceID})
 		if core.IsErr(err, nil, "cannot list replaceable: %v", err) {
 			store.Delete(bodyFile)
 			return Header{}, err
@@ -201,14 +215,18 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 		core.Info("Deleted %s[%d]", file.Name, file.FileId)
 	}
 
-	if options.Source != "" {
-		stat, err := os.Stat(options.Source)
-		if core.IsErr(err, nil, "cannot stat source: %v", err) {
-			return Header{}, err
-		}
-		header.Downloads = map[string]time.Time{options.Source: stat.ModTime()}
-		core.Info("Added download location for %s: %s", name, options.Source)
+	if sourceFile != "" {
+		header.Downloads = map[string]time.Time{sourceFile: core.Now()}
 	}
+
+	// if options.Source != "" {
+	// 	stat, err := os.Stat(options.Source)
+	// 	if core.IsErr(err, nil, "cannot stat source: %v", err) {
+	// 		return Header{}, err
+	// 	}
+	// 	header.Downloads = map[string]time.Time{options.Source: stat.ModTime()}
+	// 	core.Info("Added download location for %s: %s", name, options.Source)
+	// }
 	err = insertHeaderOrIgnoreToDB(s.Name, bucket, headerId, header)
 	core.IsErr(err, nil, "cannot insert header: %v", err)
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
@@ -266,15 +284,24 @@ func deleteFile(stores []storage.Store, safeName string, hashedDir string, fileI
 	fullName := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", fileId))
 	for _, store := range stores {
 		err := store.Delete(fullName)
-		core.IsErr(err, nil, "cannot delete file: %v", err)
+		if !core.IsErr(err, nil, "cannot delete file: %v", err) {
+			core.Info("Deleted %s[%d] during Put in %s", fullName, fileId, safeName)
+		}
+
 	}
 
-	_, err := sql.Exec("SET_DELETED_FILE", sql.Args{
+	r, err := sql.Exec("SET_DELETED_FILE", sql.Args{
 		"safe":   safeName,
 		"fileId": fileId,
 	})
 	if core.IsErr(err, nil, "cannot set deleted file: %v", err) {
 		return err
+	}
+	n, _ := r.RowsAffected()
+	if n > 0 {
+		core.Info("Marked %s[%d] as deleted in %s", fullName, fileId, safeName)
+	} else {
+		core.Info("Cannot mark %s[%d] as deleted in %s", fullName, fileId, safeName)
 	}
 
 	return nil

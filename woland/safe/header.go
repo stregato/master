@@ -56,7 +56,7 @@ func marshalHeaders(files []Header, keyId uint64, keyValue []byte) ([]byte, erro
 	}
 
 	block, err := aes.NewCipher(keyValue)
-	if err != nil {
+	if core.IsErr(err, nil, "cannot create cipher: %v", err) {
 		return nil, err
 	}
 
@@ -65,7 +65,9 @@ func marshalHeaders(files []Header, keyId uint64, keyValue []byte) ([]byte, erro
 
 	iv := ciphertext[8 : 8+aes.BlockSize]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, err
+		if core.IsErr(err, nil, "cannot read random bytes: %v", err) {
+			return nil, err
+		}
 	}
 
 	stream := cipher.NewCFBEncrypter(block, iv)
@@ -106,7 +108,7 @@ func unmarshalHeaders(ciphertext []byte, keys map[uint64][]byte) (headers []Head
 func writeHeaders(store storage.Store, safeName string, filePath string, keyId uint64, keys Keys, headers []Header) error {
 	data, err := marshalHeaders(headers, keyId, keys[keyId])
 	if core.IsErr(err, nil, "cannot encrypt header: %v", err) {
-		return nil
+		return err
 	}
 
 	hr := core.NewBytesReader(data)

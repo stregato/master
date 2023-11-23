@@ -74,6 +74,10 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	if core.IsErr(err, nil, "cannot read keystores in %s: %v", name) {
 		return nil, err
 	}
+	if len(key) == 0 {
+		return nil, fmt.Errorf("no key found")
+	}
+
 	keys[keyId] = key
 
 	size, err := getSafeSize(name)
@@ -105,6 +109,8 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	}
 	s.syncUsers = getSyncUsersTicker(&s, options.SyncUsersRefreshRate)
 	safesCounterLock.Unlock()
+
+	core.Info("safe opened: name %s, creator %s, description %s, quota %d, key %v", name, currentUser.Id, manifest.Description, manifest.Quota, key)
 
 	return &s, nil
 }

@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:behemoth/common/io.dart';
@@ -34,15 +35,25 @@ class _ContentState extends State<Content> {
   AppTheme theme = LightTheme();
 
   String _dir = "";
+  late Timer _timer;
 
   @override
   void initState() {
     super.initState();
+    _timer = Timer.periodic(const Duration(minutes: 10), (timer) async {
+      await widget.safe.syncBucket("content", SyncOptions());
+      _read();
+    });
+    Future.delayed(Duration.zero, () async {
+      await widget.safe.syncBucket("content", SyncOptions());
+      _read();
+    });
     _read();
   }
 
   @override
   void dispose() {
+    _timer.cancel();
     super.dispose();
   }
 
@@ -99,7 +110,6 @@ class _ContentState extends State<Content> {
   }
 
   _read() async {
-    await widget.safe.syncBucket("content", SyncOptions());
     var headers = await _libraryList(_dir);
     var dirs = await _libraryDirs(_dir);
     var files = SplayTreeMap<String, List<Header>>();
@@ -149,13 +159,15 @@ class _ContentState extends State<Content> {
           child: ListTile(
               title: Text(title),
               leading: icon,
-              onTap: () {
+              onTap: () async {
                 if (isFeed) {
                   Navigator.pushNamed(context, "/content/feed", arguments: {
                     'safe': widget.safe,
                     'folder': _dir.isEmpty ? e : "$_dir/$e"
                   });
                 } else {
+                  await widget.safe.syncBucket("content", SyncOptions());
+
                   _dir = _dir.isEmpty ? e : "$_dir/$e";
                   _read();
                 }

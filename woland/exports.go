@@ -10,8 +10,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"unsafe"
 
@@ -426,12 +424,7 @@ func wlnd_putFile(hnd C.int, bucket, name *C.char, sourceFile *C.char, putOption
 		return cResult(nil, err)
 	}
 
-	r, err := os.Open(C.GoString(sourceFile))
-	if core.IsErr(err, nil, "cannot open file: %v") {
-		return cResult(nil, err)
-	}
-
-	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), r, options)
+	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), C.GoString(sourceFile), options)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -501,15 +494,7 @@ func wlnd_getFile(hnd C.int, bucket, name, destFile, getOptions *C.char) C.Resul
 		return cResult(nil, err)
 	}
 
-	dest := C.GoString(destFile)
-	os.MkdirAll(filepath.Dir(dest), 0755)
-
-	w, err := os.Create(dest)
-	if core.IsErr(err, nil, "cannot create file: %v") {
-		return cResult(nil, err)
-	}
-
-	header, err := safe.Get(s, C.GoString(bucket), C.GoString(name), w, options)
+	header, err := safe.Get(s, C.GoString(bucket), C.GoString(name), C.GoString(destFile), options)
 	if core.IsErr(err, nil, "cannot get file: %v") {
 		return cResult(nil, err)
 	}

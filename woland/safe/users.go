@@ -127,6 +127,7 @@ func getSafeUsers(name string) (Users, error) {
 		}
 		users[userId] = Permission(permission)
 	}
+	core.Info("read %d users in %s", len(users), name)
 	return users, nil
 }
 
@@ -145,8 +146,9 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 		}
 		var diff = touch.Unix() - modTime
 		if diff < 2 {
-			core.Info("users in '%s' are up to date: touch %v is %d seconds older", name, touch, diff)
-			return users, 0, nil
+			core.Info("users in '%s' are up to date: touch %v is %d seconds older, users %d", name, touch,
+				diff, len(users_))
+			return users_, 0, nil
 		}
 	}
 

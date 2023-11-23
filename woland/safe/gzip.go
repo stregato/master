@@ -30,22 +30,31 @@ func gzipStream(input io.ReadSeeker) (io.ReadSeeker, error) {
 	return core.NewBytesReader(compressedData.Bytes()), nil
 }
 
-func gunzipStream(input io.Writer) (io.Writer, error) {
-	// Create a pipe to connect the input and output writers
-	reader, writer := io.Pipe()
+// func gunzipStream(input io.Writer) (io.Writer, error) {
+// 	// Create a pipe to connect the input and output writers
+// 	reader, writer := io.Pipe()
 
-	// Create a gzip reader from the reader end of the pipe
-	gzipReader, err := gzip.NewReader(reader)
-	if err != nil {
-		return nil, err
-	}
+// 	// Goroutine to copy the decompressed data to the input writer
+// 	go func() {
+// 		// Create a gzip reader from the reader end of the pipe
+// 		gzipReader, err := gzip.NewReader(reader)
+// 		if err != nil {
+// 			_ = writer.CloseWithError(err) // Signal to the writer that an error occurred
+// 			_ = reader.CloseWithError(err)
+// 			return
+// 		}
+// 		// Copy the decompressed data to the input writer
+// 		if _, err := io.Copy(input, gzipReader); err != nil {
+// 			_ = reader.CloseWithError(err) // Handle the error and signal to the writer
+// 		}
 
-	// Goroutine to copy the decompressed data to the input writer
-	go func() {
-		_, _ = io.Copy(input, gzipReader)
-		_ = gzipReader.Close()
-		_ = writer.Close()
-	}()
+// 		// Closing the reader will also close the writer, signaling to the writer end
+// 		_ = reader.Close()
 
-	return writer, nil
-}
+// 		_, _ = io.Copy(input, gzipReader)
+// 		_ = gzipReader.Close()
+// 		_ = writer.Close()
+// 	}()
+
+// 	return writer, nil
+// }

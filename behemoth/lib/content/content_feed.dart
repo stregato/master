@@ -1,10 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:behemoth/common/cat_progress_indicator.dart';
+import 'package:behemoth/common/checkbox2.dart';
 import 'package:behemoth/common/image.dart';
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/news_icon.dart';
+import 'package:behemoth/common/rate_me.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
@@ -22,22 +26,45 @@ class ContentFeed extends StatefulWidget {
   State<ContentFeed> createState() => _ContentFeedState();
 }
 
+class Feedback {
+  int fileId;
+  String id;
+  String comment;
+
+  Feedback({this.fileId = 0, this.id = "", this.comment = ""});
+  Feedback.fromJson(this.id, Map<String, dynamic> json)
+      : fileId = json['f'],
+        comment = json['c'];
+
+  Map<String, dynamic> toJson() => {'f': fileId, 'c': comment};
+}
+
 class _ContentFeedState extends State<ContentFeed> {
   int _offset = 0;
   List<Header> _headers = [];
   late Safe _safe;
   String _dir = "";
   final Map<int, Widget> _cache = {};
+  final Set<Header> _checked = {};
   final List<Player> _players = [];
-  final Map<int, Set<String>> _likes = {};
+  Map<int, List<Feedback>> _feedbacks = {};
+  List<Feedback> _myFeedback = [];
   final ScrollController _scrollController = ScrollController();
-  bool _reload = true;
+  //bool _reload = true;
   int _pending = 0;
+  Timer? _writeFeedbackTimer;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _writeFeedbackTimer?.cancel();
+    super.dispose();
   }
 
   Future<bool> _cleanUp() async {
@@ -54,21 +81,23 @@ class _ContentFeedState extends State<ContentFeed> {
     if (pos == _scrollController.position.maxScrollExtent) {
       setState(() {
         _offset += 5;
-        _reload = true;
+        //   _reload = true;
       });
     }
     if (pos == _scrollController.position.minScrollExtent) {
       setState(() {
-        _reload = true;
+        //     _reload = true;
       });
     }
   }
 
   Widget _getImageWidget(Header h) {
     if (h.attributes.thumbnail.isNotEmpty) {
-      return Image.memory(
-        h.attributes.thumbnail,
-        fit: BoxFit.cover,
+      return InteractiveViewer(
+        child: Image.memory(
+          h.attributes.thumbnail,
+          fit: BoxFit.cover,
+        ),
       );
     }
 
@@ -78,7 +107,9 @@ class _ContentFeedState extends State<ContentFeed> {
       return Text("Missing image ${h.name}");
     }
 
-    return Image.file(localfile, fit: BoxFit.cover);
+    return InteractiveViewer(
+      child: Image.file(localfile, fit: BoxFit.cover),
+    );
   }
 
   Widget _getVideoWidget(
@@ -108,33 +139,40 @@ class _ContentFeedState extends State<ContentFeed> {
     return Container();
   }
 
-  Future _readLikes() async {
+  Future _readFeedbacks() async {
     var cu = _safe.currentUser.id;
+    var feedbacks = <int, List<Feedback>>{};
     var headers = await _safe.listFiles(
         "content",
         ListOptions(
           dir: _dir,
-          tags: ['like'],
+          suffix: ".feedback",
         ));
     for (var h in headers) {
-      var ids = <int>[];
+      var fb = <Feedback>[];
       try {
-        var byteList = await _safe.getBytes("content", h.name, GetOptions());
-        ids = Uint64List.view(byteList.buffer).toList();
+        var byteList =
+            await _safe.getBytes("content", h.name, GetOptions(noCache: true));
+        var content = utf8.decode(byteList.toList());
+        var decoded = jsonDecode(content) as List;
+        fb = decoded.map((v) {
+          var f = v as Map<String, dynamic>;
+          return Feedback.fromJson(h.creator, f);
+        }).toList();
+        if (h.creator == cu) {
+          _myFeedback = fb.toList();
+        }
+        for (var f in fb) {
+          feedbacks.putIfAbsent(f.fileId, () => []).add(f);
+        }
       } catch (e) {
         // ignore
       }
-      for (var id in ids) {
-        _likes.putIfAbsent(id, () => {}).add(cu);
-      }
     }
+    _feedbacks = feedbacks;
   }
 
   Future _read() async {
-    if (!_reload) {
-      return;
-    }
-    await _readLikes();
     var headers = await _safe.listFiles(
         "content",
         ListOptions(
@@ -147,7 +185,8 @@ class _ContentFeedState extends State<ContentFeed> {
         ));
 
     for (var h in headers) {
-      if (_headers.contains(h)) {
+      var found = _headers.where((h2) => h2.fileId == h.fileId);
+      if (found.isNotEmpty) {
         continue;
       }
       try {
@@ -163,7 +202,8 @@ class _ContentFeedState extends State<ContentFeed> {
       }
     }
     _headers.sort((a, b) => b.modTime.compareTo(a.modTime));
-    _reload = false;
+    await _readFeedbacks();
+//    _reload = false;
   }
 
   void _addMedia(BuildContext context, String mediaType) async {
@@ -251,41 +291,40 @@ class _ContentFeedState extends State<ContentFeed> {
     );
   }
 
-  _setLiking(int fileId, bool liking) async {
-    var cu = _safe.currentUser.id;
-    var name = "content/$_dir/$cu";
-    var headers = await _safe.listFiles(
-        "content",
-        ListOptions(
-          dir: _dir,
-          name: name,
-        ));
-    var ids = <int>{};
-    if (headers.isNotEmpty) {
-      try {
-        var byteList = await _safe.getBytes("content", name, GetOptions());
-        ids = Uint64List.view(byteList.buffer).toSet();
-      } finally {}
-    }
-    if (liking) {
-      ids.add(fileId);
-    }
-    if (!liking) {
-      ids.remove(fileId);
-    }
-    var byteList = Uint64List.fromList(ids.toList());
-    var options = PutOptions(tags: ['like'], replace: true);
-    await _safe.putBytes(
-        "content", name, byteList.buffer.asUint8List(), options);
+  void _writeFeedback(int fileId, String comment) {
+    _writeFeedbackTimer?.cancel();
+    _writeFeedbackTimer = Timer(const Duration(seconds: 2), () async {
+      _writeFeedbackTimer?.cancel();
+      var found = _myFeedback
+          .where((f) => f.fileId == fileId && f.comment == comment)
+          .firstOrNull;
 
-    var likes = _likes.putIfAbsent(fileId, () => {});
-    setState(() {
-      if (liking) {
-        likes.add(cu);
+      if (found != null) {
+        _myFeedback.remove(found);
+        _feedbacks[fileId]!.remove(found);
       } else {
-        likes.remove(cu);
+        var f = Feedback(
+            fileId: fileId, id: _safe.currentUser.id, comment: comment);
+        _myFeedback.add(f);
+        _feedbacks.putIfAbsent(fileId, () => []).add(f);
       }
+
+      var name = "$_dir/${_safe.currentUser.id}.feedback";
+      var json = jsonEncode(_myFeedback);
+      var bytes = Uint8List.fromList(utf8.encode(json));
+      _safe.putBytes(
+          "content", name, bytes, PutOptions(replace: true, zip: false));
     });
+  }
+
+  void _comment(Header h) {}
+
+  void _check(Header h) {
+    if (_checked.contains(h)) {
+      _checked.remove(h);
+    } else {
+      _checked.add(h);
+    }
   }
 
   @override
@@ -295,6 +334,12 @@ class _ContentFeedState extends State<ContentFeed> {
           ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
       _safe = args["safe"] as Safe;
       _dir = args["folder"] as String;
+      Future.delayed(const Duration(seconds: 1), () async {
+        var changes = await _safe.syncBucket("content", SyncOptions());
+        if (changes > 0) {
+          setState(() {});
+        }
+      });
     }
 
     return PlatformScaffold(
@@ -356,47 +401,88 @@ class _ContentFeedState extends State<ContentFeed> {
                           var h = _headers[index];
                           var w =
                               _cache.putIfAbsent(h.fileId, () => _getWidget(h));
-                          var width = MediaQuery.of(context).size.width * 0.9;
-                          var height = w is Video ? width * 9.0 / 16.0 : null;
-                          var likes = _likes[h.fileId] ?? {};
-                          var liking = likes.contains(_safe.currentUser.id);
+
+                          var comments = <String>[];
+                          var hearts = 0;
+                          var iHearts = false;
+                          var likes = 0;
+                          var iLike = false;
+                          var smiles = 0;
+                          var iSmile = false;
+                          var shocked = 0;
+                          var iShocked = false;
+                          var fb = _feedbacks[h.fileId] ?? [];
+                          for (var f in fb) {
+                            switch (f.comment) {
+                              case "👍":
+                                likes++;
+                                iLike |= f.id == _safe.currentUser.id;
+                                break;
+                              case "❤️":
+                                hearts++;
+                                iHearts |= f.id == _safe.currentUser.id;
+                                break;
+                              case "😊":
+                                smiles++;
+                                iSmile |= f.id == _safe.currentUser.id;
+                                break;
+                              case "😲":
+                                shocked++;
+                                iShocked |= f.id == _safe.currentUser.id;
+                                break;
+                              default:
+                                comments.add(f.comment);
+                            }
+                          }
 
                           return Card(
                             elevation: 3.0,
                             margin: const EdgeInsets.all(8.0),
-                            child: Row(
+                            child: Column(
                               children: [
-                                SizedBox(
-                                    width: width - 20,
-                                    height: height,
-                                    child: w),
-                                SizedBox(
-                                    width: 20.0, // Adjust the width as needed
-                                    child: Align(
-                                      alignment: Alignment.center,
-                                      child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            if (liking)
-                                              IconButton(
-                                                icon: const Icon(Icons.thumb_up,
-                                                    color: Colors.green),
-                                                onPressed: () {
-                                                  _setLiking(h.fileId, !liking);
-                                                },
-                                              )
-                                            else
-                                              IconButton(
-                                                icon: const Icon(Icons.thumb_up,
-                                                    color: Colors.black),
-                                                onPressed: () {
-                                                  _setLiking(h.fileId, !liking);
-                                                },
-                                              ),
-                                            Text("(${likes.length})"),
-                                          ]),
-                                    )),
+                                w,
+                                const SizedBox(
+                                  height: 2,
+                                ),
+                                Row(children: [
+                                  Checkbox2(
+                                      initialValue: _checked.contains(h),
+                                      onChanged: (_) => _check(h)),
+                                  const SizedBox(width: 10),
+                                  const Spacer(),
+                                  RateMe(
+                                      initialCount: likes,
+                                      hasRated: iLike,
+                                      icon: const Icon(Icons.thumb_up),
+                                      color: Colors.green,
+                                      onChanged: (_, __) =>
+                                          _writeFeedback(h.fileId, "👍")),
+                                  RateMe(
+                                      initialCount: hearts,
+                                      hasRated: iHearts,
+                                      icon: const Icon(Icons.favorite),
+                                      color: Colors.red,
+                                      onChanged: (_, __) =>
+                                          _writeFeedback(h.fileId, "❤️")),
+                                  RateMe(
+                                      initialCount: smiles,
+                                      hasRated: iSmile,
+                                      icon: const Icon(
+                                          Icons.sentiment_very_satisfied),
+                                      color: Colors.yellow,
+                                      onChanged: (_, __) =>
+                                          _writeFeedback(h.fileId, "😊")),
+                                  RateMe(
+                                      initialCount: shocked,
+                                      hasRated: iShocked,
+                                      icon: const Icon(Icons.priority_high),
+                                      color: Colors.red,
+                                      onChanged: (_, __) =>
+                                          _writeFeedback(h.fileId, "😲")),
+                                  IconButton(
+                                      onPressed: () => _comment(h),
+                                      icon: const Icon(Icons.comment)),
+                                ]),
                               ],
                             ),
                           );

@@ -40,6 +40,7 @@ func readKeystores(s storage.Store, safename string, currentUser security.Identi
 			keyId = keyId2
 			key = key2
 			withKeys = withKeys2
+			core.Info("found newer key with id %d signed by %s", keyId, signedBy)
 		} else if keyId2 == keyId {
 			for userId := range withKeys {
 				withKeys[userId] = withKeys[userId] || withKeys2[userId]
@@ -59,6 +60,7 @@ func readKeystores(s storage.Store, safename string, currentUser security.Identi
 		}
 	}
 
+	core.Info("keystores read: name %s, keyId %d, delta %v", safename, keyId, delta)
 	return keyId, key, keys, delta, nil
 }
 
@@ -78,6 +80,7 @@ func readKeystore(s storage.Store, safeName string, path string, currentUser sec
 
 	encryptedKey, ok := keystore.Keys[currentUser.Id]
 	if !ok {
+		core.Info("keystore read: name %s does not contain key for %s", safeName, currentUser.Id)
 		return 0, nil, nil, "", nil
 	}
 
@@ -90,6 +93,8 @@ func readKeystore(s storage.Store, safeName string, path string, currentUser sec
 	for userId := range keystore.Keys {
 		users[userId] = true
 	}
+
+	core.Info("keystore read: name %s, keyId %d, signedBy %s", safeName, keystore.KeyId, signedBy)
 
 	return keystore.KeyId, key, users, signedBy, nil
 }

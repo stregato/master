@@ -3,7 +3,6 @@ import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 
-import 'package:behemoth/woland/woland.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 var currentPanelIdx = <String, int>{};
@@ -33,8 +32,12 @@ class _PeopleState extends State<People> {
       var identity = getCachedIdentity(e.key);
       var nick = identity.nick;
 
+      var image = identity.avatar.isNotEmpty
+          ? Image.memory(identity.avatar, width: 32, height: 32)
+          : const Icon(Icons.warning);
+
       return ListTile(
-        leading: Image.memory(identity.avatar, width: 32, height: 32),
+        leading: image,
         title: Text(nick),
         subtitle: Text("${e.key.substring(0, 16)}..."),
         trailing: PlatformIconButton(

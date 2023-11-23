@@ -263,7 +263,6 @@ class SyncResult {
 
 class ListOptions {
   String name;
-  int depth;
   String dir;
   String prefix;
   String suffix;
@@ -286,7 +285,6 @@ class ListOptions {
 
   ListOptions(
       {this.name = '',
-      this.depth = 0,
       this.dir = '',
       this.prefix = '',
       this.suffix = '',
@@ -309,7 +307,6 @@ class ListOptions {
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'depth': depth,
         'dir': dir,
         'prefix': prefix,
         'suffix': suffix,

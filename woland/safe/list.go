@@ -13,9 +13,9 @@ import (
 type ListOptions struct {
 	Name            string    `json:"name"`            // Filter on the file name
 	Dir             string    `json:"dir"`             // Filter on the directory
+	Recursive       bool      `json:"recursive"`       // Recursively list files in subfolders
 	Prefix          string    `json:"prefix"`          // Filter on the file prefix
 	Suffix          string    `json:"suffix"`          // Filter on the file suffix
-	Depth           int       `json:"deep"`            // Filter on depth of the name when greater than 0
 	ContentType     string    `json:"contentType"`     // Filter on the content type
 	FileId          uint64    `json:"bodyId"`          // Filter on the body ID
 	Tags            []string  `json:"tags"`            // Filter on the tags
@@ -64,11 +64,12 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 		key += "_DESC"
 	}
 
-	var fromDepth int
-	if listOptions.Dir != "" {
-		fromDepth += 1 + strings.Count(listOptions.Dir, "/")
+	var depth int
+	if listOptions.Name != "" {
+		depth += strings.Count(listOptions.Name, "/")
+	} else if listOptions.Dir != "" {
+		depth = 1 + strings.Count(listOptions.Dir, "/")
 	}
-	toDepth := fromDepth + listOptions.Depth
 
 	args := sql.Args{
 		"safe":           s.Name,
@@ -89,9 +90,8 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 		"after":          listOptions.After.Unix(),
 		"syncAfter":      listOptions.KnownSince.Unix(),
 		"offset":         listOptions.Offset,
+		"depth":          depth,
 		"limit":          listOptions.Limit,
-		"fromDepth":      fromDepth,
-		"toDepth":        toDepth,
 	}
 
 	rows, err := sql.Query(key, args)

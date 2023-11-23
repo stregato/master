@@ -3,6 +3,7 @@ package safe
 import (
 	"bytes"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -75,6 +76,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	file, err := Put(s, "bucket", "file1", r, PutOptions{
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
+		Zip:         true,
 	})
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, file.Name == "file1", "Expected file name to be 'file1', got '%s'", file.Name)
@@ -107,10 +109,11 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 		t.Errorf("Expected file size to be %d, got %d", len(data), file.Size)
 	}
 
-	b := bytes.Buffer{}
-	_, err = Get(s, "bucket", "file1", &b, GetOptions{Destination: "bucket/file1"})
+	dest := path.Join(os.TempDir(), "file1")
+	_, err = Get(s, "bucket", "file1", dest, GetOptions{})
+	content, _ := os.ReadFile(dest)
 	core.TestErr(t, err, "cannot get file: %v")
-	core.Assert(t, bytes.Equal(data, b.Bytes()), "Expected data to be '%s', got '%s'", data, b.Bytes())
+	core.Assert(t, bytes.Equal(data, content), "Expected data to be '%s', got '%s'", data, content)
 
 	files, err = ListFiles(s, "bucket", ListOptions{OrderBy: "modTime"})
 	core.TestErr(t, err, "cannot list files: %v")
@@ -139,19 +142,17 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	second, err := security.NewIdentity("test2")
 	core.TestErr(t, err, "cannot create identity: %v")
 
-	f, err := os.CreateTemp(os.TempDir(), "test-woland*")
+	name := path.Join(os.TempDir(), "test-woland")
+	err = os.WriteFile(name, data, 0644)
 	core.TestErr(t, err, "cannot create temp file: %v")
-	defer os.Remove(f.Name())
-	f.Write(data)
-	h, err := Put(s, "bucket", "file1", f, PutOptions{
-		Source:      f.Name(),
+	defer os.Remove(name)
+	h, err := Put(s, "bucket", "file1", name, PutOptions{
 		Private:     second.Id,
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
 	})
-	f.Close()
 	core.TestErr(t, err, "cannot put file: %v")
-	core.Assert(t, !h.Downloads[f.Name()].IsZero(), "Expected download time to be set")
+	core.Assert(t, !h.Downloads[name].IsZero(), "Expected download time to be set")
 
 	err = SetUsers(s, map[string]Permission{second.Id: PermissionRead}, SetUsersOptions{})
 	core.TestErr(t, err, "cannot set users: %v")
@@ -171,11 +172,12 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	s, err = Open(second, access, OpenOptions{})
 	core.TestErr(t, err, "cannot open safe: %v")
 
-	files, err = ListFiles(s, "bucket", ListOptions{Name: "file1"})
+	files, err = ListFiles(s, "bucket", ListOptions{Name: "file1", Sync: true})
 	core.TestErr(t, err, "cannot list files: %v")
 	core.Assert(t, len(files) == 2, "Expected 2 files, got %d", len(files))
 
-	h, err = Get(s, "bucket", "file1", &b, GetOptions{FileId: h.FileId})
+	b := bytes.NewBuffer(nil)
+	h, err = Get(s, "bucket", "file1", b, GetOptions{FileId: h.FileId})
 	core.TestErr(t, err, "cannot get file: %v")
 	core.Assert(t, bytes.Equal(data, b.Bytes()), "Expected data to be '%s', got '%s'", data, b.Bytes())
 	core.Assert(t, h.Attributes.ContentType == "text/plain", "Expected content type to be 'text/plain', got '%s'", h.Attributes.ContentType)

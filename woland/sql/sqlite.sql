@@ -107,7 +107,7 @@ SELECT header FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
   AND (:name = '' OR name = :name)
-  AND (:dir = '' OR dir = :dir)
+  AND (:name <> '' OR dir = :dir)
   AND (:prefix = '' OR name LIKE :prefix || '%')
   AND (:suffix = '' OR name LIKE '%' || :suffix)
   AND (:fileId = 0 OR fileId = :fileId)
@@ -118,9 +118,8 @@ WHERE safe = :safe
   AND (:privateId = '' OR (privateId = :privateId AND creator = :currentUser) OR (privateId = :currentUser AND creator = :privateId))
   AND (:before < 0 OR modTime < :before)
   AND (:after < 0 OR modTime > :after)
+  AND (depth = :depth)
   AND (:syncAfter < 0 OR syncTime > :syncAfter)
-  AND (depth >= :fromDepth) 
-  AND (depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY name LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
@@ -129,7 +128,7 @@ SELECT header FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
   AND (:name = '' OR name = :name)
-  AND (:dir = '' OR dir = :dir)
+  AND (:name <> '' OR dir = :dir)
   AND (:prefix = '' OR name LIKE :prefix || '%')
   AND (:suffix = '' OR name LIKE '%' || :suffix)
   AND (:fileId = 0 OR fileId = :fileId)
@@ -140,9 +139,8 @@ WHERE safe = :safe
   AND (:privateId = '' OR (privateId = :privateId AND creator = :currentUser) OR (privateId = :currentUser AND creator = :privateId))
   AND (:before < 0 OR modTime < :before)
   AND (:after < 0 OR modTime > :after)
+  AND (depth = :depth)
   AND (:syncAfter < 0 OR syncTime > :syncAfter)
-  AND (depth >= :fromDepth) 
-  AND (depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY modTime LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
@@ -151,7 +149,7 @@ SELECT header FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
   AND (:name = '' OR name = :name)
-  AND (:dir = '' OR dir = :dir)
+  AND (:name <> '' OR dir = :dir)
   AND (:prefix = '' OR name LIKE :prefix || '%')
   AND (:suffix = '' OR name LIKE '%' || :suffix)
   AND (:fileId = 0 OR fileId = :fileId)
@@ -162,9 +160,8 @@ WHERE safe = :safe
   AND (:privateId = '' OR (privateId = :privateId AND creator = :currentUser) OR (privateId = :currentUser AND creator = :privateId))
   AND (:before < 0 OR modTime < :before)
   AND (:after < 0 OR modTime > :after)
+  AND (depth = :depth)
   AND (:syncAfter < 0 OR syncTime > :syncAfter)
-  AND (depth >= :fromDepth) 
-  AND (depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY name DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
@@ -173,7 +170,7 @@ SELECT header FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
   AND (:name = '' OR name = :name)
-  AND (:dir = '' OR dir = :dir)
+  AND (:name <> '' OR dir = :dir)
   AND (:prefix = '' OR name LIKE :prefix || '%')
   AND (:suffix = '' OR name LIKE '%' || :suffix)
   AND (:fileId = 0 OR fileId = :fileId)
@@ -184,9 +181,8 @@ WHERE safe = :safe
   AND (:privateId = '' OR (privateId = :privateId AND creator = :currentUser) OR (privateId = :currentUser AND creator = :privateId))
   AND (:before < 0 OR modTime < :before)
   AND (:after < 0 OR modTime > :after)
+  AND (depth = :depth)
   AND (:syncAfter < 0 OR syncTime > :syncAfter)
-  AND (depth >= :fromDepth) 
-  AND (:toDepth = 0 OR depth <= :toDepth)
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY modTime DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
