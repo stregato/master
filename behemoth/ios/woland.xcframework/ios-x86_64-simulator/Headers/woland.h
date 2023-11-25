@@ -94,6 +94,8 @@ extern Result wlnd_decodeAccess(char* identity, char* access);
 extern Result wlnd_createSafe(char* creator, char* token, char* users, char* createOptions);
 extern Result wlnd_openSafe(char* identity, char* token, char* openOptions);
 extern Result wlnd_closeSafe(int hnd);
+extern Result wlnd_syncBucket(int hnd, char* bucket, char* syncOptions);
+extern Result wlnd_syncUsers(int hnd);
 extern Result wlnd_listFiles(int hnd, char* dir, char* listOptions);
 extern Result wlnd_listDirs(int hnd, char* bucket, char* listDirsOptions);
 extern Result wlnd_putData(int hnd, char* bucket, char* name, Reader* r, char* putOptions);
@@ -104,7 +106,6 @@ extern Result wlnd_getCString(int hnd, char* bucket, char* name, char* getOption
 extern Result wlnd_getFile(int hnd, char* bucket, char* name, char* destFile, char* getOptions);
 extern Result wlnd_setUsers(int hnd, char* users, char* setUsersOptions);
 extern Result wlnd_getUsers(int hnd);
-extern Result wlnd_getIdentities(int hnd);
 extern Result wlnd_getAllIdentities();
 extern Result wlnd_getLogs();
 extern Result wlnd_setLogLevel(int level);
