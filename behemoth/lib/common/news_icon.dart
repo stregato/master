@@ -26,9 +26,11 @@ class NewsIcon extends StatefulWidget {
     Future.delayed(const Duration(seconds: 1), () {
       _onChange = f;
       _timer?.cancel();
-      _timer = Timer(const Duration(seconds: 30), _updateNotifications);
-      if (DateTime.now().difference(_lastUpdate).inSeconds > 30) {
-        _updateNotifications();
+      if (_onChange != null) {
+        _timer = Timer(const Duration(seconds: 30), _updateNotifications);
+        if (DateTime.now().difference(_lastUpdate).inSeconds > 30) {
+          _updateNotifications();
+        }
       }
     });
   }

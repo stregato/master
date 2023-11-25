@@ -72,9 +72,11 @@ class _InviteState extends State<Invite> {
     }
 
     var profile = Profile.current();
-    await _safe!.setUsers(
-        {_id: permissionRead + permissionWrite + permissionAdmin},
-        SetUsersOptions());
+    if (_id.isNotEmpty) {
+      await _safe!.setUsers(
+          {_id: permissionRead + permissionWrite + permissionAdmin},
+          SetUsersOptions());
+    }
     var d = decodeAccess(profile.identity, _safe!.access);
     setState(() {
       _access =
@@ -184,10 +186,13 @@ class _InviteState extends State<Invite> {
                 title: const Text('Anonymous Invite'),
                 value: _anonymousInvite,
                 onChanged: (bool? value) {
+                  if (value == true) {
+                    _add();
+                  } else {
+                    _access = "";
+                  }
                   setState(() {
-                    _anonymousInvite = value!;
-                    _id = "";
-                    _nick = "";
+                    _anonymousInvite = value ?? false;
                   });
                 },
               ),
@@ -204,11 +209,9 @@ class _InviteState extends State<Invite> {
               if (_access.isNotEmpty)
                 Column(
                   children: [
-                    const Text("Share one of the below links with the peer"),
+                    const Text("Share the below link with the peer"),
                     const SizedBox(height: 40),
                     CopyField("Mobile", "https://behemoth.rocks/a/$_access"),
-                    const SizedBox(height: 40),
-                    CopyField("Desktop", "mg://a/$_access"),
                   ],
                 ),
             ],

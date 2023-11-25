@@ -32,19 +32,21 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 		return nil, err
 	}
 
-	m := map[string]*security.Identity{}
+	m := map[string]security.Identity{}
 	for _, i := range dbIdentities {
-		m[i.Id] = &i
+		m[i.Id] = i
 	}
 
 	ls, err := st.ReadDir(UsersFolder, storage.Filter{})
 	if !os.IsNotExist(err) && core.IsErr(err, nil, "cannot list identity files': %v", err) {
 		return nil, err
 	}
+	core.Info("reading identities from %s, %d files found", UsersFolder, len(ls))
 
 	var identities []security.Identity
 	for _, l := range ls {
 		if !l.IsDir() {
+			core.Info("file '%s' is not a directory: skip", l.Name())
 			continue
 		}
 
@@ -55,8 +57,8 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 		}
 
 		if identity, ok := m[userId]; ok && identity.ModTime.Before(l.ModTime()) {
-			identities = append(identities, *identity)
-			core.Info("identity '%s' is up to date", userId)
+			identities = append(identities, identity)
+			core.Info("identity '%s' is up to date, using db copy %s[%s]", userId, identity.Nick, identity.Id)
 			continue
 		}
 
@@ -72,6 +74,7 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 		}
 		if userId != identity.Id {
 			core.IsErr(ErrSignatureMismatch, nil, "file '%s' is signed with wrong identity: %v", l.Name())
+			continue
 		}
 
 		err = security.SetIdentity(identity)

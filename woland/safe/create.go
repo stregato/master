@@ -46,6 +46,22 @@ func Create(currentUser security.Identity, access string, users Users, options C
 			"missing stores: %v", strings.Join(failedUrls, ","))
 	}
 
+	if options.Wipe {
+		_, err = sql.Exec("DELETE_SAFE_HEADERS", sql.Args{"safe": name})
+		if core.IsErr(err, nil, "cannot wipe DB headers for safe %s: %v", name, err) {
+			return nil, err
+		}
+		_, err = sql.Exec("DELETE_SAFE_USERS", sql.Args{"safe": name})
+		if core.IsErr(err, nil, "cannot wipe DB users for safe %s: %v", name, err) {
+			return nil, err
+		}
+		_, err = sql.Exec("DELETE_SAFE_CONFIGS", sql.Args{"safe": name})
+		if core.IsErr(err, nil, "cannot wipe DB configs for safe %s: %v", name, err) {
+			return nil, err
+		}
+		core.Info("wiped DB content for safe %s", name)
+	}
+
 	for _, store := range stores {
 		_, err = store.Stat("")
 		if err == nil {
@@ -56,9 +72,6 @@ func Create(currentUser security.Identity, access string, users Users, options C
 				return nil, fmt.Errorf("safe already exist: name %s", name)
 			}
 		}
-	}
-	if options.Wipe {
-		sql.Exec("DELETE_SAFE", sql.Args{"safe": name})
 	}
 
 	keyId := snowflake.ID()
@@ -97,6 +110,11 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	if core.IsErr(err, nil, "cannot write keystore in %s: %v", name) {
 		return nil, err
 	}
+	_, err = syncIdentities(stores[0], name, currentUser)
+	if core.IsErr(err, nil, "cannot sync identities in %s: %v", name) {
+		return nil, err
+	}
+
 	SetTouch(stores[0], ConfigFolder, ".touch")
 
 	_, err = sql.Exec("SET_USER", sql.Args{"safe": name, "id": currentUser.Id, "permission": PermissionRead | PermissionWrite | PermissionAdmin | PermissionSuperAdmin})

@@ -79,7 +79,7 @@ class _JoinState extends State<Join> {
             const Text("Below is your id if link. "
                 " Share with your peer to get an invite. "),
             const SizedBox(height: 20),
-            CopyField("Mobile", mobileLink),
+            CopyField("Identity link", mobileLink),
             const SizedBox(height: 40),
             const Text(
                 "Once you get a link, paste it below and click on 'Join' to join the community"),

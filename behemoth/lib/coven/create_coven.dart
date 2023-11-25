@@ -7,6 +7,7 @@ import 'package:behemoth/coven/add_storage.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class CreateCoven extends StatefulWidget {
@@ -94,6 +95,9 @@ class _CreateCovenState extends State<CreateCoven> {
                       ),
                       placeholder: 'Name',
                     ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r"[a-z 0-9]"))
+                    ],
                     validator: (value) {
                       return null;
                     },

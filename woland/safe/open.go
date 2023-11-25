@@ -136,20 +136,19 @@ func syncIdentities(store storage.Store, name string, currentUser security.Ident
 		return nil, err
 	}
 
-	var identityFound bool
 	for _, identity := range identities {
+		core.Info("compare %s with %s", identity.Id, currentUser.Id)
 		if identity.Id == currentUser.Id {
-			identityFound = true
-			break
+			return identities, nil
 		}
 	}
-	if !identityFound {
-		err = writeIdentity(store, currentUser)
-		if core.IsErr(err, nil, "cannot write identity to store %s: %v", store) {
-			return nil, err
-		}
-		identities = append(identities, currentUser.Public())
+
+	err = writeIdentity(store, currentUser)
+	if core.IsErr(err, nil, "cannot write identity to store %s: %v", store) {
+		return nil, err
 	}
+	identities = append(identities, currentUser.Public())
+	core.Info("current user %s not found in %s identities, added it", currentUser.Id, name)
 
 	return identities, nil
 }

@@ -138,7 +138,8 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 	}
 
 	var touch time.Time
-	_, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", name)
+	var touchKey = fmt.Sprintf("%s/.~", name)
+	_, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchKey)
 	if ok {
 		touch, err = GetTouch(store, ConfigFolder, ".touch")
 		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
@@ -156,10 +157,13 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 	if core.IsErr(err, nil, "cannot read change logs in %s: %v", name) {
 		return Users{}, 0, err
 	}
+	core.Info("found %d users in changelogs of safe %s", len(users), name)
+
 	identities, err := syncIdentities(store, name, currentUser)
 	if core.IsErr(err, nil, "cannot read identities in %s: %v", name) {
 		return Users{}, 0, err
 	}
+	core.Info("found %d identities in safe %s", len(identities), name)
 
 	for _, identity := range identities {
 		if _, ok := users[identity.Id]; !ok {
@@ -193,7 +197,7 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 		}
 	}
 
-	sql.SetConfig("SAFE_TOUCH", name, "", touch.Unix(), nil)
+	sql.SetConfig("SAFE_TOUCH", touchKey, "", touch.Unix(), nil)
 
 	core.Info("synchronized %d users in %s", count, name)
 	return users, count, nil

@@ -164,6 +164,7 @@ class _HomeState extends State<Home> {
                     ? const CircularProgressIndicator()
                     : const Icon(Icons.lock),
             onTap: () async {
+              NewsIcon.onChange = null;
               Navigator.of(context).popUntil((route) => route.isFirst);
               await Navigator.pushNamed(context, "/coven", arguments: coven);
               setState(() {});
@@ -187,10 +188,11 @@ class _HomeState extends State<Home> {
         ]),
         trailingActions: [
           PlatformIconButton(
-              onPressed: () {
+              onPressed: () async {
+                NewsIcon.onChange = null;
                 Navigator.of(context).popUntil((route) => route.isFirst);
-                Navigator.pushNamed(context, "/settings")
-                    .then((value) => setState(() {}));
+                await Navigator.pushNamed(context, "/settings");
+                setState(() {});
               },
               icon: const Icon(Icons.settings)),
         ],
@@ -220,18 +222,22 @@ class _HomeState extends State<Home> {
         ),
       ),
       bottomNavBar: PlatformNavBar(
-        itemChanged: (idx) {
+        itemChanged: (idx) async {
           setState(() {});
           switch (idx) {
             case 1:
+              NewsIcon.onChange = null;
               Navigator.of(context).popUntil((route) => route.isFirst);
-              Navigator.pushNamed(context, "/join")
-                  .then((value) => setState(() {}));
+              await Navigator.pushNamed(context, "/join");
+              setState(() {});
+              if (!mounted) return;
               break;
             case 2:
+              NewsIcon.onChange = null;
               Navigator.of(context).popUntil((route) => route.isFirst);
-              Navigator.pushNamed(context, "/create")
-                  .then((value) => setState(() {}));
+              await Navigator.pushNamed(context, "/create");
+              setState(() {});
+              if (!mounted) return;
               break;
           }
         },

@@ -40,11 +40,12 @@ class Coven {
 
   static Future<Coven> join(String access) async {
     var p = Profile.current();
-    var safe = await Safe.open(p.identity, access, OpenOptions());
-    var name = safe.name;
-    var lastSlash = name.lastIndexOf('/');
-    var covenName = name.substring(0, lastSlash);
-    var roomName = name.substring(lastSlash + 1);
+    var d = decodeAccess(p.identity, access);
+//    var safe = await Safe.open(p.identity, access, OpenOptions());
+    var name = d.safeName;
+    var ps = covenAndRoom(name);
+    var covenName = ps[0];
+    var roomName = ps[1];
     var coven =
         p.covens.putIfAbsent(covenName, () => Coven(p.identity, covenName, {}));
     coven.rooms[roomName] = access;

@@ -85,9 +85,10 @@ func readChangeLogs(s storage.Store, safeName string, currentUser security.Ident
 		if err != nil {
 			continue
 		}
+		core.Info("read change log file '%s' in safe %s", name, safeName)
 
 		signedBy, err := security.Unmarshal(data, &changeLog, "signature")
-		if core.IsErr(err, nil, "cannot unmarshal change log: %v", err) {
+		if core.IsErr(err, nil, "cannot unmarshal change log file '%s' in safe %s: %v", name, safeName, err) {
 			continue
 		}
 
@@ -98,6 +99,7 @@ func readChangeLogs(s storage.Store, safeName string, currentUser security.Ident
 
 		for _, change := range changes {
 			if !isSignatureValid(change) {
+				core.Info("invalid signature in change log file '%s' in safe %s", name, safeName)
 				continue
 			}
 
@@ -112,6 +114,7 @@ func readChangeLogs(s storage.Store, safeName string, currentUser security.Ident
 					continue
 				}
 				users[permissionChange.UserId] = permissionChange.Permission
+				core.Info("user '%s' in %s has permission %d", permissionChange.UserId, safeName, permissionChange.Permission)
 			}
 		}
 

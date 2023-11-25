@@ -236,64 +236,92 @@ class _CovenWidgetState extends State<CovenWidget> {
     }
 
     return PlatformScaffold(
-        appBar: PlatformAppBar(
-          title: PlatformText(_coven.name),
-          trailingActions: [
-            const NewsIcon(),
-            const SizedBox(width: 10),
-            settingsIcon,
-          ],
-        ),
-        body: FutureBuilder<Safe>(
-            future: _coven.getLounge(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(child: PlatformText("${snapshot.error}"));
+      appBar: PlatformAppBar(
+        title: PlatformText(_coven.name),
+        trailingActions: [
+          const NewsIcon(),
+          const SizedBox(width: 10),
+          if (_lounge != null) settingsIcon,
+        ],
+      ),
+      body: FutureBuilder<Safe>(
+          future: _coven.getLounge(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              switch (snapshot.error.toString()) {
+                case "no key found":
+                  return Center(
+                      child: Column(
+                    children: [
+                      const Spacer(),
+                      const Icon(Icons.lock, size: 40),
+                      const SizedBox(height: 20),
+                      PlatformText(
+                          "Admin didn't provide access yet. Retry later."),
+                      const SizedBox(height: 40),
+                      PlatformElevatedButton(
+                        onPressed: () {
+                          var p = Profile.current();
+                          p.covens.remove(_coven.name);
+                          p.save();
+                          Navigator.pop(context);
+                        },
+                        child: PlatformText('Remove this coven'),
+                      ),
+                      const Spacer(),
+                    ],
+                  ));
+                default:
+                  return Center(child: PlatformText("${snapshot.error}"));
               }
-              if (!snapshot.hasData) {
-                return CatProgressIndicator("Connecting to ${_coven.name}...");
-              }
-
-              if (_lounge == null) {
-                _lounge = snapshot.data as Safe;
-                Future.delayed(Duration.zero, () {
-                  setState(() {
-                    _lounge = snapshot.data as Safe;
-                  });
-                });
-              }
-
-              return Padding(
-                padding: const EdgeInsets.all(2.0),
-                child: ListView(
-                  children: [
-                    ...getInvites(context),
-                    privates,
-                    ...zonesWidgets,
-                  ],
-                ),
-              );
-            }),
-        bottomNavBar: PlatformNavBar(
-          itemChanged: (idx) {
-            switch (idx) {
-              case 1:
-                Navigator.pushNamed(context, '/coven/create',
-                    arguments: _coven);
-                break;
-              case 2:
-                Navigator.pushNamed(context, "/invite",
-                    arguments: {"safe": _lounge});
-                break;
             }
-          },
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.list), label: "Rooms"),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.add), label: "Create Room"),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.person_add), label: "Invite"),
-          ],
-        ));
+            if (!snapshot.hasData) {
+              return CatProgressIndicator("Connecting to ${_coven.name}...");
+            }
+
+            if (_lounge == null) {
+              _lounge = snapshot.data as Safe;
+              Future.delayed(Duration.zero, () {
+                setState(() {
+                  _lounge = snapshot.data as Safe;
+                });
+              });
+            }
+
+            return Padding(
+              padding: const EdgeInsets.all(2.0),
+              child: ListView(
+                children: [
+                  ...getInvites(context),
+                  privates,
+                  ...zonesWidgets,
+                ],
+              ),
+            );
+          }),
+      bottomNavBar: _lounge != null
+          ? PlatformNavBar(
+              itemChanged: (idx) {
+                switch (idx) {
+                  case 1:
+                    Navigator.pushNamed(context, '/coven/create',
+                        arguments: _coven);
+                    break;
+                  case 2:
+                    Navigator.pushNamed(context, "/invite",
+                        arguments: {"safe": _lounge});
+                    break;
+                }
+              },
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.list), label: "Rooms"),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.add), label: "Create Room"),
+                BottomNavigationBarItem(
+                    icon: Icon(Icons.person_add), label: "Invite"),
+              ],
+            )
+          : null,
+    );
   }
 }

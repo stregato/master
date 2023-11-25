@@ -37,7 +37,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 	var touch time.Time
 
 	dir := hashPath(bucket)
-	touchConfigKey := fmt.Sprintf("%s//%s", safeName, bucket)
+	touchConfigKey := fmt.Sprintf("%s/%s", safeName, bucket)
 	_, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchConfigKey)
 	if ok {
 		touch, err = GetTouch(store, DataFolder, dir, ".touch")

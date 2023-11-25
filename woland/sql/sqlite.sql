@@ -219,5 +219,12 @@ WHERE safe LIKE :quoteGroup || '%' AND deleted = 0
 ORDER BY modTime ASC
 LIMIT 1;
 
--- DELETE_SAFE
-DELETE FROM Header WHERE safe = :safe
+-- DELETE_SAFE_HEADERS
+DELETE FROM Header WHERE safe = :safe;
+
+-- DELETE_SAFE_USERS
+DELETE FROM Users WHERE safe = :safe;
+
+-- DELETE_SAFE_CONFIGS
+DELETE FROM configs WHERE k LIKE :safe || '/%';
+
