@@ -142,7 +142,9 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     _processUnilink(context);
     NewsIcon.onChange = (_) {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     };
 
     if (!Profile.hasProfile()) {

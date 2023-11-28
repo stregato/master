@@ -195,44 +195,73 @@ class _CovenWidgetState extends State<CovenWidget> {
       }
       var accessPermission = permissionRead + permissionWrite + permissionAdmin;
       zonesWidgets.add(Card(
-        child: ListTile(
-          title: PlatformText("😴 ${identity.nick} waiting"),
-          subtitle: PlatformText(
-            "\n${identity.id}",
-            style: const TextStyle(fontSize: 12),
-          ),
-          trailing: ButtonBar(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              PlatformElevatedButton(
-                onPressed: amAdmin
-                    ? () {
-                        _lounge!.setUsers(
-                            {id: accessPermission}, SetUsersOptions());
-                        _waitingUsers.remove(id);
-                        setState(() {
-                          _waitingUsers = _waitingUsers;
-                        });
-                      }
-                    : null,
-                child: PlatformText('Approve'),
+          child: ListTile(
+        title: Row(
+          children: [
+            PlatformText("😴 ${identity.nick} waiting"),
+            const Spacer(),
+            PlatformElevatedButton(
+              onPressed: amAdmin
+                  ? () {
+                      _lounge!
+                          .setUsers({id: accessPermission}, SetUsersOptions());
+                      _waitingUsers.remove(id);
+                      setState(() {
+                        _waitingUsers = _waitingUsers;
+                      });
+                    }
+                  : null,
+              cupertino: (_, __) => CupertinoElevatedButtonData(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               ),
-              PlatformElevatedButton(
-                onPressed: amAdmin
-                    ? () {
-                        _lounge!.setUsers({id: 0}, SetUsersOptions());
-                        _waitingUsers.remove(id);
-                        setState(() {
-                          _waitingUsers = _waitingUsers;
-                        });
-                      }
-                    : null,
-                child: PlatformText('Reject'),
+              material: (_, __) => MaterialElevatedButtonData(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(2),
+                ),
               ),
-            ],
-          ),
+              child: PlatformText(
+                'Approve',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            const SizedBox(
+              width: 10,
+            ),
+            PlatformElevatedButton(
+              onPressed: amAdmin
+                  ? () {
+                      _lounge!.setUsers({id: 0}, SetUsersOptions());
+                      _waitingUsers.remove(id);
+                      setState(() {
+                        _waitingUsers = _waitingUsers;
+                      });
+                    }
+                  : null,
+              cupertino: (_, __) => CupertinoElevatedButtonData(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              ),
+              material: (_, __) => MaterialElevatedButtonData(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(2),
+                ),
+              ),
+              child: PlatformText(
+                'Reject',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ],
         ),
-      ));
+        subtitle: Column(
+          children: [
+            const SizedBox(height: 8),
+            PlatformText(
+              identity.id,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      )));
     }
 
     return PlatformScaffold(

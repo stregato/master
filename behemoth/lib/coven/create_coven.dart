@@ -269,9 +269,8 @@ class _CreateCovenState extends State<CreateCoven> {
                                   successMessage:
                                       "Congrats! You successfully created $_name",
                                   errorMessage: "Creation failed");
-                              // ignore: use_build_context_synchronously
-                              Navigator.popUntil(
-                                  context, (route) => route.isFirst);
+                              if (!mounted) return;
+                              Navigator.pop(context);
                             }
                           : null,
                       child: PlatformText('Create'),
