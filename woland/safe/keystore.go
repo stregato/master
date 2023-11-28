@@ -11,74 +11,93 @@ import (
 	"github.com/stregato/master/woland/storage"
 )
 
-// readKeystores reads all keystore files in the given store and returns the keyId and key for the largest keyId, all
-// the keys and the delta of users that have been added or removed for the last keyId.
-func readKeystores(s storage.Store, safename string, currentUser security.Identity,
-	users map[string]Permission) (keyId uint64, key []byte, keys map[uint64][]byte,
-	delta map[string]Permission, err error) {
-
-	files, err := s.ReadDir(ConfigFolder, storage.Filter{Suffix: ".keystore"})
-	if core.IsErr(err, nil, "cannot read keystore files: %v", err) {
-		return 0, nil, nil, nil, err
-	}
-
-	keys = make(map[uint64][]byte)
-	var withKeys map[string]bool
-	for _, file := range files {
-		name := path.Join(ConfigFolder, file.Name())
-		keyId2, key2, withKeys2, signedBy, err := readKeystore(s, safename, name, currentUser)
-		if core.IsErr(err, nil, "cannot read keystore file: %v", err) {
-			continue
-		}
-		if keyId2 == 0 {
-			continue
-		}
-
-		keys[keyId2] = key2
-
-		if keyId2 > keyId && users[signedBy] >= PermissionAdmin {
-			keyId = keyId2
-			key = key2
-			withKeys = withKeys2
-			core.Info("found newer key with id %d signed by %s", keyId, signedBy)
-		} else if keyId2 == keyId {
-			for userId := range withKeys {
-				withKeys[userId] = withKeys[userId] || withKeys2[userId]
-			}
-		}
-	}
-
-	delta = make(map[string]Permission)
-	for userId, permission := range users {
-		if !withKeys[userId] {
-			delta[userId] = permission
-		}
-	}
-	for userId := range withKeys {
-		if users[userId] == 0 {
-			delta[userId] = PermissionNone
-		}
-	}
-
-	core.Info("keystores read: name %s, keyId %d, delta %v", safename, keyId, delta)
-	return keyId, key, keys, delta, nil
+type Keystore struct {
+	LastKeyId uint64            `json:"lastKeyId"`
+	Keys      map[uint64][]byte `json:"keys"`
 }
 
-func readKeystore(s storage.Store, safeName string, path string, currentUser security.Identity) (keyId uint64,
+// syncKeystore reads all keystore files in the given store and returns the keyId and key for the largest keyId, all
+// the keys and the delta of users that have been added or removed for the last keyId.
+func syncKeystore(s storage.Store, safename string, currentUser security.Identity,
+	users map[string]Permission) (keystore Keystore, withKeys map[string]bool, err error) {
+
+	synced, err := GetCached(safename, s, ".keystore.touch", &keystore)
+	if core.IsErr(err, nil, "cannot check keystore file: %v", err) && synced {
+		core.Info("keystore file is up to date")
+		return keystore, nil, nil
+	}
+
+	if synced {
+		core.Info("keystore file is up to date")
+	} else {
+		files, err := s.ReadDir(ConfigFolder, storage.Filter{Suffix: ".keystore"})
+		if core.IsErr(err, nil, "cannot read keystore files: %v", err) {
+			return Keystore{}, nil, err
+		}
+
+		var lastKeyId uint64
+		keys := make(map[uint64][]byte)
+
+		for _, file := range files {
+			name := path.Join(ConfigFolder, file.Name())
+			keyId2, key2, withKeys2, signedBy, err := readKeystoreFile(s, safename, name, currentUser)
+			if core.IsErr(err, nil, "cannot read keystore file: %v", err) {
+				continue
+			}
+			if keyId2 == 0 {
+				continue
+			}
+
+			keys[keyId2] = key2
+
+			if keyId2 > lastKeyId && users[signedBy] >= PermissionAdmin {
+				lastKeyId = keyId2
+				withKeys = withKeys2
+				core.Info("found newer key with id %d signed by %s", lastKeyId, signedBy)
+			} else if keyId2 == lastKeyId {
+				for userId := range withKeys {
+					withKeys[userId] = withKeys[userId] || withKeys2[userId]
+				}
+			}
+		}
+		keystore.LastKeyId = lastKeyId
+		keystore.Keys = keys
+	}
+
+	// delta = make(map[string]Permission)
+	// for userId, permission := range users {
+	// 	if !withKeys[userId] {
+	// 		delta[userId] = permission
+	// 	}
+	// }
+	// for userId := range withKeys {
+	// 	if users[userId] == 0 {
+	// 		delta[userId] = PermissionNone
+	// 	}
+	// }
+
+	err = SetCached(safename, s, "keystore", keystore, false)
+	core.IsErr(err, nil, "cannot write keystore cache: %v", err)
+
+	core.Info("keystores read: name %s, keyId %d, withKeys %v", safename, keystore.LastKeyId, withKeys)
+	return keystore, withKeys, nil
+}
+
+func readKeystoreFile(s storage.Store, safeName string, path string, currentUser security.Identity) (keyId uint64,
 	key []byte, users map[string]bool, signedBy string, err error) {
-	var keystore Keystore
+	var keystoreFile KeystoreFile
 
 	data, err := storage.ReadFile(s, path)
 	if core.IsErr(err, nil, "cannot read keystore file: %v", err) {
 		return 0, nil, nil, "", err
 	}
 
-	signedBy, err = security.Unmarshal(data, &keystore, "signature")
+	signedBy, err = security.Unmarshal(data, &keystoreFile, "signature")
 	if core.IsErr(err, nil, "cannot read keystore file: %v", err) {
 		return 0, nil, nil, "", err
 	}
 
-	encryptedKey, ok := keystore.Keys[currentUser.Id]
+	encryptedKey, ok := keystoreFile.Keys[currentUser.Id]
 	if !ok {
 		core.Info("keystore read: name %s does not contain key for %s", safeName, currentUser.Id)
 		return 0, nil, nil, "", nil
@@ -90,31 +109,33 @@ func readKeystore(s storage.Store, safeName string, path string, currentUser sec
 	}
 
 	users = make(map[string]bool)
-	for userId := range keystore.Keys {
+	for userId := range keystoreFile.Keys {
 		users[userId] = true
 	}
 
-	core.Info("keystore read: name %s, keyId %d, signedBy %s", safeName, keystore.KeyId, signedBy)
+	core.Info("keystore read: name %s, keyId %d, signedBy %s", safeName, keystoreFile.KeyId, signedBy)
 
-	return keystore.KeyId, key, users, signedBy, nil
+	return keystoreFile.KeyId, key, users, signedBy, nil
 }
 
-func writeKeyStore(s storage.Store, safeName string, currentUser security.Identity, keyId uint64, key []byte,
+func writeKeyStoreFile(s storage.Store, safeName string, currentUser security.Identity, keystore Keystore,
 	users Users) error {
-	keystore := Keystore{
-		KeyId: keyId,
+	keystoreFile := KeystoreFile{
+		KeyId: keystore.LastKeyId,
 		Keys:  make(map[string][]byte),
 	}
 
-	for userId := range users {
-		encryptedKey, err := security.EcEncrypt(userId, key)
-		if core.IsErr(err, nil, "cannot encrypt primary key: %v", err) {
-			return err
+	for userId, permission := range users {
+		if permission > PermissionNone {
+			encryptedKey, err := security.EcEncrypt(userId, keystore.Keys[keystore.LastKeyId])
+			if core.IsErr(err, nil, "cannot encrypt primary key: %v", err) {
+				return err
+			}
+			keystoreFile.Keys[userId] = encryptedKey
 		}
-		keystore.Keys[userId] = encryptedKey
 	}
 
-	data, err := security.Marshal(currentUser, keystore, "signature")
+	data, err := security.Marshal(currentUser, keystoreFile, "signature")
 	if core.IsErr(err, nil, "cannot marshal keystore: %v", err) {
 		return err
 	}
@@ -124,6 +145,9 @@ func writeKeyStore(s storage.Store, safeName string, currentUser security.Identi
 	if core.IsErr(err, nil, "cannot write keystore: %v", err) {
 		return err
 	}
+
+	err = SetCached(safeName, s, ".keystore.touch", keystore, true)
+	core.IsErr(err, nil, "cannot write keystore cache: %v", err)
 
 	return nil
 }

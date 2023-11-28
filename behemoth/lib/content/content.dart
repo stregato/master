@@ -71,14 +71,19 @@ class _ContentState extends State<Content> {
       if (File(localFile).existsSync()) {
         return "conflict";
       }
-      return "new";
+      return headers[0].uploading ? "uploading" : "new";
     }
     var downloadTime = headers[idx].downloads[localFile]!;
+    var uploading = headers[idx].uploading;
     var modified = localStat.modified.difference(downloadTime).inMinutes > 1;
     if (modified) {
       return idx == 0 ? "modified" : "conflict";
     } else {
-      return idx == 0 ? "sync" : "updated";
+      return idx == 0
+          ? uploading
+              ? "uploading"
+              : "sync"
+          : "updated";
     }
   }
 
@@ -180,22 +185,28 @@ class _ContentState extends State<Content> {
       var name = entry.key;
       var headers = entry.value;
       var state = _getState(name, headers);
+      var uploading = state == "uploading";
       items.add(Card(
         child: ListTile(
           title: Text(name.split("/").last,
               style: TextStyle(color: _colorForState(state))),
           subtitle: Text(state),
           leading: FileIcon(name),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () async {
-            await Navigator.pushNamed(context, "/content/actions", arguments: {
-              "safe": widget.safe,
-              "name": name,
-              "folder": _dir,
-              "headers": headers
-            });
-            _read();
-          },
+          trailing: uploading
+              ? const CircularProgressIndicator()
+              : const Icon(Icons.chevron_right),
+          onTap: !uploading
+              ? () async {
+                  await Navigator.pushNamed(context, "/content/actions",
+                      arguments: {
+                        "safe": widget.safe,
+                        "name": name,
+                        "folder": _dir,
+                        "headers": headers
+                      });
+                  _read();
+                }
+              : null,
         ),
       ));
     }

@@ -38,47 +38,37 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		return nil, err
 	}
 
+	now := core.Now()
 	stores, _, err := connect(urls, name, aesKey)
 	if core.IsErr(err, nil, "cannot connect to %s: %v", name) {
 		return nil, err
 	}
+	core.Info("connected to %s in %v", name, core.Since(now))
 
+	now = core.Now()
 	store := stores[0]
-	manifest, err := readManifestFile(store, creatorId)
+	manifest, err := readManifestFile(name, store, creatorId)
 	if core.IsErr(err, nil, "cannot read manifest file in %s: %v", name) {
 		return nil, err
 	}
+	core.Info("read manifest file of %s in %v", name, core.Since(now))
 
-	users, _, err := syncUsers(store, name, currentUser, creatorId)
+	now = core.Now()
+	users, _, err := syncUsers(name, store, currentUser, creatorId, false)
 	if core.IsErr(err, nil, "cannot sync users in %s: %v", name) {
 		return nil, err
 	}
+	core.Info("synchorized users of %s in %v", name, core.Since(now))
 
-	// identities, err := syncIdentities(store, name, currentUser)
-	// if core.IsErr(err, nil, "cannot sync identities in %s: %v", name) {
-	// 	return nil, err
-	// }
-
-	// users, newestChangeFile, err := readChangeLogs(store, name, currentUser, creatorId, "")
-	// if core.IsErr(err, nil, "cannot read change logs in %s: %v", name) {
-	// 	return nil, err
-	// }
-
-	// for _, identity := range identities {
-	// 	if _, ok := users[identity.Id]; !ok {
-	// 		users[identity.Id] = PermissionWait
-	// 	}
-	// }
-
-	keyId, key, keys, _, err := readKeystores(store, name, currentUser, users)
+	keystore, _, err := syncKeystore(store, name, currentUser, users)
 	if core.IsErr(err, nil, "cannot read keystores in %s: %v", name) {
 		return nil, err
 	}
-	if len(key) == 0 {
+	core.Info("synchorized keystore of %s in %v", name, core.Since(now))
+
+	if keystore.LastKeyId == 0 {
 		return nil, fmt.Errorf("no key found")
 	}
-
-	keys[keyId] = key
 
 	size, err := getSafeSize(name)
 	if core.IsErr(err, nil, "cannot get size of %s: %v", name) {
@@ -100,37 +90,37 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		QuotaGroup:  manifest.QuotaGroup,
 		Size:        size,
 
-		keyId:     keyId,
-		keys:      keys,
+		keystore:  keystore,
 		stores:    stores,
 		users:     users,
 		usersLock: sync.Mutex{},
+		syncUsers: time.NewTicker(10 * time.Minute),
+		uploads:   time.NewTicker(time.Minute),
+		upload:    make(chan bool),
+		quit:      make(chan bool),
 		wg:        sync.WaitGroup{},
 	}
-	s.syncUsers = getSyncUsersTicker(&s, options.SyncUsersRefreshRate)
+	go syncUserJob(&s)
+	go uploadJob(&s)
+
 	safesCounterLock.Unlock()
 
-	core.Info("safe opened: name %s, creator %s, description %s, quota %d, key %v", name, currentUser.Id, manifest.Description, manifest.Quota, key)
+	core.Info("safe opened: name %s, creator %s, description %s, quota %d, keystore %v", name,
+		currentUser.Id, manifest.Description, manifest.Quota, keystore)
 
 	return &s, nil
 }
 
-func getSyncUsersTicker(s *Safe, refreshRate time.Duration) *time.Ticker {
-	if refreshRate == 0 {
-		refreshRate = DefaultSyncUsersRefreshRate
+func syncIdentities(store storage.Store, name string, currentUser security.Identity) (new []security.Identity, err error) {
+	synced, err := GetCached(name, store, ".identities.touch", nil)
+	if core.IsErr(err, nil, "cannot sync touch file in %s: %v", name) {
+		return nil, err
 	}
 
-	t := time.NewTicker(refreshRate)
-
-	go func() {
-		for range t.C {
-			SyncUsers(s)
-		}
-	}()
-	return t
-}
-
-func syncIdentities(store storage.Store, name string, currentUser security.Identity) ([]security.Identity, error) {
+	if synced {
+		core.Info("identities in %s are up to date", name)
+		return nil, nil
+	}
 	identities, err := readIdentities(store)
 	if core.IsErr(err, nil, "cannot read identities in %s: %v", name) {
 		return nil, err
@@ -139,6 +129,10 @@ func syncIdentities(store storage.Store, name string, currentUser security.Ident
 	for _, identity := range identities {
 		core.Info("compare %s with %s", identity.Id, currentUser.Id)
 		if identity.Id == currentUser.Id {
+			err = SetCached(name, store, ".identities.touch", nil, false)
+			if core.IsErr(err, nil, "cannot write touch file in %s: %v", name) {
+				return nil, err
+			}
 			return identities, nil
 		}
 	}
@@ -150,6 +144,10 @@ func syncIdentities(store storage.Store, name string, currentUser security.Ident
 	identities = append(identities, currentUser.Public())
 	core.Info("current user %s not found in %s identities, added it", currentUser.Id, name)
 
+	err = SetCached(name, store, ".identities.touch", nil, true)
+	if core.IsErr(err, nil, "cannot write touch file in %s: %v", name) {
+		return nil, err
+	}
 	return identities, nil
 }
 

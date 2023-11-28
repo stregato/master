@@ -87,7 +87,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 	}
 
 	var cachedFile string
-	if !options.NoCache || header.Attributes.Zip {
+	if !options.NoCache || header.Zip {
 		if currentCacheSize < 0 {
 			currentCacheSize = getCurrentCacheSize()
 		}
@@ -107,7 +107,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 		}
 		f.Seek(0, 0)
 
-		if header.Attributes.Zip {
+		if header.Zip {
 			r, err := gzip.NewReader(f)
 			if core.IsErr(err, nil, "cannot create gzip reader: %v", err) {
 				return Header{}, err
@@ -201,7 +201,7 @@ func copyFromCachedFile(header Header, w io.Writer) error {
 	if core.IsErr(err, nil, "cannot open cached file: %v", err) {
 		return err
 	}
-	if header.Attributes.Zip {
+	if header.Zip {
 		r, err = gzip.NewReader(r)
 		if core.IsErr(err, nil, "cannot create gzip reader: %v", err) {
 			return err

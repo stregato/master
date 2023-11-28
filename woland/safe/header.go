@@ -25,7 +25,6 @@ var ErrNoEncryptionKey = fmt.Errorf("no encryption key")
 type Attributes struct {
 	Hash        []byte         `json:"ha,omitempty"` // Hash of the file
 	ContentType string         `json:"co,omitempty"` // Content type of the file
-	Zip         bool           `json:"zi,omitempty"` // True if the file is zipped
 	Thumbnail   []byte         `json:"th,omitempty"` // Thumbnail of the file
 	Tags        []string       `json:"ta,omitempty"` // Tags of the file
 	Extra       map[string]any `json:"ex,omitempty"` // Extra attributes of the file
@@ -38,14 +37,20 @@ type Header struct {
 	ModTime             time.Time            `json:"mo"`            // Last modification time of the file
 	FileId              uint64               `json:"fi"`            // ID used in the storage to identify the file
 	IV                  []byte               `json:"iv"`            // IV used to encrypt the attributes
+	Zip                 bool                 `json:"zi,omitempty"`  // True if the file is zipped
 	Attributes          Attributes           `json:"at,omitempty"`  // Attributes of the file
 	EncryptedAttributes []byte               `json:"en,omitempty"`  // Encrypted attributes of the file
 	BodyKey             []byte               `json:"bo,omitempty"`  // Key used to encrypt the body
 	PrivateId           string               `json:"pr,omitempty"`  // ID of the user in case of private encryption
 	Deleted             bool                 `json:"de,omitempty"`  // True if the file is deleted
-	Downloads           map[string]time.Time `json:"do,omitempty"`  // Map of download locations and times
 	Cached              string               `json:"ca,omitempty"`  // Location where the file is cached
 	CachedExpires       time.Time            `json:"cac,omitempty"` // Time when the cache expires
+	Uploading           bool                 `json:"up,omitempty"`  // Number of uploads retries
+	SourceFile          string               `json:"so,omitempty"`  // Source of the file
+	HashedBucket        string               `json:"hb,omitempty"`  // Hashed bucket of the file
+	ReplaceId           uint64               `json:"re,omitempty"`  // ID of the file to replace
+	Replace             bool                 `json:"rp,omitempty"`  // True if the file is replacing another file
+	Downloads           map[string]time.Time `json:"do,omitempty"`  // Map of download locations and times
 }
 
 func marshalHeaders(files []Header, keyId uint64, keyValue []byte) ([]byte, error) {
@@ -105,8 +110,8 @@ func unmarshalHeaders(ciphertext []byte, keys map[uint64][]byte) (headers []Head
 	return headers, keyId, nil
 }
 
-func writeHeaders(store storage.Store, safeName string, filePath string, keyId uint64, keys Keys, headers []Header) error {
-	data, err := marshalHeaders(headers, keyId, keys[keyId])
+func writeHeaders(store storage.Store, safeName string, filePath string, keyId uint64, key []byte, headers []Header) error {
+	data, err := marshalHeaders(headers, keyId, key)
 	if core.IsErr(err, nil, "cannot encrypt header: %v", err) {
 		return err
 	}
@@ -161,6 +166,7 @@ func insertHeaderOrIgnoreToDB(safeName, bucket string, headerId uint64, header H
 		"privateId":    header.PrivateId,
 		"deleted":      header.Deleted,
 		"cacheExpires": header.CachedExpires.Unix(),
+		"uploading":    header.Uploading,
 		"header":       data,
 	})
 	if core.IsErr(err, nil, "cannot save header: %v", err) {
@@ -205,6 +211,7 @@ func updateHeaderInDB(safeName, bucket string, fileId uint64, update func(Header
 		"bucket":       bucket,
 		"fileId":       fileId,
 		"cacheExpires": header.CachedExpires.Unix(),
+		"uploading":    header.Uploading,
 		"header":       data})
 	if core.IsErr(err, nil, "cannot update header: %v", err) {
 		return err

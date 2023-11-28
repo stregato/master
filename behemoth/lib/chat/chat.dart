@@ -418,8 +418,8 @@ class _ChatState extends State<Chat> {
   }
 
   void _addFile(String filePath) async {
-    var options = PutOptions();
-    options.contentType = lookupMimeType(filePath) ?? '';
+    var contentType = lookupMimeType(filePath) ?? '';
+    var options = PutOptions(contentType: contentType, async: true);
 
     var size = File(filePath).lengthSync();
     var name = ph.basename(filePath);

@@ -158,6 +158,7 @@ class Header {
   Uint8List iv = Uint8List(0);
   Attributes attributes = Attributes();
   bool deleted = false;
+  bool uploading = false;
   Map<String, DateTime> downloads = {};
   String cached = '';
   DateTime cachedExpires = DateTime.now();
@@ -172,6 +173,7 @@ class Header {
         iv = base64Decode(json['iv'] ?? ""),
         attributes = Attributes.fromJson(json['at'] ?? {}),
         deleted = json['de'] ?? false,
+        uploading = json['up'] ?? false,
         downloads = (json['do'] ?? {}).map<String, DateTime>(
             (key, value) => MapEntry(key.toString(), DateTime.parse(value))),
         cached = json['ca'] ?? "",
@@ -347,6 +349,7 @@ class ListDirsOptions {
 class PutOptions {
   bool replace;
   int replaceID;
+  bool async;
   int updateMeta;
   List<String> tags;
   List<int> thumbnail;
@@ -360,6 +363,7 @@ class PutOptions {
   PutOptions(
       {this.replace = false,
       this.replaceID = 0,
+      this.async = false,
       this.updateMeta = 0,
       this.tags = const [],
       this.thumbnail = const [],
@@ -373,6 +377,7 @@ class PutOptions {
   Map<String, dynamic> toJson() => {
         'replace': replace,
         'replaceID': replaceID,
+        'async': async,
         'updateMeta': updateMeta,
         'tags': tags,
         'thumbnail': thumbnail,

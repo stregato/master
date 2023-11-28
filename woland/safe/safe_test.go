@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -77,7 +78,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
 		Zip:         true,
-	})
+	}, nil)
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, file.Name == "file1", "Expected file name to be 'file1', got '%s'", file.Name)
 
@@ -85,7 +86,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	file, err = Put(s, "bucket", "file2", r, PutOptions{
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
-	})
+	}, nil)
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, file.Name == "file2", "Expected file name to be 'file1', got '%s'", file.Name)
 
@@ -93,7 +94,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	file, err = Put(s, "bucket", "file3", r, PutOptions{
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
-	})
+	}, nil)
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, file.Name == "file3", "Expected file name to be 'file1', got '%s'", file.Name)
 
@@ -103,7 +104,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	core.Assert(t, len(files) == 3, "Expected 1 file, got %d", len(files))
 	file = files[0]
 	if file.Name != "file3" {
-		t.Errorf("Expected file name to be 'file1', got '%s'", file.Name)
+		t.Errorf("Expected file name to be 'file3', got '%s'", file.Name)
 	}
 	if file.Size != int64(len(data)) {
 		t.Errorf("Expected file size to be %d, got %d", len(data), file.Size)
@@ -125,7 +126,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	file, err = Put(s, "bucket", "dir0/file2", r, PutOptions{
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
-	})
+	}, nil)
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, file.Name == "dir0/file2", "Expected file name to be 'file1', got '%s'", file.Name)
 
@@ -150,7 +151,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 		Private:     second.Id,
 		Tags:        []string{"tag1", "tag2"},
 		ContentType: "text/plain",
-	})
+	}, nil)
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, !h.Downloads[name].IsZero(), "Expected download time to be set")
 
@@ -184,4 +185,33 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	core.Assert(t, len(h.Attributes.Tags) == 2, "Expected 2 tags, got %d", len(h.Attributes.Tags))
 
 	Close(s)
+}
+
+func TestAsyncPutLocal(t *testing.T) {
+	testAsyncPut(t, sql.TempDB, TestLocalStoreUrl)
+}
+
+func testAsyncPut(t *testing.T, dbPath string, storeUrl string) {
+	StartTestDB(t, dbPath)
+	s := GetTestSafe(t, storeUrl, true)
+	defer Close(s)
+
+	file := path.Join(os.TempDir(), "file1")
+	err := os.WriteFile(file, []byte("Hello, World!"), 0644)
+	core.TestErr(t, err, "cannot create temp file: %v")
+	defer os.Remove(file)
+
+	_, err = Put(s, "bucket", "file1", file, PutOptions{Async: true}, nil)
+	core.TestErr(t, err, "cannot put file: %v")
+
+	for {
+		headers, err := ListFiles(s, "bucket", ListOptions{})
+		core.TestErr(t, err, "cannot list files: %v")
+		core.Assert(t, len(headers) == 1, "Expected 1 file, got %d", len(headers))
+		if !headers[0].Uploading {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
 }

@@ -15,8 +15,8 @@ func TestEncryptAndDecryptHeader(t *testing.T) {
 	originalHeader := Header{
 		Name: "file",
 		Size: 1024,
+		Zip:  false,
 		Attributes: Attributes{
-			Zip:         false,
 			Thumbnail:   []byte{0xFF, 0xD8, 0xFF}, // Some bytes
 			ContentType: "image/jpeg",
 		},
@@ -36,7 +36,7 @@ func TestEncryptAndDecryptHeader(t *testing.T) {
 
 	assert.Equal(t, originalHeader.Name, decryptedHeader.Name, "Name does not match original")
 	assert.Equal(t, originalHeader.Size, decryptedHeader.Size, "Size does not match original")
-	assert.Equal(t, originalHeader.Attributes.Zip, decryptedHeader.Attributes.Zip, "Zip does not match original")
+	assert.Equal(t, originalHeader.Zip, decryptedHeader.Zip, "Zip does not match original")
 	assert.Equal(t, originalHeader.Attributes.ContentType, decryptedHeader.Attributes.ContentType, "ContentType does not match original")
 	assert.Equal(t, originalHeader.BodyKey, decryptedHeader.BodyKey, "BodyKey does not match original")
 

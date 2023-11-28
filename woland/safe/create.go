@@ -74,9 +74,11 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		}
 	}
 
-	keyId := snowflake.ID()
-	key := core.GenerateRandomBytes(KeySize)
-	keys := map[uint64][]byte{keyId: key}
+	keystore := Keystore{
+		LastKeyId: snowflake.ID(),
+		Keys:      map[uint64][]byte{},
+	}
+	keystore.Keys[keystore.LastKeyId] = core.GenerateRandomBytes(KeySize)
 	if users == nil {
 		users = make(Users)
 	}
@@ -89,7 +91,7 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		options.ReplicaWatch = DefaultReplicaWatch
 	}
 
-	err = writeManifestFile(stores[0], currentUser, manifestFile{
+	err = writeManifestFile(name, stores[0], currentUser, manifestFile{
 		CreatorId:      creatorId,
 		Description:    options.Description,
 		ChangeLogWatch: options.ChangeLogWatch,
@@ -105,17 +107,20 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	if core.IsErr(err, nil, "cannot write permission change in %s: %v", name) {
 		return nil, err
 	}
+	err = SetCached(name, stores[0], ".users.touch", nil, true)
+	if core.IsErr(err, nil, "cannot create touch file in %s: %v", name) {
+		return nil, err
+	}
 
-	err = writeKeyStore(stores[0], name, currentUser, keyId, key, users)
+	err = writeKeyStoreFile(stores[0], name, currentUser, keystore, users)
 	if core.IsErr(err, nil, "cannot write keystore in %s: %v", name) {
 		return nil, err
 	}
+
 	_, err = syncIdentities(stores[0], name, currentUser)
 	if core.IsErr(err, nil, "cannot sync identities in %s: %v", name) {
 		return nil, err
 	}
-
-	SetTouch(stores[0], ConfigFolder, ".touch")
 
 	_, err = sql.Exec("SET_USER", sql.Args{"safe": name, "id": currentUser.Id, "permission": PermissionRead | PermissionWrite | PermissionAdmin | PermissionSuperAdmin})
 	if core.IsErr(err, nil, "cannot set user: %v", err) {
@@ -140,13 +145,18 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		Quota:       options.Quota,
 		QuotaGroup:  options.QuotaGroup,
 		Size:        0,
-		keyId:       keyId,
-		keys:        keys,
+		keystore:    keystore,
 		stores:      stores,
 		users:       users,
 		usersLock:   sync.Mutex{},
-		wg:          sync.WaitGroup{},
+
+		syncUsers: time.NewTicker(10 * time.Minute),
+		uploads:   time.NewTicker(time.Minute),
+		upload:    make(chan bool),
+		quit:      make(chan bool),
+		wg:        sync.WaitGroup{},
 	}
-	s.syncUsers = getSyncUsersTicker(s, options.ChangeLogWatch)
+	go syncUserJob(s)
+	go uploadJob(s)
 	return s, nil
 }

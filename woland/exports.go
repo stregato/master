@@ -371,7 +371,7 @@ func wlnd_putData(hnd C.int, bucket, name *C.char, r *C.Reader, putOptions *C.ch
 		return cResult(nil, err)
 	}
 
-	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), CReader{r}, options)
+	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), CReader{r}, options, nil)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -402,7 +402,7 @@ func wlnd_putCString(hnd C.int, bucket, name, data *C.char, putOptions *C.char) 
 
 	r := core.NewBytesReader(bytes)
 
-	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), r, options)
+	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), r, options, nil)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}
@@ -424,7 +424,7 @@ func wlnd_putFile(hnd C.int, bucket, name *C.char, sourceFile *C.char, putOption
 		return cResult(nil, err)
 	}
 
-	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), C.GoString(sourceFile), options)
+	header, err := safe.Put(s, C.GoString(bucket), C.GoString(name), C.GoString(sourceFile), options, nil)
 	if core.IsErr(err, nil, "cannot put file: %v") {
 		return cResult(nil, err)
 	}

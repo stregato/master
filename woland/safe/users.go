@@ -30,47 +30,53 @@ type SetUsersOptions struct {
 func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 	currentUserId := s.CurrentUser.Id
 
-	users_, err := GetUsers(s)
-	if core.IsErr(err, nil, "cannot get users in %s: %v", s.Name) {
+	users_, _, err := syncUsers(s.Name, s.stores[0], s.CurrentUser, s.CreatorId, true)
+	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
 		return err
 	}
-
 	if users_[currentUserId]&PermissionAdmin == 0 {
 		return fmt.Errorf(ErrNotAdmin, currentUserId, s.Name)
 	}
-
-	err = writePermissionChange(s.stores[0], s.Name, s.CurrentUser, users)
-	if core.IsErr(err, nil, "cannot write permission change in %s: %v", s.Name) {
+	keystore, _, err := syncKeystore(s.stores[0], s.Name, s.CurrentUser, users)
+	if core.IsErr(err, nil, "cannot read keystores in %s: %v", s.Name) {
 		return err
 	}
+	s.keystore = keystore
 
-	if !options.ReplaceUsers {
-		for userId, permission := range users_ {
-			if _, ok := users[userId]; !ok {
-				users[userId] = permission
+	delta := map[string]Permission{}
+	var includesRevoke bool
+
+	for userId, permission := range users {
+		if p, ok := users_[userId]; !ok || p != permission {
+			delta[userId] = permission
+			includesRevoke = includesRevoke || permission == PermissionNone
+		}
+	}
+	for userId := range users_ {
+		if p, ok := users[userId]; !ok {
+			if options.ReplaceUsers {
+				delta[userId] = PermissionNone
+				includesRevoke = true
+			} else {
+				users[userId] = p
 			}
 		}
 	}
 
-	keyId, key, keys, delta, err := readKeystores(s.stores[0], s.Name, s.CurrentUser, users)
-	if core.IsErr(err, nil, "cannot read keystores in %s: %v", s.Name) {
+	err = writePermissionChange(s.stores[0], s.Name, s.CurrentUser, delta)
+	if core.IsErr(err, nil, "cannot write permission change in %s: %v", s.Name) {
 		return err
-	}
-	var includesRevoke bool
-	for _, permission := range delta {
-		includesRevoke = includesRevoke || permission == PermissionNone
 	}
 
 	if includesRevoke {
-		keyId = snowflake.ID()
-		key = core.GenerateRandomBytes(KeySize)
-		keys[keyId] = key
-		err = writeKeyStore(s.stores[0], s.Name, s.CurrentUser, keyId, key, users)
+		keystore.LastKeyId = snowflake.ID()
+		key := core.GenerateRandomBytes(KeySize)
+		keystore.Keys[keystore.LastKeyId] = key
+		err = writeKeyStoreFile(s.stores[0], s.Name, s.CurrentUser, keystore, users)
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
 		}
-		s.keyId = keyId
-		s.keys = keys
+		s.keystore = keystore
 
 		var align = func() {
 			time.Sleep(options.AlignDelay)
@@ -84,26 +90,30 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		}
 
 	} else {
-		err = writeKeyStore(s.stores[0], s.Name, s.CurrentUser, keyId, key, delta)
+		err = writeKeyStoreFile(s.stores[0], s.Name, s.CurrentUser, keystore, delta)
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
 		}
 	}
 
-	SetTouch(s.stores[0], ConfigFolder, ".touch")
-	_, err = SyncUsers(s)
-	return err
+	err = SetCached(s.Name, s.stores[0], ".users.touch", nil, true)
+	if core.IsErr(err, nil, "cannot create touch file in %s: %v", s.Name) {
+		return err
+	}
+
+	s.users = users
+	return nil
 }
 
 func GetUsers(s *Safe) (Users, error) {
-	return getSafeUsers(s.Name)
+	return s.users, nil
 }
 
 func SyncUsers(s *Safe) (int, error) {
 	core.Info("synchronizing users in %s", s.Name)
 	s.usersLock.Lock()
 	defer s.usersLock.Unlock()
-	users, count, err := syncUsers(s.stores[0], s.Name, s.CurrentUser, s.CreatorId)
+	users, count, err := syncUsers(s.Name, s.stores[0], s.CurrentUser, s.CreatorId, false)
 	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
 		return 0, err
 	}
@@ -127,43 +137,39 @@ func getSafeUsers(name string) (Users, error) {
 		}
 		users[userId] = Permission(permission)
 	}
+	rows.Close()
 	core.Info("read %d users in %s", len(users), name)
 	return users, nil
 }
 
-func syncUsers(store storage.Store, name string, currentUser security.Identity, creatorId string) (users Users, diff int, err error) {
-	users_, err := getSafeUsers(name)
-	if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
+func syncUsers(safeName string, store storage.Store, currentUser security.Identity, creatorId string, force bool) (users Users, diff int, err error) {
+	users_, err := getSafeUsers(safeName)
+	if core.IsErr(err, nil, "cannot get users in %s: %v", safeName) {
 		return Users{}, 0, err
 	}
 
-	var touch time.Time
-	var touchKey = fmt.Sprintf("%s/.~", name)
-	_, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchKey)
-	if ok {
-		touch, err = GetTouch(store, ConfigFolder, ".touch")
-		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
-			return users, 0, err
+	identities, err := syncIdentities(store, safeName, currentUser)
+	if core.IsErr(err, nil, "cannot read identities in %s: %v", safeName) {
+		return Users{}, 0, err
+	}
+	core.Info("found %d identities in safe %s", len(identities), safeName)
+
+	if !force {
+		synced, err := GetCached(safeName, store, ".users.touch", nil)
+		if core.IsErr(err, nil, "cannot sync touch file in %s: %v", safeName) {
+			return Users{}, 0, err
 		}
-		var diff = touch.Unix() - modTime
-		if diff < 2 {
-			core.Info("users in '%s' are up to date: touch %v is %d seconds older, users %d", name, touch,
-				diff, len(users_))
+		if synced {
+			core.Info("users in %s are already synced", safeName)
 			return users_, 0, nil
 		}
 	}
 
-	users, _, err = readChangeLogs(store, name, currentUser, creatorId, "")
-	if core.IsErr(err, nil, "cannot read change logs in %s: %v", name) {
+	users, _, err = readChangeLogs(store, safeName, currentUser, creatorId, "")
+	if core.IsErr(err, nil, "cannot read change logs in %s: %v", safeName) {
 		return Users{}, 0, err
 	}
-	core.Info("found %d users in changelogs of safe %s", len(users), name)
-
-	identities, err := syncIdentities(store, name, currentUser)
-	if core.IsErr(err, nil, "cannot read identities in %s: %v", name) {
-		return Users{}, 0, err
-	}
-	core.Info("found %d identities in safe %s", len(identities), name)
+	core.Info("found %d users in changelogs of safe %s", len(users), safeName)
 
 	for _, identity := range identities {
 		if _, ok := users[identity.Id]; !ok {
@@ -176,7 +182,7 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 	for userId, permission := range users {
 		if p, ok := users_[userId]; !ok || p != permission {
 			sql.Exec("SET_USER", sql.Args{
-				"safe":       name,
+				"safe":       safeName,
 				"id":         userId,
 				"permission": permission,
 			})
@@ -188,7 +194,7 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 	for userId := range users_ {
 		if _, ok := users[userId]; !ok {
 			sql.Exec("SET_USER", sql.Args{
-				"safe":       name,
+				"safe":       safeName,
 				"id":         userId,
 				"permission": PermissionNone,
 			})
@@ -197,8 +203,24 @@ func syncUsers(store storage.Store, name string, currentUser security.Identity, 
 		}
 	}
 
-	sql.SetConfig("SAFE_TOUCH", touchKey, "", touch.Unix(), nil)
-
-	core.Info("synchronized %d users in %s", count, name)
+	err = SetCached(safeName, store, ".users.touch", nil, false)
+	if core.IsErr(err, nil, "cannot create touch file in %s: %v", safeName) {
+		return Users{}, 0, err
+	}
+	core.Info("synchronized %d users in %s", count, safeName)
 	return users, count, nil
+}
+
+func syncUserJob(s *Safe) {
+	s.wg.Add(1)
+	for {
+		select {
+		case <-s.quit:
+			core.Info("quit sync user job for %s", s.Name)
+			s.wg.Done()
+			return
+		case <-s.syncUsers.C:
+			SyncUsers(s)
+		}
+	}
 }

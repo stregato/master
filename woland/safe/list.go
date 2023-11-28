@@ -113,6 +113,7 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 		headers = append(headers, header)
 		core.Info("found header %s, %v, %d", header.Name, header.ModTime, header.FileId)
 	}
+	rows.Close()
 
 	if listOptions.Prefetch {
 		go func() {
@@ -162,6 +163,7 @@ func ListDirs(s *Safe, bucket string, listDirsOptions ListDirsOptions) ([]string
 	if core.IsErr(err, nil, "cannot query folders: %v", err) {
 		return nil, err
 	}
+
 	var dirs []string
 	for rows.Next() {
 		var d string
@@ -170,5 +172,6 @@ func ListDirs(s *Safe, bucket string, listDirsOptions ListDirsOptions) ([]string
 		}
 		dirs = append(dirs, d)
 	}
+	rows.Close()
 	return dirs, nil
 }

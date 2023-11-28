@@ -46,24 +46,18 @@ class _ContentUploadState extends State<ContentUpload> {
         : PlatformElevatedButton(
             onPressed: () async {
               try {
-                setState(() {
-                  _uploading = true;
-                });
-                var options = PutOptions();
+                var options = PutOptions(async: true);
                 if (_copyLocally) {
                   var localPath =
                       join(documentsFolder, _safe.name, _folder, _targetName);
                   File(_selection.path).copySync(localPath);
                   options.source = localPath;
                 }
-                await _uploadFile(
-                    join(_folder, _targetName), _selection, options);
-                setState(() {
-                  _uploading = false;
-                });
+                _uploadFile(join(_folder, _targetName), _selection, options);
                 if (!mounted) return;
 
-                showPlatformSnackbar(context, "Uploaded $_targetName",
+                showPlatformSnackbar(
+                    context, "File $_targetName is uploading in background",
                     backgroundColor: Colors.green);
                 Navigator.pop(context);
               } catch (e) {

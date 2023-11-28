@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS Header (
   creator TEXT,
   privateId TEXT,
   deleted INTEGER,
+  uploading INTEGER,
   cacheExpires INTEGER,
   header BLOB,
   PRIMARY KEY (safe, bucket, name, fileId)
@@ -89,12 +90,15 @@ CREATE INDEX IF NOT EXISTS fileIdIndex ON Header (fileId);
 CREATE INDEX IF NOT EXISTS nameIndex ON Header (name);
 
 -- INSERT_HEADER
-INSERT INTO Header (safe, bucket, name, headerId, fileId, size, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, cacheExpires, header)
-VALUES (:safe, :bucket, :name, :headerId, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :cacheExpires, :header)
+INSERT INTO Header (safe, bucket, name, headerId, fileId, size, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, uploading, cacheExpires, header)
+VALUES (:safe, :bucket, :name, :headerId, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :uploading, :cacheExpires, :header)
 ON CONFLICT (safe, bucket, name, fileId) DO UPDATE SET headerId = :headerId;
 
 -- UPDATE_HEADER
-UPDATE Header SET header = :header, cacheExpires=:cacheExpires WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
+UPDATE Header SET header = :header, cacheExpires=:cacheExpires, uploading=:uploading WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
+
+-- DELETE_HEADER
+DELETE FROM Header WHERE safe = :safe AND bucket = :bucket AND headerId = :headerId
 
 -- SET_DELETED_FILE
 UPDATE Header SET deleted = 1 WHERE safe = :safe AND fileId = :fileId
@@ -203,6 +207,11 @@ WHERE safe = :safe
   AND (fileId = :fileId OR :fileId = 0)
 ORDER BY modTime DESC
 LIMIT 1;
+
+-- GET_UPLOADS
+SELECT headerId, bucket, header FROM Header
+WHERE safe = :safe AND uploading == 1
+ORDER BY modTime DESC;
 
 -- GET_CACHE_EXPIRE
 SELECT safe, bucket, header FROM Header

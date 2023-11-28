@@ -39,11 +39,11 @@ func alignKeysInBucket(s *Safe, bucket string) error {
 	var headers []Header
 	for _, l := range ls {
 		filePath := path.Join(DataFolder, bucket, HeaderFolder, l.Name())
-		headers2, keyId, err := readHeaders(s.stores[0], s.Name, filePath, s.keys)
+		headers2, keyId, err := readHeaders(s.stores[0], s.Name, filePath, s.keystore.Keys)
 		if core.IsErr(err, nil, "cannot read headers from '%s': %v", l.Name(), err) {
 			continue
 		}
-		if keyId >= s.keyId {
+		if keyId >= s.keystore.LastKeyId {
 			continue
 		}
 
@@ -66,7 +66,8 @@ func alignKeysInBucket(s *Safe, bucket string) error {
 	}
 
 	if len(files) > 1 {
-		err = writeHeaders(s.stores[0], s.Name, bucket, s.keyId, s.keys, headers)
+		key := s.keystore.Keys[s.keystore.LastKeyId]
+		err = writeHeaders(s.stores[0], s.Name, bucket, s.keystore.LastKeyId, key, headers)
 		if !core.IsErr(err, nil, "cannot write headers: %v", err) {
 			for _, f := range files {
 				err = s.stores[0].Delete(path.Join(DataFolder, bucket, f))

@@ -1,38 +1,90 @@
 package safe
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
-	"path"
-	"time"
 
 	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
 
-// GetTouch returns the modification time of the guard file.
-func GetTouch(store storage.Store, elem ...string) (time.Time, error) {
-	filePath := path.Join(elem...)
-	fileInfo, err := store.Stat(filePath)
-	if os.IsNotExist(err) {
-		return time.Time{}, nil
+// GetCached returns the modification time of the guard file.
+func GetCached(name string, store storage.Store, key string, data any) (synced bool, err error) {
+	node := fmt.Sprintf("safe:cache:%s", key)
+
+	_, modTime, d, ok := sql.GetConfig(node, key)
+	if !ok {
+		return false, nil
 	}
-	if err != nil {
-		return time.Time{}, err
+	fileInfo, err := store.Stat(key)
+	if !os.IsNotExist(err) && core.IsErr(err, nil, "cannot check touch file: %v", err) {
+		return false, err
+	}
+	if os.IsNotExist(err) {
+		core.Info("touch %s in '%s' does not exist", key, name)
+		return false, nil
 	}
 
-	return fileInfo.ModTime(), nil
+	touch := fileInfo.ModTime()
+	var diff = touch.Unix() - modTime
+	if diff > 1 {
+		core.Info("touch %s in '%s' is %d seconds older", key, name, diff)
+		return false, nil
+	}
+
+	if data != nil {
+		_, isBytesSlide := data.(*[]byte)
+		if isBytesSlide {
+			*data.(*[]byte) = d
+		} else {
+			err = json.Unmarshal(d, data)
+			if core.IsErr(err, nil, "cannot unmarshal touch info in db %s in %s: %v", key, name, err) {
+				return false, err
+			}
+		}
+	}
+
+	core.Info("touch %s in '%s' up to date", key, name)
+	return true, nil
 }
 
-// SetTouch creates an empty file at the specified path using the provided Store implementation.
-func SetTouch(store storage.Store, elem ...string) (time.Time, error) {
-	emptyData := []byte{} // Empty data to write
+func SetCached(name string, store storage.Store, key string, value any, invalidateStore bool) error {
+	node := fmt.Sprintf("safe:cache:%s", key)
 
-	filePath := path.Join(elem...)
-	err := store.Write(filePath, core.NewBytesReader(emptyData), nil)
-	if err != nil {
-		return time.Time{}, err
+	var data []byte
+
+	if value != nil {
+		var ok bool
+		data, ok = value.([]byte)
+		if !ok {
+			var err error
+			data, err = json.Marshal(value)
+			if core.IsErr(err, nil, "cannot marshal value %v: %v", value) {
+				return err
+			}
+		}
 	}
 
-	return GetTouch(store, filePath)
+	stat, err := store.Stat(key)
+	if !os.IsNotExist(err) && core.IsErr(err, nil, "cannot stat touch file %s in %s: %v", key, name, err) {
+		return err
+	}
 
+	if os.IsNotExist(err) || invalidateStore {
+		err = storage.WriteFile(store, key, []byte{})
+		if core.IsErr(err, nil, "cannot write touch file %s in %s: %v", key, name, err) {
+			return err
+		}
+		stat, err = store.Stat(key)
+		if core.IsErr(err, nil, "cannot stat touch file %s in %s: %v", key, name, err) {
+			return err
+		}
+	}
+
+	err = sql.SetConfig(node, key, "", stat.ModTime().Unix(), data)
+	core.IsErr(err, nil, "cannot set touch info in db %s in %s: %v", key, name, err)
+
+	return err
 }

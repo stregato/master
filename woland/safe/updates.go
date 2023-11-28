@@ -4,13 +4,12 @@ import (
 	"time"
 
 	"github.com/stregato/master/woland/core"
-	"github.com/stregato/master/woland/sql"
 )
 
 func CheckForUpdates(s *Safe, dir string, after time.Time, depth int) ([]string, error) {
 	dirs := []string{dir}
 
-	synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), s.keys)
+	synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), s.keystore.Keys)
 
 	if depth != 0 {
 		nested, err := ListDirs(s, dir, ListDirsOptions{
@@ -24,22 +23,23 @@ func CheckForUpdates(s *Safe, dir string, after time.Time, depth int) ([]string,
 	ch := make(chan string)
 	for _, d := range dirs {
 		go func(d string) {
-			hashedDir := hashPath(d)
-			_, i, _, ok := sql.GetConfig("SAFE_DIR_MODTIME", hashedDir)
-			if !ok && after.IsZero() {
-				core.Info("dir %s has been added", d)
-				ch <- d
-			} else {
-				touch, err := GetTouch(s.stores[0], DataFolder, hashedDir, ".touch")
-				core.IsErr(err, nil, "cannot check touch file: %v", err)
+			// TODO: check if dir has been added or modified
+			// hashedDir := hashPath(d)
+			// _, i, _, ok := sql.GetConfig("SAFE_DIR_MODTIME", hashedDir)
+			// if !ok && after.IsZero() {
+			// 	core.Info("dir %s has been added", d)
+			// 	ch <- d
+			// } else {
+			// 	touch, err := SyncTouch(s.stores[0], DataFolder, hashedDir, ".touch")
+			// 	core.IsErr(err, nil, "cannot check touch file: %v", err)
 
-				if touch.After(after) && time.Unix(i, 0) != touch {
-					core.Info("dir %s has been modified", d)
-					ch <- d
-				} else {
-					ch <- ""
-				}
-			}
+			// 	if touch.After(after) && time.Unix(i, 0) != touch {
+			// 		core.Info("dir %s has been modified", d)
+			// 		ch <- d
+			// 	} else {
+			// 		ch <- ""
+			// 	}
+			// }
 		}(d)
 	}
 	var updates []string

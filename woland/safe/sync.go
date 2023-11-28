@@ -26,7 +26,7 @@ func SyncBucket(s *Safe, bucket string, SyncOptions SyncOptions, async func(int,
 		return 0, nil
 	}
 
-	changes, err = synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, bucket, s.keys)
+	changes, err = synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, bucket, s.keystore.Keys)
 	if core.IsErr(err, nil, "cannot synchronize files: %v", err) {
 		return 0, err
 	}
@@ -36,25 +36,18 @@ func SyncBucket(s *Safe, bucket string, SyncOptions SyncOptions, async func(int,
 func synchorizeFiles(currentUser security.Identity, store storage.Store, safeName, bucket string, keys map[uint64][]byte) (newFiles int, err error) {
 	var touch time.Time
 
-	dir := hashPath(bucket)
-	touchConfigKey := fmt.Sprintf("%s/%s", safeName, bucket)
-	_, modTime, _, ok := sql.GetConfig("SAFE_TOUCH", touchConfigKey)
-	if ok {
-		touch, err = GetTouch(store, DataFolder, dir, ".touch")
-		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
-			return 0, err
-		}
-		var diff = touch.Unix() - modTime
-		if diff < 2 {
-			core.Info("safe '%s' is up to date: touch %v is %d seconds older", safeName, touch, diff)
-			return 0, nil
-		} else {
-			core.Info("safe '%s' is outdated: touch %v is %d seconds older", safeName, touch, diff)
-		}
+	hashedBucket := hashPath(bucket)
+	synced, err := GetCached(safeName, store, fmt.Sprintf(".data.%s.touch", hashedBucket), nil)
+	if core.IsErr(err, nil, "cannot check sync file: %v") {
+		return 0, err
+	}
+	if synced {
+		core.Info("safe '%s' bucket %s is up to date: sync file is up to date", safeName, bucket)
+		return 0, nil
 	}
 
-	ls, err := store.ReadDir(path.Join(DataFolder, dir, HeaderFolder), storage.Filter{})
-	if os.IsNotExist(err) || core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, dir, err) {
+	ls, err := store.ReadDir(path.Join(DataFolder, hashedBucket, HeaderFolder), storage.Filter{})
+	if os.IsNotExist(err) || core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedBucket, err) {
 		return 0, err
 	}
 
@@ -81,7 +74,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 			continue
 		}
 
-		filepath := path.Join(DataFolder, dir, HeaderFolder, name)
+		filepath := path.Join(DataFolder, hashedBucket, HeaderFolder, name)
 		headers, _, err := readHeaders(store, safeName, filepath, keys)
 		if core.IsErr(err, nil, "cannot read headers: %v", err) {
 			continue
@@ -108,13 +101,8 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}
-	touch, err = SetTouch(store, DataFolder, dir, ".touch")
+	err = SetCached(safeName, store, fmt.Sprintf(".data.%s.touch", hashedBucket), nil, false)
 	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
-		return 0, err
-	}
-
-	err = sql.SetConfig("SAFE_TOUCH", touchConfigKey, "", touch.Unix(), nil)
-	if core.IsErr(err, nil, "cannot set safe touch file: %v", err) {
 		return 0, err
 	}
 	core.Info("saved touch information: %v", touch)
@@ -123,7 +111,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 }
 
 func getHeadersIds(store storage.Store, safeName, bucket string) (ids []uint64, err error) {
-	r, err := sql.Query("GET_HEADERS_IDS", sql.Args{
+	rows, err := sql.Query("GET_HEADERS_IDS", sql.Args{
 		"safe":   safeName,
 		"bucket": bucket,
 	})
@@ -131,12 +119,13 @@ func getHeadersIds(store storage.Store, safeName, bucket string) (ids []uint64, 
 		return nil, err
 	}
 
-	for r.Next() {
+	for rows.Next() {
 		var id uint64
-		if core.IsErr(r.Scan(&id), nil, "cannot scan id: %v", err) {
+		if core.IsErr(rows.Scan(&id), nil, "cannot scan id: %v", err) {
 			continue
 		}
 		ids = append(ids, id)
 	}
+	rows.Close()
 	return ids, nil
 }

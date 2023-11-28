@@ -61,8 +61,8 @@ class _RoomState extends State<Room> {
         label: 'Content',
       ),
       BottomNavigationBarItem(
-        icon: Icon(Icons.people),
-        label: 'People',
+        icon: Icon(Icons.list),
+        label: 'Rooms',
       ),
     ];
 

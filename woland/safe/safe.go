@@ -46,12 +46,14 @@ type Safe struct {
 	QuotaGroup  string              `json:"quotaGroup"`  // QuotaGroup is the common prefix for the safes that share the quota
 	Size        int64               `json:"size"`        // Size of the safe in bytes
 
-	keyId     uint64          // Key ID of the safe
-	keys      Keys            // Encryption keys of the safe
+	keystore  Keystore        // Keystore of the safe
 	stores    []storage.Store // Stores of the safe
 	users     Users           // Users and their permissions
 	usersLock sync.Mutex      // Lock for users
 	syncUsers *time.Ticker    // Ticker for synchronizing users
+	uploads   *time.Ticker    // Channel for uploading headers
+	upload    chan bool       // Channel for uploading headers
+	quit      chan bool       // Channel for quitting background tasks
 	wg        sync.WaitGroup  // Wait group for background tasks
 
 	//identities []security.Identity
@@ -64,8 +66,8 @@ type Admins map[string]Level2
 
 type Level2 bool
 
-// Keystore is the file that contains the primary key of box encrypted for each user
-type Keystore struct {
+// KeystoreFile is the file that contains the primary key of box encrypted for each user
+type KeystoreFile struct {
 	KeyId uint64            `json:"keyId"`
 	Keys  map[string][]byte `json:"keys"`
 }

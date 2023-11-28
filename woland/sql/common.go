@@ -70,11 +70,12 @@ func Exec(key string, m Args) (sql.Result, error) {
 }
 
 func QueryRow(key string, m Args, dest ...any) error {
-	row := getStatement(key).QueryRow(named(m)...)
-	err := row.Err()
+	rows, err := getStatement(key).Query(named(m)...)
 	trace(key, m, err)
 	if err == nil {
-		return row.Scan(dest...)
+		defer rows.Close()
+		rows.Next()
+		return rows.Scan(dest...)
 	}
 	return err
 }
@@ -91,6 +92,7 @@ func QueryEx[T any](key string, m Args, f func(dest ...any) T) ([]T, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var res []T
 	var dest []any
