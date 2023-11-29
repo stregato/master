@@ -243,6 +243,9 @@ class _SettingsState extends State<Settings> {
                         try {
                           var logs = getLogs();
                           var content = logs.join("\n");
+                          if (content.length > 64000) {
+                            content = content.substring(content.length - 64000);
+                          }
                           if (Platform.isAndroid || Platform.isIOS) {
                             Share.share(content, subject: "Logs from Caspian");
                           } else {
@@ -301,7 +304,6 @@ class _SettingsState extends State<Settings> {
                   icon: const Icon(Icons.restore),
                   onPressed: () => setState(() {
                         if (_fullReset == 0) {
-                          stop();
                           clearIdentities();
                           factoryReset();
                           start("$applicationFolder/woland.db",

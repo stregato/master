@@ -2,7 +2,7 @@ import 'package:behemoth/common/copy_field.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/common/qrcode_scan_button.dart';
-import 'package:behemoth/woland/safe.dart';
+import 'package:behemoth/woland/types.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
@@ -16,7 +16,7 @@ class Join extends StatefulWidget {
 
 class _JoinState extends State<Join> {
   String? _errorText;
-  String _name = "";
+  DecodedToken? _decodedToken;
   String _access = "";
   List<String> accessPrefixes = ['https://behemoth.rocks/a/', 'mg://a/'];
   final TextEditingController _linkController = TextEditingController();
@@ -44,17 +44,15 @@ class _JoinState extends State<Join> {
 
     _access = f.first;
 
-    var name = "";
     try {
-      var d = decodeAccess(Profile.current().identity, _access);
+      _decodedToken = null;
+      _decodedToken = decodeAccess(Profile.current().identity, _access);
       setState(() {
         _errorText = null;
-        _name = Safe.pretty(d.safeName);
       });
     } catch (e) {
       setState(() {
-        _errorText = name.isEmpty ? "invalid link" : "cannot access $name: $e";
-        _name = name;
+        _errorText = "invalid or expired link: $e";
       });
     }
   }
@@ -107,19 +105,26 @@ class _JoinState extends State<Join> {
           })
       ]),
       const SizedBox(height: 20),
-      PlatformElevatedButton(
-        onPressed: (_name.isNotEmpty && _errorText == null)
-            ? () async {
-                var task = Coven.join(_access);
-                await progressDialog(context, "Joining $_name", task,
-                    successMessage: "Joined $_name",
-                    errorMessage: "Failed to join $_name");
-                if (!mounted) return;
-                Navigator.pop(context);
-              }
-            : null,
-        child: Text("Join $_name"),
-      )
+      if (_decodedToken != null)
+        PlatformElevatedButton(
+          onPressed: (_decodedToken != null && _errorText == null)
+              ? () async {
+                  var name = prettyName(_decodedToken!.safeName);
+                  var access = encodeAccess(
+                      currentUserId,
+                      _decodedToken!.safeName,
+                      _decodedToken!.creatorId,
+                      _decodedToken!.urls);
+                  var task = Coven.join(access);
+                  await progressDialog(context, "Joining $name", task,
+                      successMessage: "Joined $name",
+                      errorMessage: "Failed to join $name");
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                }
+              : null,
+          child: Text("Join ${prettyName(_decodedToken!.safeName)}"),
+        )
     ];
 
     return Scaffold(

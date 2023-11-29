@@ -1,3 +1,4 @@
+import 'package:behemoth/common/complete_identity.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/qrcode_scan_button.dart';
 import 'package:behemoth/woland/safe.dart';
@@ -6,6 +7,7 @@ import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/copy_field.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
+import 'package:intl/intl.dart';
 
 class Invite extends StatefulWidget {
   const Invite({super.key});
@@ -24,7 +26,7 @@ class _InviteState extends State<Invite> {
   List<Widget> _selection = <Widget>[];
 
   final TextEditingController _idController = TextEditingController();
-  Safe? _safe;
+  Safe? _lounge;
   Coven? _coven;
 
   _InviteState() {
@@ -67,34 +69,36 @@ class _InviteState extends State<Invite> {
   }
 
   _add() async {
-    if (_safe == null) {
+    if (_lounge == null) {
       return;
     }
 
     var profile = Profile.current();
     if (_id.isNotEmpty) {
-      await _safe!.setUsers(
+      await _lounge!.setUsers(
           {_id: permissionRead + permissionWrite + permissionAdmin},
           SetUsersOptions());
     }
-    var d = decodeAccess(profile.identity, _safe!.access);
+    var d = decodeAccess(profile.identity, _lounge!.access);
     setState(() {
-      _access =
-          encodeAccess(_id, _safe!.name, d.creatorId, d.urls, aesKey: d.aesKey);
+      _access = encodeAccess(_id, _lounge!.name, d.creatorId, d.urls,
+          aesKey: d.aesKey);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     var args = ModalRoute.of(context)!.settings.arguments as Map;
+    var identities = getAllIdentities();
 
-    _safe ??= args['safe'];
+    _coven ??= args['coven'];
+    _lounge ??= _coven?.getLoungeSync();
     _url ??= args['url'];
     if (_url != null) {
       _processUrl(_url!);
     }
 
-    if (_safe == null || _selection.isNotEmpty) {
+    if (_lounge == null || _selection.isNotEmpty) {
       var covens = Profile.current().covens.values;
       _selection = covens.map((coven) {
         return Card(
@@ -103,9 +107,9 @@ class _InviteState extends State<Invite> {
                 _coven?.name == coven.name ? const Icon(Icons.check) : null,
             title: PlatformText(coven.name),
             onTap: () async {
-              var safe = await coven.getLounge();
+              var lounge = await coven.getLounge();
               setState(() {
-                _safe = safe;
+                _lounge = lounge;
                 _coven = coven;
               });
             },
@@ -118,11 +122,15 @@ class _InviteState extends State<Invite> {
     // _roomName = _safe.name.substring(lastSlash + 1);
     // _covenName = _safe.name.substring(0, lastSlash);
 
+    var nextHour = DateTime.now();
+    nextHour = DateTime(
+        nextHour.year, nextHour.month, nextHour.day, nextHour.hour, 59);
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title:
-            Text(_safe != null ? "Invite to ${_safe!.prettyName}" : "Invite"),
+        title: Text(
+            _lounge != null ? "Invite to ${_lounge!.prettyName}" : "Invite"),
       ),
       body: SingleChildScrollView(
         child: Container(
@@ -142,13 +150,22 @@ class _InviteState extends State<Invite> {
                   ],
                 ),
               const Text(
-                "Scan the QR code or insert the link of the peer you want to invite",
+                "Choose from a known peers or insert the link of the peer you want to invite",
                 style: TextStyle(
                   fontSize: 16,
                   //fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 20),
+              AutocompleteIdentity(
+                identities: identities,
+                onSelect: (identity) {
+                  setState(() {
+                    _idController.text =
+                        "https://behemoth.rocks/i/${identity.id}/${identity.nick}";
+                  });
+                },
+              ),
               Row(
                 children: [
                   Expanded(
@@ -158,7 +175,7 @@ class _InviteState extends State<Invite> {
                             controller: _idController,
                             material: (_, __) => MaterialTextFormFieldData(
                               decoration: InputDecoration(
-                                labelText: 'Enter the link',
+                                labelText: 'Or enter the link',
                                 errorText: _errorText,
                               ),
                               autovalidateMode:
@@ -183,7 +200,8 @@ class _InviteState extends State<Invite> {
               ),
               const SizedBox(height: 20),
               CheckboxListTile(
-                title: const Text('Anonymous Invite'),
+                title: Text(
+                    'Anonymous Invite, valid until ${DateFormat('HH:mm').format(nextHour)}'),
                 value: _anonymousInvite,
                 onChanged: (bool? value) {
                   if (value == true) {
@@ -197,13 +215,13 @@ class _InviteState extends State<Invite> {
                 },
               ),
               const SizedBox(height: 40),
-              if (_id.isNotEmpty && _access.isEmpty && _safe != null)
+              if (_id.isNotEmpty && _access.isEmpty && _lounge != null)
                 Container(
                   constraints: const BoxConstraints(minWidth: 200),
                   child: PlatformElevatedButton(
                     onPressed: _add,
                     child: Text(
-                        "Add ${_nick.isEmpty ? _id : _nick} to ${_safe?.prettyName}"),
+                        "Add ${_nick.isEmpty ? _id : _nick} to ${_lounge?.prettyName}"),
                   ),
                 ),
               if (_access.isNotEmpty)

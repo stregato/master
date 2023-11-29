@@ -1,4 +1,3 @@
-import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/chat.dart';
@@ -15,12 +14,16 @@ class Privates extends StatefulWidget {
 class _PrivatesState extends State<Privates> {
   @override
   Widget build(BuildContext context) {
-    var safe = ModalRoute.of(context)!.settings.arguments as Safe;
-    var items = safe
+    var args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+
+    var coven = args['coven'] as Coven;
+    var lounge = coven.getLoungeSync()!;
+    var items = lounge
         .getUsersSync()
         .entries
-        .where(
-            (e) => e.key != safe.currentUser.id && e.value & permissionRead > 0)
+        .where((e) =>
+            e.key != lounge.currentUser.id && e.value & permissionRead > 0)
         .map((e) {
       var id = e.key;
       var identity = getCachedIdentity(id);
@@ -35,7 +38,8 @@ class _PrivatesState extends State<Privates> {
               builder: (context) => PlatformScaffold(
                 appBar: PlatformAppBar(title: Text("🕵 with $nick")),
                 body: Padding(
-                    padding: const EdgeInsets.all(2.0), child: Chat(safe, id)),
+                    padding: const EdgeInsets.all(2.0),
+                    child: Chat(lounge, id)),
               ),
             ),
           );

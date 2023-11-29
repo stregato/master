@@ -97,7 +97,7 @@ class Safe {
         .unwrapInt();
   }
 
-  Future<int> syncUsers(String bucket, SyncOptions options) async {
+  Future<int> syncUsers() async {
     var fun = lib.lookupFunction<Args1T<Int32>, Args1T<int>>("wlnd_syncUsers");
     return fun(hnd).unwrapInt();
   }

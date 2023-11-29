@@ -52,13 +52,15 @@ class _CreateRoomState extends State<CreateRoom> {
 
   @override
   Widget build(BuildContext context) {
-    var coven = ModalRoute.of(context)!.settings.arguments as Coven;
+    var args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    var coven = args["coven"] as Coven;
     var users = coven.getLoungeSync()!.getUsersSync();
     var identities = users.keys.map((id) => getCachedIdentity(id)).toList();
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
-        title: const Text("Create Room"),
+        title: Text("Create room in ${coven.name}"),
       ),
       body: SafeArea(
         child: Container(

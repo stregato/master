@@ -70,12 +70,11 @@ func Exec(key string, m Args) (sql.Result, error) {
 }
 
 func QueryRow(key string, m Args, dest ...any) error {
-	rows, err := getStatement(key).Query(named(m)...)
+	row := getStatement(key).QueryRow(named(m)...)
+	err := row.Err()
 	trace(key, m, err)
 	if err == nil {
-		defer rows.Close()
-		rows.Next()
-		return rows.Scan(dest...)
+		return row.Scan(dest...)
 	}
 	return err
 }

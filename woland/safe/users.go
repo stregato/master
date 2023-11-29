@@ -154,22 +154,26 @@ func syncUsers(safeName string, store storage.Store, currentUser security.Identi
 	}
 	core.Info("found %d identities in safe %s", len(identities), safeName)
 
+	var synced bool
 	if !force {
-		synced, err := GetCached(safeName, store, ".users.touch", nil)
+		synced, err = GetCached(safeName, store, ".users.touch", nil)
 		if core.IsErr(err, nil, "cannot sync touch file in %s: %v", safeName) {
 			return Users{}, 0, err
 		}
-		if synced {
-			core.Info("users in %s are already synced", safeName)
-			return users_, 0, nil
+	}
+	if synced {
+		core.Info("users in %s are up to date", safeName)
+		users = make(Users)
+		for userId, permission := range users_ {
+			users[userId] = permission
 		}
+	} else {
+		users, _, err = readChangeLogs(store, safeName, currentUser, creatorId, "")
+		if core.IsErr(err, nil, "cannot read change logs in %s: %v", safeName) {
+			return Users{}, 0, err
+		}
+		core.Info("found %d users in changelogs of safe %s", len(users), safeName)
 	}
-
-	users, _, err = readChangeLogs(store, safeName, currentUser, creatorId, "")
-	if core.IsErr(err, nil, "cannot read change logs in %s: %v", safeName) {
-		return Users{}, 0, err
-	}
-	core.Info("found %d users in changelogs of safe %s", len(users), safeName)
 
 	for _, identity := range identities {
 		if _, ok := users[identity.Id]; !ok {

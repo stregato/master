@@ -1,6 +1,6 @@
-import 'dart:async';
-
 import 'package:behemoth/common/cat_progress_indicator.dart';
+import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/coven/navigation.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/chat.dart';
@@ -25,7 +25,9 @@ class _RoomState extends State<Room> {
   Chat? _chat;
   Content? _content;
   People? _people;
-  late Safe _lounge;
+  Navigation? _navigation;
+  late Coven _coven;
+  late String _room;
   Safe? _safe;
 
   @override
@@ -34,20 +36,19 @@ class _RoomState extends State<Room> {
 
     var args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    var future = args['future'] as Future<Safe>;
-    _lounge = args['lounge'] as Safe;
+    _room = args['room'] as String;
+    _coven = args['coven'] as Coven;
     if (_title.isEmpty) {
-      _title = args['name'] as String;
+      _title = "$_room@${_coven.name}";
       _currentItem = currentPanelIdx[_title] ?? 0;
     }
 
-    var addPerson = PlatformIconButton(
+    var invite = PlatformIconButton(
         onPressed: () async {
           if (_safe == null) return;
-          await Navigator.pushNamed(context, "/coven/add_person",
-              arguments: {"safe": _safe, "lounge": _lounge});
-          if (!mounted) return;
-          Navigator.pop(context);
+          await Navigator.pushNamed(context, "/invite", arguments: {
+            "coven": _coven,
+          });
         },
         icon: const Icon(Icons.person_add));
 
@@ -61,25 +62,68 @@ class _RoomState extends State<Room> {
         label: 'Content',
       ),
       BottomNavigationBarItem(
-        icon: Icon(Icons.list),
-        label: 'Rooms',
+        icon: Icon(Icons.compass_calibration),
+        label: 'Navigation',
       ),
     ];
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
+        leading: const NewsIcon(),
         title: Text(_title, style: const TextStyle(fontSize: 18)),
         trailingActions: [
-          const NewsIcon(),
-          const SizedBox(width: 10),
-          addPerson,
+          // const NewsIcon(),
+          // const SizedBox(width: 10),
+          invite,
         ],
       ),
       body: FutureBuilder<Safe>(
-          future: future,
+          future: _coven.getSafe(_room),
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              var message = snapshot.error.toString();
+              if (message == "no key found") {
+                message = "Admin didn't provide access yet. Retry later.";
+              } else {
+                message = "Technical Error: $message";
+              }
+
+              return Center(
+                  child: Column(
+                children: [
+                  const Spacer(),
+                  const Icon(Icons.lock, size: 40),
+                  const SizedBox(height: 20),
+                  PlatformText(message),
+                  const SizedBox(height: 40),
+                  PlatformElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                    },
+                    child: PlatformText('Back to Home'),
+                  ),
+                  const SizedBox(height: 20),
+                  PlatformElevatedButton(
+                    onPressed: () {
+                      var p = Profile.current();
+                      p.covens.remove(_coven.name);
+                      p.save();
+                      Navigator.pop(context);
+                    },
+                    color: Colors.red,
+                    child: PlatformText('Remove the coven ${_coven.name}'),
+                  ),
+                  const Spacer(),
+                  PlatformText(
+                      "tecnical details may be available in the logs (app settings)",
+                      style: const TextStyle(fontSize: 8)),
+                  const SizedBox(height: 4)
+                ],
+              ));
+            }
             if (snapshot.hasData) {
               _safe = snapshot.data!;
+              _title = _safe!.prettyName;
               switch (_currentItem) {
                 case 0:
                   _chat ??= Chat(_safe!, "");
@@ -88,20 +132,13 @@ class _RoomState extends State<Room> {
                   _content ??= Content(_safe!);
                   return _content!;
                 case 2:
-                  _people ??= People(_safe!, _lounge);
-                  return _people!;
+                  _navigation ??= Navigation(_coven, _room);
+                  return _navigation!;
+                // _people ??= People(_safe!, _coven.getLoungeSync()!);
+                // return _people!;
                 default:
                   return const Text("Unknown screen");
               }
-
-              // var stack = <Widget>[];
-              // for (var i = 0; i < _items.length; i++) {
-              //   var e = _items[i];
-              //   stack.add(ExcludeFocus(
-              //     excluding: i != _currentItem,
-              //     child: e,
-              //   ));
-              // }
             } else {
               return CatProgressIndicator("opening $_title");
             }
@@ -112,7 +149,9 @@ class _RoomState extends State<Room> {
           setState(() {
             _currentItem = index;
           });
-          currentPanelIdx[_title] = index;
+          if (index != 2) {
+            currentPanelIdx[_title] = index;
+          }
         },
         items: items,
       ),

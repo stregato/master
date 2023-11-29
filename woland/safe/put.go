@@ -193,6 +193,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 
 	if options.Async && sourceFile != "" {
 		core.Info("Async put for %s[%d]", header.Name, header.FileId)
+		s.upload <- true
 		return header, nil
 	} else {
 		return writeToStore(s, bucket, r, headerId, header, onComplete)

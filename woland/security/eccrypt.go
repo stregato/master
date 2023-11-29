@@ -25,12 +25,12 @@ func EcEncrypt(id string, data []byte) ([]byte, error) {
 
 func EcDecrypt(identity Identity, data []byte) ([]byte, error) {
 	cryptKey, _, err := DecodeKeys(identity.Private)
-	if core.IsErr(err, nil, "cannot decode keys: %v") {
+	if core.IsWarn(err, "cannot decode keys: %v") {
 		return nil, err
 	}
 
 	data, err = eciesgo.Decrypt(eciesgo.NewPrivateKeyFromBytes(cryptKey), data)
-	if core.IsErr(err, nil, "cannot decrypt with secp256k1: %v") {
+	if core.IsWarn(err, "cannot decrypt with secp256k1: %v") {
 		return nil, err
 	}
 	return data, nil

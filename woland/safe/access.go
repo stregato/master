@@ -18,6 +18,8 @@ type _token struct {
 	Urls      []string `json:"u"`
 }
 
+const dateEncryptLayout = "Jan 2 15 UTC 2006                                 "
+
 func EncodeAccess(userID string, name string, creatorId string, aesKey []byte, urls ...string) (string, error) {
 	if len(aesKey) == 0 {
 		aesKey = nil
@@ -44,9 +46,24 @@ func EncodeAccess(userID string, name string, creatorId string, aesKey []byte, u
 			return "", err
 		}
 	} else {
-		data = buf.Bytes()
+		key := []byte(core.Now().UTC().Format(dateEncryptLayout))[0:32]
+		data, err = security.EncryptAES(buf.Bytes(), key)
+		if core.IsErr(err, nil, "cannot encrypt access token for %s", userID) {
+			return "", err
+		}
 	}
 	return core.EncodeBinary(data), nil
+}
+
+func decryptData(identity security.Identity, data []byte) ([]byte, error) {
+	data2, err := security.EcDecrypt(identity, data)
+	if err == nil {
+		return data2, nil
+	}
+
+	now := core.Now()
+	key := []byte(now.UTC().Format(dateEncryptLayout))[0:32]
+	return security.DecryptAES(data, key)
 }
 
 func DecodeAccess(identity security.Identity, access string) (name string, creatorId string, aesKey []byte, urls []string, err error) {
@@ -60,9 +77,9 @@ func DecodeAccess(identity security.Identity, access string) (name string, creat
 		return "", "", nil, nil, err
 	}
 
-	data2, err := security.EcDecrypt(identity, data)
-	if err == nil {
-		data = data2
+	data, err = decryptData(identity, data)
+	if core.IsErr(err, nil, "cannot decrypt access token '%s': %v", access) {
+		return "", "", nil, nil, err
 	}
 
 	r, err := gzip.NewReader(bytes.NewReader(data))

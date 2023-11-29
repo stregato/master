@@ -167,7 +167,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	sql.CloseDB()
 	StartTestDB(t, dbPath)
 
-	access, err := EncodeAccess(second.Id, TestSafeName, TestID, nil, storeUrl)
+	access, err := EncodeAccess("", TestSafeName, TestID, nil, storeUrl)
 	core.TestErr(t, err, "cannot encode token: %v")
 
 	s, err = Open(second, access, OpenOptions{})

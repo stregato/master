@@ -12,7 +12,9 @@ class CommunitySettings extends StatefulWidget {
 class _CommunitySettingsState extends State<CommunitySettings> {
   @override
   Widget build(BuildContext context) {
-    final coven = ModalRoute.of(context)!.settings.arguments as Coven;
+    var args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final coven = args['coven'] as Coven;
     var lounge = coven.getLoungeSync()!;
 
     final buttonStyle = ButtonStyle(

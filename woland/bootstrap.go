@@ -31,6 +31,12 @@ func Stop() error {
 }
 
 func FactoryReset() error {
+	sql.Exec("DROP_IDENTITIES_TABLE", sql.Args{})
+	sql.Exec("DROP_HEADERS_TABLE", sql.Args{})
+	sql.Exec("DROP_USERS_TABLE", sql.Args{})
+	sql.Exec("DROP_CONFIGS_TABLE", sql.Args{})
+	Stop()
+
 	err := sql.DeleteDB(sql.DbPath)
 	if core.IsErr(err, nil, "cannot delete DB: %v", err) {
 		return err

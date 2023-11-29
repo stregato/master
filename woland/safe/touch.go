@@ -12,10 +12,11 @@ import (
 
 // GetCached returns the modification time of the guard file.
 func GetCached(name string, store storage.Store, key string, data any) (synced bool, err error) {
-	node := fmt.Sprintf("safe:cache:%s", key)
+	node := fmt.Sprintf("safe:cache:%s", name)
 
 	_, modTime, d, ok := sql.GetConfig(node, key)
 	if !ok {
+		core.Info("touch %s in '%s' does not exist in db", key, name)
 		return false, nil
 	}
 	fileInfo, err := store.Stat(key)
@@ -23,7 +24,7 @@ func GetCached(name string, store storage.Store, key string, data any) (synced b
 		return false, err
 	}
 	if os.IsNotExist(err) {
-		core.Info("touch %s in '%s' does not exist", key, name)
+		core.Info("touch %s in '%s' does not exist in store", key, name)
 		return false, nil
 	}
 
@@ -46,12 +47,12 @@ func GetCached(name string, store storage.Store, key string, data any) (synced b
 		}
 	}
 
-	core.Info("touch %s in '%s' up to date", key, name)
+	core.Info("touch %s in '%s' up to date db %d = store %d [%v]", key, name, modTime, touch.Unix(), touch)
 	return true, nil
 }
 
 func SetCached(name string, store storage.Store, key string, value any, invalidateStore bool) error {
-	node := fmt.Sprintf("safe:cache:%s", key)
+	node := fmt.Sprintf("safe:cache:%s", name)
 
 	var data []byte
 
@@ -81,6 +82,7 @@ func SetCached(name string, store storage.Store, key string, value any, invalida
 		if core.IsErr(err, nil, "cannot stat touch file %s in %s: %v", key, name, err) {
 			return err
 		}
+		core.Info("touch %s in '%s' created", key, name)
 	}
 
 	err = sql.SetConfig(node, key, "", stat.ModTime().Unix(), data)

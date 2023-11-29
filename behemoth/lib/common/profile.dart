@@ -28,7 +28,7 @@ String prettyName(String safeName) {
   var lastSlash = safeName.lastIndexOf('/');
   var covenName = safeName.substring(0, lastSlash);
   var roomName = safeName.substring(lastSlash + 1);
-  return "$covenName/$roomName";
+  return "$roomName@$covenName";
 }
 
 class Coven {
@@ -41,7 +41,6 @@ class Coven {
   static Future<Coven> join(String access) async {
     var p = Profile.current();
     var d = decodeAccess(p.identity, access);
-//    var safe = await Safe.open(p.identity, access, OpenOptions());
     var name = d.safeName;
     var ps = covenAndRoom(name);
     var covenName = ps[0];
@@ -50,6 +49,7 @@ class Coven {
         p.covens.putIfAbsent(covenName, () => Coven(p.identity, covenName, {}));
     coven.rooms[roomName] = access;
     p.save();
+    Safe.open(p.identity, access, OpenOptions());
     return coven;
   }
 

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/profile.dart';
-import 'package:behemoth/woland/safe.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:uni_links/uni_links.dart';
@@ -87,40 +87,34 @@ class _HomeState extends State<Home> {
     return entries.map(
       (e) {
         var safe = e.key;
-        Safe lounge;
-        Future<Safe> future() async {
-          return safe;
-        }
-
-        if (safe.name.endsWith("/lounge")) {
-          lounge = safe;
-        } else {
-          var parts = covenAndRoom(safe.name);
-          lounge = Coven.safes["${parts[0]}/lounge"]!;
-        }
+        var parts = covenAndRoom(safe.name);
+        var coven = Profile.current().covens[parts[0]];
+        var name = parts[1];
 
         var count = e.value;
         return Card(
           child: PlatformListTile(
             title: PlatformText("${safe.prettyName} ($count)"),
             trailing: const Icon(Icons.notifications),
-            onTap: () async {
-              NewsIcon.notifications.remove(safe);
-              Navigator.of(context).popUntil((route) => route.isFirst);
-              await Navigator.pushNamed(context, "/coven/room", arguments: {
-                "name": safe.name,
-                "future": future(),
-                "lounge": lounge,
-              });
-              setState(() {});
-            },
+            onTap: coven != null && coven.rooms.containsKey(name)
+                ? () async {
+                    NewsIcon.notifications.remove(safe);
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    await Navigator.pushNamed(context, "/coven/room",
+                        arguments: {
+                          "name": "lounge",
+                          "coven": coven,
+                        });
+                    setState(() {});
+                  }
+                : null,
           ),
         );
       },
     ).toList();
   }
 
-  connectAll() async {
+  connectAll(BuildContext context) async {
     setState(() {
       _connecting = true;
     });
@@ -130,7 +124,9 @@ class _HomeState extends State<Home> {
       try {
         await coven.getLounge();
       } catch (e) {
-        //ignore
+        if (!mounted) return;
+        showPlatformSnackbar(context, "Failed to connect to ${coven.name}",
+            backgroundColor: Colors.red);
       }
     }
     setState(() {
@@ -168,8 +164,15 @@ class _HomeState extends State<Home> {
             onTap: () async {
               NewsIcon.onChange = null;
               Navigator.of(context).popUntil((route) => route.isFirst);
-              await Navigator.pushNamed(context, "/coven", arguments: coven);
-              setState(() {});
+              await Navigator.pushNamed(context, "/coven/room", arguments: {
+                "coven": coven,
+                "room": "lounge",
+              });
+              Future.delayed(const Duration(seconds: 1), () {
+                if (mounted) {
+                  setState(() {});
+                }
+              });
             },
 //
           ),
@@ -181,7 +184,6 @@ class _HomeState extends State<Home> {
       appBar: PlatformAppBar(
         title: // Your content here
             Row(children: [
-          const Icon(Icons.home), // Add the desired icon
           const SizedBox(width: 8), // Add some spacing between icon and text
           Text(
             "Hi ${profile.identity.nick}",
@@ -214,7 +216,7 @@ class _HomeState extends State<Home> {
                 child: Padding(
                   padding: const EdgeInsets.all(4.0),
                   child: PlatformElevatedButton(
-                    onPressed: connectAll,
+                    onPressed: () => connectAll(context),
                     child: const Text("Connect all"),
                   ),
                 ),
@@ -245,7 +247,7 @@ class _HomeState extends State<Home> {
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.list),
+            icon: Icon(Icons.auto_awesome),
             label: 'My Covens',
           ),
           BottomNavigationBarItem(

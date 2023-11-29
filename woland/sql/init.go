@@ -115,6 +115,7 @@ func CloseDB() error {
 }
 
 func DeleteDB(dbPath string) error {
+	os.Create(dbPath)
 	err := os.Remove(dbPath)
 	if core.IsErr(err, nil, "cannot delete SQLite db in %s: %v", dbPath) {
 		return err

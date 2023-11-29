@@ -181,7 +181,7 @@ class _NewsIconState extends State<NewsIcon> {
           ? const Icon(
               Icons.home) // Display the alarm_off icon when _news is empty
           : const Icon(Icons
-              .notifications_active), // Display the alarm icon when _news is not empty
+              .notification_important_outlined), // Display the alarm icon when _news is not empty
       onPressed: () {
         Navigator.pushNamed(
           context,
