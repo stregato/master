@@ -49,7 +49,7 @@ class Coven {
         p.covens.putIfAbsent(covenName, () => Coven(p.identity, covenName, {}));
     coven.rooms[roomName] = access;
     p.save();
-    Safe.open(p.identity, access, OpenOptions());
+    Safe.open(p.identity, access, OpenOptions()).ignore();
     return coven;
   }
 

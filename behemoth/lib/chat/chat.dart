@@ -474,7 +474,7 @@ class _ChatState extends State<Chat> {
     final image = await decodeImageFromList(bytes);
 
     var name = ph.basename(xfile.path);
-    var options = PutOptions();
+    var options = PutOptions(async: true);
     options.autoThumbnail = true;
     options.contentType = lookupMimeType(xfile.path) ?? '';
 

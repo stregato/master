@@ -111,46 +111,6 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	return &s, nil
 }
 
-func syncIdentities(store storage.Store, name string, currentUser security.Identity) (new []security.Identity, err error) {
-	synced, err := GetCached(name, store, ".identities.touch", nil)
-	if core.IsErr(err, nil, "cannot sync touch file in %s: %v", name) {
-		return nil, err
-	}
-
-	if synced {
-		core.Info("identities in %s are up to date", name)
-		return nil, nil
-	}
-	identities, err := readIdentities(store)
-	if core.IsErr(err, nil, "cannot read identities in %s: %v", name) {
-		return nil, err
-	}
-
-	for _, identity := range identities {
-		core.Info("compare %s with %s", identity.Id, currentUser.Id)
-		if identity.Id == currentUser.Id {
-			err = SetCached(name, store, ".identities.touch", nil, false)
-			if core.IsErr(err, nil, "cannot write touch file in %s: %v", name) {
-				return nil, err
-			}
-			return identities, nil
-		}
-	}
-
-	err = writeIdentity(store, currentUser)
-	if core.IsErr(err, nil, "cannot write identity to store %s: %v", store) {
-		return nil, err
-	}
-	identities = append(identities, currentUser.Public())
-	core.Info("current user %s not found in %s identities, added it", currentUser.Id, name)
-
-	err = SetCached(name, store, ".identities.touch", nil, true)
-	if core.IsErr(err, nil, "cannot write touch file in %s: %v", name) {
-		return nil, err
-	}
-	return identities, nil
-}
-
 func connect(urls []string, name string, aesKey []byte) (stores []storage.Store, failedUrls []string, err error) {
 	var wg sync.WaitGroup
 	var lock sync.Mutex

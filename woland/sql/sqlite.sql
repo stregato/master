@@ -51,6 +51,9 @@ CREATE TABLE IF NOT EXISTS Users (
 -- GET_USERS
 SELECT id, permission FROM Users WHERE safe=:safe
 
+-- INSERT_USER
+INSERT INTO Users(safe,id,permission) VALUES(:safe,:id,:permission)
+
 -- SET_USER
 INSERT INTO Users(safe,id,permission) VALUES(:safe,:id,:permission)
   ON CONFLICT(safe,id) DO UPDATE SET permission=:permission

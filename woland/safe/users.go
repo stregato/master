@@ -2,6 +2,8 @@ package safe
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"time"
 
 	"github.com/godruoyi/go-snowflake"
@@ -143,16 +145,20 @@ func getSafeUsers(name string) (Users, error) {
 }
 
 func syncUsers(safeName string, store storage.Store, currentUser security.Identity, creatorId string, force bool) (users Users, diff int, err error) {
-	users_, err := getSafeUsers(safeName)
-	if core.IsErr(err, nil, "cannot get users in %s: %v", safeName) {
-		return Users{}, 0, err
-	}
+	var count int
 
 	identities, err := syncIdentities(store, safeName, currentUser)
 	if core.IsErr(err, nil, "cannot read identities in %s: %v", safeName) {
 		return Users{}, 0, err
 	}
-	core.Info("found %d identities in safe %s", len(identities), safeName)
+	count += len(identities)
+	core.Info("found %d new identities in safe %s", len(identities), safeName)
+
+	users_, err := getSafeUsers(safeName)
+	if core.IsErr(err, nil, "cannot get users in %s: %v", safeName) {
+		return Users{}, 0, err
+	}
+	core.Info("found %d users in safe %s", len(users_), safeName)
 
 	var synced bool
 	if !force {
@@ -160,20 +166,17 @@ func syncUsers(safeName string, store storage.Store, currentUser security.Identi
 		if core.IsErr(err, nil, "cannot sync touch file in %s: %v", safeName) {
 			return Users{}, 0, err
 		}
-	}
-	if synced {
-		core.Info("users in %s are up to date", safeName)
-		users = make(Users)
-		for userId, permission := range users_ {
-			users[userId] = permission
+		if synced {
+			core.Info("synchronized %d users in %s", count, safeName)
+			return users_, count, nil
 		}
-	} else {
-		users, _, err = readChangeLogs(store, safeName, currentUser, creatorId, "")
-		if core.IsErr(err, nil, "cannot read change logs in %s: %v", safeName) {
-			return Users{}, 0, err
-		}
-		core.Info("found %d users in changelogs of safe %s", len(users), safeName)
 	}
+
+	users, _, err = readChangeLogs(store, safeName, currentUser, creatorId, "")
+	if core.IsErr(err, nil, "cannot read change logs in %s: %v", safeName) {
+		return Users{}, 0, err
+	}
+	core.Info("found %d users in changelogs of safe %s", len(users), safeName)
 
 	for _, identity := range identities {
 		if _, ok := users[identity.Id]; !ok {
@@ -182,7 +185,6 @@ func syncUsers(safeName string, store storage.Store, currentUser security.Identi
 		}
 	}
 
-	var count int
 	for userId, permission := range users {
 		if p, ok := users_[userId]; !ok || p != permission {
 			sql.Exec("SET_USER", sql.Args{
@@ -227,4 +229,62 @@ func syncUserJob(s *Safe) {
 			SyncUsers(s)
 		}
 	}
+}
+
+func syncIdentities(store storage.Store, name string, currentUser security.Identity) (new []security.Identity, err error) {
+
+	synced, err := GetCached(name, store, ".identities.touch", nil)
+	if core.IsErr(err, nil, "cannot sync touch file in %s: %v", name) {
+		return nil, err
+	}
+
+	if !synced {
+		if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
+			return nil, err
+		}
+
+		new, err = readIdentities(store)
+		if core.IsErr(err, nil, "cannot read identities in %s: %v", name) {
+			return nil, err
+		}
+	}
+	_, err = store.Stat(path.Join(UsersFolder, currentUser.Id, UserFile))
+	missingIdentity := os.IsNotExist(err)
+	if missingIdentity {
+		err = writeIdentity(store, currentUser)
+		if core.IsErr(err, nil, "cannot write identity to store %s: %v", store) {
+			return nil, err
+		}
+		new = append(new, currentUser.Public())
+	}
+	if core.IsErr(err, nil, "cannot stat current user identity in %s: %v", name) {
+		return nil, err
+	}
+
+	if missingIdentity || !synced {
+		users, err := getSafeUsers(name)
+		if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
+			return nil, err
+		}
+		for _, identity := range new {
+			if _, ok := users[identity.Id]; !ok {
+				core.Info("user %s not found in %s users, added it", identity.Id, name)
+				_, err = sql.Exec("INSERT_USER", sql.Args{
+					"safe":       name,
+					"id":         identity.Id,
+					"permission": PermissionWait,
+				})
+				if core.IsErr(err, nil, "cannot insert user %s in %s: %v", identity.Id, name) {
+					return nil, err
+				}
+			}
+		}
+
+		err = SetCached(name, store, ".identities.touch", nil, missingIdentity)
+		if core.IsErr(err, nil, "cannot write touch file in %s: %v", name) {
+			return nil, err
+		}
+	}
+
+	return new, nil
 }

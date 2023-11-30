@@ -233,15 +233,15 @@ class _HomeState extends State<Home> {
               NewsIcon.onChange = null;
               Navigator.of(context).popUntil((route) => route.isFirst);
               await Navigator.pushNamed(context, "/join");
-              setState(() {});
               if (!mounted) return;
+              setState(() {});
               break;
             case 2:
               NewsIcon.onChange = null;
               Navigator.of(context).popUntil((route) => route.isFirst);
               await Navigator.pushNamed(context, "/create");
-              setState(() {});
               if (!mounted) return;
+              setState(() {});
               break;
           }
         },
