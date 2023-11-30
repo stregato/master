@@ -21,7 +21,12 @@ class _NavigationState extends State<Navigation> {
   @override
   void initState() {
     super.initState();
-    widget.coven.getLoungeSync()!.syncUsers().then((value) => setState(() {}));
+    Future.delayed(const Duration(milliseconds: 100), () {
+      widget.coven
+          .getLoungeSync()!
+          .syncUsers()
+          .then((value) => setState(() {}));
+    });
   }
 
   List<Widget> _getWaiters() {
@@ -50,7 +55,9 @@ class _NavigationState extends State<Navigation> {
                 PlatformElevatedButton(
                   onPressed: () {
                     lounge.setUsers({id: accessPermission}, SetUsersOptions());
-                    setState(() {});
+                    setState(() {
+                      users[id] = accessPermission;
+                    });
                   },
                   cupertino: (_, __) => CupertinoElevatedButtonData(
                     padding:
@@ -72,7 +79,9 @@ class _NavigationState extends State<Navigation> {
                 PlatformElevatedButton(
                   onPressed: () {
                     lounge.setUsers({id: 0}, SetUsersOptions());
-                    setState(() {});
+                    setState(() {
+                      users.remove(id);
+                    });
                   },
                   cupertino: (_, __) => CupertinoElevatedButtonData(
                     padding:
@@ -246,18 +255,24 @@ class _NavigationState extends State<Navigation> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(10),
-      child: _private
-          ? _getPrivates()
-          : ListView(
-              children: [
-                ..._getWaiters(),
-                _getPrivate(),
-                ..._getActions(),
-                ..._getRooms(),
-                _getSettings(),
-              ],
-            ),
-    );
+        padding: const EdgeInsets.all(10),
+        child: _private
+            ? _getPrivates()
+            : RefreshIndicator(
+                child: ListView(
+                  children: [
+                    ..._getWaiters(),
+                    _getPrivate(),
+                    ..._getActions(),
+                    ..._getRooms(),
+                    _getSettings(),
+                  ],
+                ),
+                onRefresh: () async {
+                  await widget.coven.getLoungeSync()!.syncUsers();
+                  if (!mounted) return;
+                  setState(() {});
+                },
+              ));
   }
 }

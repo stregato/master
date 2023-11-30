@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:behemoth/common/common.dart';
-import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:snowflake_dart/snowflake_dart.dart';
@@ -48,11 +47,14 @@ class _ChatState extends State<Chat> {
   bool _isLastPage = false;
   late Safe _safe;
   final FocusNode _focusNode = FocusNode();
+  late String _picsFolder;
+  DateTime _lastPeerMessage = DateTime(0);
 
   @override
   void initState() {
     super.initState();
     _safe = widget.safe;
+    _picsFolder = ph.join(documentsFolder, _safe.name, ".gallery");
     var currentUser = Profile.current().identity;
     _currentUser = types.User(
         id: currentUser.id,
@@ -75,12 +77,13 @@ class _ChatState extends State<Chat> {
     if (!mounted) return;
 
     var now = DateTime.now();
-    var diff = now.difference(_lastSync).inSeconds;
-    if (diff < 20 || diff > 60) {
+    var diff = now.difference(_lastPeerMessage).inSeconds;
+    var diff2 = now.difference(_lastSync).inSeconds;
+    if (diff < 20 || diff2 > 60) {
       if (await _safe.syncBucket("chat", SyncOptions()) > 0) {
         _loadMoreMessages();
-        _lastSync = now;
       }
+      _lastSync = now;
     }
   }
 
@@ -118,20 +121,16 @@ class _ChatState extends State<Chat> {
   types.Message _convertEmbeddedImage(Header h, types.User user) {
     var size =
         h.attributes.thumbnail.isEmpty ? h.size : h.attributes.thumbnail.length;
-    var file = File("$temporaryFolder/${h.name}");
+    var file = File(ph.join(_picsFolder, "${h.fileId}"));
     file.parent.createSync(recursive: true);
     var stat = FileStat.statSync(file.path);
     if (h.size != stat.size) {
       if (h.attributes.thumbnail.isNotEmpty) {
         file.writeAsBytesSync(h.attributes.thumbnail);
-      } else {
-        _safe
-            .getFile("chat", h.name, file.path, GetOptions(fileId: h.fileId))
-            .then((value) {
-          showPlatformSnackbar(context, "${h.name} downloaded",
-              backgroundColor: Colors.green);
-        });
       }
+      _safe
+          .getFile("chat", h.name, file.path, GetOptions(fileId: h.fileId))
+          .then((value) {});
     }
 
     return types.ImageMessage(
@@ -141,6 +140,10 @@ class _ChatState extends State<Chat> {
       name: h.name,
       size: size,
       uri: file.path,
+      metadata: {
+        'header': h,
+        'file': file,
+      },
     );
   }
 
@@ -230,6 +233,10 @@ class _ChatState extends State<Chat> {
     var anyNew = false;
     for (var header in headers) {
       if (!_loaded.contains(header.name)) {
+        if (header.modTime.isAfter(_lastPeerMessage) &&
+            header.creator != _safe.currentUser.id) {
+          _lastPeerMessage = header.modTime;
+        }
         _messages.insert(0, _convert(header));
         _loaded.add(header.name);
         anyNew = true;

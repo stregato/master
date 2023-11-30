@@ -293,6 +293,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerId uint64, head
 	uploading[headerId] = true
 	defer delete(uploading, headerId)
 
+	header.Uploading = false
 	store := s.stores[0]
 	hashedBucket := hashPath(bucket)
 	bodyFile := path.Join(DataFolder, hashedBucket, BodyFolder, fmt.Sprintf("%d", header.FileId))

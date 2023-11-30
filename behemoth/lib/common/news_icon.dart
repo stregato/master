@@ -139,7 +139,7 @@ class _NewsIconState extends State<NewsIcon> {
                     mainAxisAlignment: MainAxisAlignment
                         .center, // Center the icon and text horizontally
                     children: <Widget>[
-                      Icon(Icons.home), // Add the Home icon
+                      Icon(Icons.auto_awesome), // Add the Home icon
                       SizedBox(
                           width:
                               8), // Add some spacing between the icon and text

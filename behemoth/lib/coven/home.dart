@@ -102,7 +102,7 @@ class _HomeState extends State<Home> {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                     await Navigator.pushNamed(context, "/coven/room",
                         arguments: {
-                          "name": "lounge",
+                          "name": name,
                           "coven": coven,
                         });
                     setState(() {});

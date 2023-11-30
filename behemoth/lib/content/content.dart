@@ -136,7 +136,7 @@ class _ContentState extends State<Content> {
       }
       if (f is Directory) {
         var name = f.path.split("/").last;
-        if (name != ".previous" && !dirs.contains(name)) {
+        if (name != ".gallery" && name != ".previous" && !dirs.contains(name)) {
           dirs.add(name);
         }
       }
@@ -264,10 +264,16 @@ class _ContentState extends State<Content> {
         }
       },
       child: Expanded(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(8),
-          children: items,
+        child: RefreshIndicator(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(8),
+            children: items,
+          ),
+          onRefresh: () async {
+            await widget.safe.syncBucket("content", SyncOptions());
+            _read();
+          },
         ),
       ),
     );
