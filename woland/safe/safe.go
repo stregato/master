@@ -23,10 +23,11 @@ func init() {
 }
 
 const (
-	ConfigFolder = "config"
-	DataFolder   = "data"
-	HeaderFolder = "h"
-	BodyFolder   = "b"
+	ConfigFolder   = "config"
+	DataFolder     = "data"
+	InitiateFolder = "initiate"
+	HeaderFolder   = "h"
+	BodyFolder     = "b"
 )
 
 const KeySize = 32
@@ -36,10 +37,10 @@ type Keys map[uint64][]byte
 type Safe struct {
 	Hnd         int                 `json:"hnd"`         // Handle of the safe
 	CurrentUser security.Identity   `json:"currentUser"` // Current user
+	Permission  Permission          `json:"permission"`  // Permission of the current user
 	Access      string              `json:"access"`      // Access token
 	CreatorId   string              `json:"creatorId"`   // Creator of the safe
 	Name        string              `json:"name"`        // Name of the safe including the path
-	Permission  Permission          `json:"permission"`  // Permission of the current user
 	Description string              `json:"description"` // Description of the safe
 	Storage     storage.Description `json:"storage"`     // Information about the store
 	Quota       int64               `json:"quota"`       // Quota of the safe in bytes

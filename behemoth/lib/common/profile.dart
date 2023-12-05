@@ -24,94 +24,83 @@ List<String> covenAndRoom(String safeName) {
   return [safeName.substring(0, lastSlash), safeName.substring(lastSlash + 1)];
 }
 
-String prettyName(String safeName) {
-  var lastSlash = safeName.lastIndexOf('/');
-  var covenName = safeName.substring(0, lastSlash);
-  var roomName = safeName.substring(lastSlash + 1);
-  return "$roomName@$covenName";
-}
-
 class Coven {
   Identity identity;
   String name;
-  Map<String, String> rooms;
-  static Map<String, Safe> safes = {};
+  String access;
+  Set<String> rooms;
+  Safe? _safe;
+  static Map<String, Coven> opened = {};
   static Map<String, DateTime> safesAccessed = {};
 
-  static Future<Coven> join(String access) async {
-    var p = Profile.current();
+  static Future<Coven> join(String access, String secret) async {
+    var p = Profile.current;
     var d = decodeAccess(p.identity, access);
     var name = d.safeName;
-    var ps = covenAndRoom(name);
-    var covenName = ps[0];
-    var roomName = ps[1];
     var coven =
-        p.covens.putIfAbsent(covenName, () => Coven(p.identity, covenName, {}));
-    coven.rooms[roomName] = access;
+        p.covens.putIfAbsent(name, () => Coven(p.identity, name, access, {}));
     p.save();
-    Safe.open(p.identity, access, OpenOptions()).ignore();
+    Safe.open(p.identity, access, OpenOptions(initiateSecret: secret)).ignore();
     return coven;
   }
 
   static Future create(
       String name, List<String> urls, CreateOptions options) async {
-    var p = Profile.current();
-    var token =
-        encodeAccess(p.identity.id, "$name/lounge", p.identity.id, urls);
-    await Safe.create(p.identity, token, {}, options);
-    p.covens[name] = Coven(p.identity, name, {"lounge": token});
-    p.save();
+    var p = Profile.current;
+    var token = encodeAccess(p.identity.id, name, p.identity.id, urls);
+    var coven = Coven(p.identity, name, token, {"lounge"});
+    p.update(coven);
+
+    var safe = await Safe.create(p.identity, token, {}, options);
+    await safe.putBytes("rooms/.list", "lounge", Uint8List(0), PutOptions());
+    safe.close();
   }
 
-  Coven(this.identity, this.name, this.rooms);
+  Coven(this.identity, this.name, this.access, this.rooms);
   Coven.fromJson(this.identity, Map<String, dynamic> json)
       : name = json['name'],
-        rooms = json['rooms'].map<String, String>((key, value) =>
-                MapEntry<String, String>(key.toString(), value.toString()))
-            as Map<String, String>;
+        access = json['access'],
+        rooms = json['rooms'].map<String>((v) => v as String).toList().toSet();
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'rooms': rooms,
+        'access': access,
+        'rooms': rooms.toList(),
       };
 
-  Future<Safe> getLounge() async {
-    return getSafe("lounge");
+  Future<Safe> open() async {
+    if (_safe != null) {
+      return _safe!;
+    }
+    _safe = await Safe.open(identity, access, OpenOptions());
+    opened[name] = this;
+    safesAccessed[name] = DateTime.now();
+    return _safe!;
   }
 
-  Safe? getLoungeSync() {
-    return getSafeSync("lounge");
+  Safe get safe {
+    if (_safe == null) {
+      throw Exception("coven $name not open");
+    }
+
+    safesAccessed[name] = DateTime.now();
+    return _safe!;
   }
 
-  Future<Safe> getSafe(String roomName) async {
-    var safe = safes["$name/$roomName"];
-    if (safe != null) {
-      return safe;
-    }
-    var access = rooms[roomName];
-    if (access == null) {
-      throw Exception("no access to $roomName");
-    }
-    safe = await Safe.open(identity, access, OpenOptions());
-    safes["$name/$roomName"] = safe;
-    safesAccessed["$name/$roomName"] = DateTime.now();
-    return safe;
+  void close() {
+    opened.remove(name);
+    safe.close();
   }
 
-  Safe? getSafeSync(String roomName) {
-    var safe = safes["$name/$roomName"];
-    if (safe != null) {
-      safesAccessed["$name/$roomName"] = DateTime.now();
-    }
-    return safe;
+  void createRoom(String name, Map<String, Permission> users) async {
+    await safe.putBytes("rooms/.list", name, Uint8List(0), PutOptions());
+    rooms.add(name);
+    Profile.current.update(this);
   }
 
-  void closeSafe(String roomName) {
-    var safe = safes["$name/$roomName"];
-    if (safe != null) {
-      safe.close();
-      safes.remove(roomName);
-    }
+  void addRoom(String name) async {
+    rooms.add(name);
+    Profile.current.update(this);
   }
 }
 
@@ -134,19 +123,31 @@ class Profile {
         'covens': covens,
       };
 
-  static Profile current() {
+  static Profile? _current;
+
+  static Profile get current {
+    if (_current != null) {
+      return _current!;
+    }
+
     var sib = getConfig("behemoth", "profile");
     if (sib.missing) {
       throw Exception("no profile");
     }
 
-    return Profile.fromJson(jsonDecode(utf8.decode(sib.b)));
+    _current = Profile.fromJson(jsonDecode(utf8.decode(sib.b)));
+    return _current!;
   }
 
   static bool hasProfile() {
     var sib = getConfig("behemoth", "profile");
     if (!sib.missing) Profile.fromJson(jsonDecode(utf8.decode(sib.b)));
     return !sib.missing;
+  }
+
+  void update(Coven coven) {
+    covens[coven.name] = coven;
+    save();
   }
 
   save() {

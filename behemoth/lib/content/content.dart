@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:behemoth/common/io.dart';
+import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -18,8 +19,9 @@ import 'package:path/path.dart' as path;
 import 'package:path/path.dart';
 
 class Content extends StatefulWidget {
-  final Safe safe;
-  const Content(this.safe, {Key? key}) : super(key: key);
+  final Coven coven;
+  final String room;
+  const Content(this.coven, this.room, {Key? key}) : super(key: key);
 
   @override
   State<Content> createState() => _ContentState();
@@ -36,16 +38,20 @@ class _ContentState extends State<Content> {
 
   String _dir = "";
   late Timer _timer;
+  late String _room;
+  late Safe _safe;
 
   @override
   void initState() {
     super.initState();
+    _room = widget.room;
+    _safe = widget.coven.safe;
     _timer = Timer.periodic(const Duration(minutes: 10), (timer) async {
-      await widget.safe.syncBucket("content", SyncOptions());
+      await _safe.syncBucket("rooms/$_room/content", SyncOptions());
       _read();
     });
     Future.delayed(Duration.zero, () async {
-      await widget.safe.syncBucket("content", SyncOptions());
+      await _safe.syncBucket("rooms/$_room/content", SyncOptions());
       _read();
     });
     _read();
@@ -58,7 +64,7 @@ class _ContentState extends State<Content> {
   }
 
   String _getState(String name, List<Header> headers) {
-    var localFile = path.join(documentsFolder, widget.safe.name, name);
+    var localFile = path.join(documentsFolder, _safe.name, _room, name);
     var localStat = File(localFile).statSync();
 
     if (headers.isEmpty) {
@@ -106,12 +112,12 @@ class _ContentState extends State<Content> {
 
   Future<List<Header>> _libraryList(String dir) async {
     var options = ListOptions(dir: dir);
-    return widget.safe.listFiles("content", options);
+    return _safe.listFiles("rooms/$_room/content", options);
   }
 
   Future<List<String>> _libraryDirs(String folder) async {
     var options = ListDirsOptions(dir: folder);
-    return widget.safe.listDirs("content", options);
+    return _safe.listDirs("rooms/$_room/content", options);
   }
 
   _read() async {
@@ -123,7 +129,7 @@ class _ContentState extends State<Content> {
       versions.add(header);
     }
 
-    var d = Directory(path.join(documentsFolder, widget.safe.name, _dir));
+    var d = Directory(path.join(documentsFolder, _safe.name, _room, _dir));
     if (!d.existsSync()) {
       d.createSync(recursive: true);
     }
@@ -167,11 +173,12 @@ class _ContentState extends State<Content> {
               onTap: () async {
                 if (isFeed) {
                   Navigator.pushNamed(context, "/content/feed", arguments: {
-                    'safe': widget.safe,
+                    'safe': _safe,
+                    'room': _room,
                     'folder': _dir.isEmpty ? e : "$_dir/$e"
                   });
                 } else {
-                  await widget.safe.syncBucket("content", SyncOptions());
+                  await _safe.syncBucket("rooms/$_room/content", SyncOptions());
 
                   _dir = _dir.isEmpty ? e : "$_dir/$e";
                   _read();
@@ -199,8 +206,9 @@ class _ContentState extends State<Content> {
               ? () async {
                   await Navigator.pushNamed(context, "/content/actions",
                       arguments: {
-                        "safe": widget.safe,
+                        "safe": _safe,
                         "name": name,
+                        "room": _room,
                         "folder": _dir,
                         "headers": headers
                       });
@@ -227,7 +235,7 @@ class _ContentState extends State<Content> {
         const SizedBox(width: 10),
         GestureDetector(
           onTap: () =>
-              fa.openFile(context, "$documentsFolder/${widget.safe}/$_dir"),
+              fa.openFile(context, "$documentsFolder/$_safe/$_room/$_dir"),
           child: Text(
             _dir.split("/").last,
             style: const TextStyle(
@@ -243,8 +251,11 @@ class _ContentState extends State<Content> {
         PlatformIconButton(
           icon: const Icon(Icons.add),
           onPressed: () async {
-            await Navigator.pushNamed(context, "/content/add",
-                arguments: {'safe': widget.safe, 'folder': _dir});
+            await Navigator.pushNamed(context, "/content/add", arguments: {
+              'safe': _safe,
+              'room': _room,
+              'folder': _dir,
+            });
             _read();
           },
         ),
@@ -256,7 +267,8 @@ class _ContentState extends State<Content> {
         for (var file in details.files) {
           var selection = fa.FileSelection(file.name, file.path, false);
           await Navigator.pushNamed(context, "/upload", arguments: {
-            'safe': widget.safe,
+            'safe': _safe,
+            'room': _room,
             'zoneName': "widget.zoneName",
             'selection': selection,
           });
@@ -271,7 +283,7 @@ class _ContentState extends State<Content> {
             children: items,
           ),
           onRefresh: () async {
-            await widget.safe.syncBucket("content", SyncOptions());
+            await _safe.syncBucket("rooms/$_room/content", SyncOptions());
             _read();
           },
         ),

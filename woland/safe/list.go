@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stregato/master/woland/core"
+	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 )
 
@@ -110,6 +111,16 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 		if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
 			continue
 		}
+
+		if header.PrivateId != "" {
+			bodyKey, err := security.DiffieHellmanKey(s.CurrentUser, header.PrivateId)
+			if core.IsErr(err, nil, "cannot create diffie hellman key: %v", err) {
+				continue
+			}
+			header.BodyKey = bodyKey
+
+		}
+
 		headers = append(headers, header)
 		core.Info("found header %s, %v, %d", header.Name, header.ModTime, header.FileId)
 	}

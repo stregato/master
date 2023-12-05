@@ -48,6 +48,10 @@ func DecryptAES(encrypted []byte, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	if len(encrypted) == 0 || len(encrypted)%aes.BlockSize != 0 {
+		return nil, errors.New("invalid data length")
+	}
+
 	// Split the encrypted data into IV and ciphertext
 	iv := encrypted[:aes.BlockSize]
 	ciphertext := encrypted[aes.BlockSize:]

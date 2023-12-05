@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/woland/woland.dart';
@@ -9,61 +10,41 @@ import 'package:behemoth/woland/types.dart';
 import 'package:snowflake_dart/snowflake_dart.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
-class AddPerson extends StatefulWidget {
-  const AddPerson({super.key});
+class InvitoToRoom extends StatefulWidget {
+  const InvitoToRoom({super.key});
 
   @override
-  State<AddPerson> createState() => _AddPersonState();
+  State<InvitoToRoom> createState() => _InvitoToRoomState();
 }
 
-class _AddPersonState extends State<AddPerson> {
+class _InvitoToRoomState extends State<InvitoToRoom> {
+  late Coven _coven;
   late Safe _safe;
-  late Safe _lounge;
+  late String _room;
 
-  _addPerson(BuildContext context, Identity identity) async {
-    await _safe.setUsers(
-        {identity.id: permissionRead + permissionWrite + permissionAdmin},
-        SetUsersOptions());
-    if (!mounted) return;
-
-    var d = decodeAccess(_safe.currentUser, _safe.access);
-    var access = encodeAccess(identity.id, d.safeName, d.creatorId, d.urls,
-        aesKey: d.aesKey);
-
-    var task = _lounge.putBytes(
-        "chat",
-        '${Snowflake(nodeId: 0).generate()}',
-        Uint8List.fromList([]),
-        PutOptions(
-          contentType: "application/x-behemoth-invite",
-          private: identity.id,
-          meta: {
-            'access': access,
-            'name': _safe.prettyName,
-            'sender': _safe.currentUser,
-          },
-        ));
-    await progressDialog(context, "adding ${identity.nick}", task,
-        successMessage: "added ${identity.nick}",
-        errorMessage: "failed to add ${identity.nick}");
-    if (!mounted) return;
-    setState(() {});
+  _invitePerson(BuildContext context, Identity identity) {
+    var id = identity.id;
+    _safe.putBytes("rooms/.invites/$id", _room, Uint8List(0), PutOptions());
+    showPlatformSnackbar(context, "Invite sent to ${identity.nick}");
   }
 
   @override
   Widget build(BuildContext context) {
     var args = ModalRoute.of(context)!.settings.arguments as Map;
-    _safe = args['safe'] as Safe;
-    _lounge = args['lounge'] as Safe;
+    _coven = args['coven'] as Coven;
+    _safe = _coven.safe;
+    _room = args['room'] as String;
 
-    var ids2 = _safe.getUsersSync().keys;
-    var ids =
-        _lounge.getUsersSync().keys.where((id) => !ids2.contains(id)).toList();
+    var ids = _safe
+        .getUsersSync()
+        .keys
+        .where((id) => id != _coven.identity.id)
+        .toList();
 
     return PlatformScaffold(
       //resizeToAvoidBottomInset: false, //TODO: add again
       appBar: PlatformAppBar(
-        title: Text("Add to ${_safe.prettyName}"),
+        title: Text("Send invite for $_room@${_safe.name}"),
       ),
       body: SingleChildScrollView(
         child: Container(
@@ -83,9 +64,9 @@ class _AddPersonState extends State<AddPerson> {
                     title: Text(nick),
                     subtitle: Text("${identity.id.substring(0, 16)}..."),
                     trailing: PlatformIconButton(
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(Icons.email),
                       onPressed: () {
-                        _addPerson(context, identity);
+                        _invitePerson(context, identity);
                       },
                     ),
                   );

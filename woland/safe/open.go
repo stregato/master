@@ -13,12 +13,14 @@ import (
 
 var ErrNoStoreAvailable = fmt.Errorf("no store available")
 
-var UsersFolder = "users"
-var UserFile = ".user"
+var IdentitiesFolder = "identities"
 var MaxACLFilesInZone = 4
 var DefaultSyncUsersRefreshRate = 10 * time.Minute
 
 type OpenOptions struct {
+	//InitiateSecret is the information the admin receives when a user requests access to a safe
+	InitiateSecret string
+
 	//ForceCreate
 	ForceCreate bool
 
@@ -53,46 +55,32 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	}
 	core.Info("read manifest file of %s in %v", name, core.Since(now))
 
-	now = core.Now()
-	users, _, err := syncUsers(name, store, currentUser, creatorId, false)
-	if core.IsErr(err, nil, "cannot sync users in %s: %v", name) {
-		return nil, err
-	}
-	core.Info("synchorized users of %s in %v", name, core.Since(now))
-
-	keystore, _, err := syncKeystore(store, name, currentUser, users)
-	if core.IsErr(err, nil, "cannot read keystores in %s: %v", name) {
-		return nil, err
-	}
-	core.Info("synchorized keystore of %s in %v", name, core.Since(now))
-
-	if keystore.LastKeyId == 0 {
-		return nil, fmt.Errorf("no key found")
-	}
-
 	size, err := getSafeSize(name)
 	if core.IsErr(err, nil, "cannot get size of %s: %v", name) {
 		return nil, err
 	}
 
-	safesCounterLock.Lock()
-	safesCounter++
+	users, err := getUsersFromDB(name)
+	if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
+		return nil, err
+	}
+
 	s := Safe{
 		Hnd:         safesCounter,
 		CurrentUser: currentUser,
 		Access:      access,
 		Name:        name,
-		Permission:  users[currentUser.Id],
 		Description: manifest.Description,
 		CreatorId:   creatorId,
 		Storage:     stores[0].Describe(),
 		Quota:       manifest.Quota,
 		QuotaGroup:  manifest.QuotaGroup,
 		Size:        size,
+		Permission:  users[currentUser.Id],
 
-		keystore:  keystore,
 		stores:    stores,
 		users:     users,
+		keystore:  readKeystoreFromDB(name),
 		usersLock: sync.Mutex{},
 		syncUsers: time.NewTicker(10 * time.Minute),
 		uploads:   time.NewTicker(time.Minute),
@@ -100,13 +88,46 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		quit:      make(chan bool),
 		wg:        sync.WaitGroup{},
 	}
+
+	_, err = SyncUsers(&s)
+	if core.IsErr(err, nil, "cannot sync users in %s: %v", name) {
+		return nil, err
+	}
+
+	// now = core.Now()
+	// users, _, err := syncUsers(name, store, currentUser, creatorId, false)
+	// if core.IsErr(err, nil, "cannot sync users in %s: %v", name) {
+	// 	return nil, err
+	// }
+	// core.Info("synchorized users of %s in %v", name, core.Since(now))
+
+	// keystore, _, err := syncKeystore(store, name, currentUser, users)
+	// if core.IsErr(err, nil, "cannot read keystores in %s: %v", name) {
+	// 	return nil, err
+	// }
+	// core.Info("synchorized keystore of %s in %v", name, core.Since(now))
+
+	if s.Permission == 0 {
+		if options.InitiateSecret != "" { // if current user is not in the ACL, create an initiate file
+			core.Info("creating initiate file for %s with secret %s", currentUser.Id, options.InitiateSecret)
+			createInitiateFile(name, store, currentUser, options.InitiateSecret)
+		}
+		return nil, fmt.Errorf("access pending")
+	}
+
+	if s.Permission == Blocked {
+		return nil, fmt.Errorf("access denied")
+	}
+
+	safesCounterLock.Lock()
+	safesCounter++
+	safesCounterLock.Unlock()
+
 	go syncUserJob(&s)
 	go uploadJob(&s)
 
-	safesCounterLock.Unlock()
-
-	core.Info("safe opened: name %s, creator %s, description %s, quota %d, keystore %v", name,
-		currentUser.Id, manifest.Description, manifest.Quota, keystore)
+	core.Info("safe opened: name %s, creator %s, description %s, quota %d, #users %d, keystore %d", name,
+		currentUser.Id, manifest.Description, manifest.Quota, len(s.users), s.keystore.LastKeyId)
 
 	return &s, nil
 }
@@ -133,7 +154,6 @@ func connect(urls []string, name string, aesKey []byte) (stores []storage.Store,
 				lock.Unlock()
 				return
 			}
-			s = storage.Sub(s, name, true)
 			if aesKey != nil {
 				s = storage.EncryptNames(s, aesKey, aesKey, true)
 			}

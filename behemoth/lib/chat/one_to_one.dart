@@ -18,12 +18,11 @@ class _PrivatesState extends State<Privates> {
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
 
     var coven = args['coven'] as Coven;
-    var lounge = coven.getLoungeSync()!;
-    var items = lounge
+    var items = coven.safe
         .getUsersSync()
         .entries
-        .where((e) =>
-            e.key != lounge.currentUser.id && e.value & permissionRead > 0)
+        .where(
+            (e) => e.key != coven.safe.currentUser.id && e.value & reader > 0)
         .map((e) {
       var id = e.key;
       var identity = getCachedIdentity(id);
@@ -39,7 +38,7 @@ class _PrivatesState extends State<Privates> {
                 appBar: PlatformAppBar(title: Text("🕵 with $nick")),
                 body: Padding(
                     padding: const EdgeInsets.all(2.0),
-                    child: Chat(lounge, id)),
+                    child: Chat(coven, "lounge", id)),
               ),
             ),
           );

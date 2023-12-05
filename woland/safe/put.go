@@ -159,38 +159,6 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 	core.IsErr(err, nil, "cannot insert header: %v", err)
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
 
-	// filePath := path.Join(DataFolder, hashedBucket, HeaderFolder, fmt.Sprintf("%d", headerId))
-	// keyId := s.keystore.LastKeyId
-	// keyValue := s.keystore.Keys[keyId]
-	// if options.Private != "" {
-	// 	var encryptedHeader = header
-	// 	var encryptedAttributes []byte
-	// 	encryptedAttributes, err = encryptHeaderAttributes(bodyKey, iv, header.Attributes)
-	// 	if core.IsErr(err, nil, "cannot encrypt attributes: %v", err) {
-	// 		return Header{}, err
-	// 	}
-	// 	encryptedHeader.EncryptedAttributes = encryptedAttributes
-	// 	encryptedHeader.BodyKey = nil
-	// 	encryptedHeader.Attributes = Attributes{}
-
-	// 	err = writeHeaders(store, s.Name, filePath, keyId, keyValue, []Header{encryptedHeader})
-	// } else {
-	// 	err = writeHeaders(store, s.Name, filePath, keyId, keyValue, []Header{header})
-	// }
-	// if core.IsErr(err, nil, "cannot write header: %v", err) {
-	// 	store.Delete(bodyFile)
-	// 	return Header{}, err
-	// }
-	// core.Info("Wrote header for %s[%d]", header.Name, header.FileId)
-	// err = SetCached(s.Name, store, fmt.Sprintf(".data.%s.touch", hashedBucket), nil, true)
-	// if core.IsErr(err, nil, "cannot set touch file: %v", err) {
-	// 	return Header{}, err
-	// }
-
-	// if sourceFile != "" {
-	// 	header.Downloads = map[string]time.Time{sourceFile: core.Now()}
-	// }
-
 	if options.Async && sourceFile != "" {
 		core.Info("Async put for %s[%d]", header.Name, header.FileId)
 		s.upload <- true
@@ -296,7 +264,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerId uint64, head
 	header.Uploading = false
 	store := s.stores[0]
 	hashedBucket := hashPath(bucket)
-	bodyFile := path.Join(DataFolder, hashedBucket, BodyFolder, fmt.Sprintf("%d", header.FileId))
+	bodyFile := path.Join(s.Name, DataFolder, hashedBucket, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
 	var err error
 	bodyKey := header.BodyKey
@@ -355,7 +323,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerId uint64, head
 		header.Downloads = map[string]time.Time{header.SourceFile: core.Now()}
 	}
 
-	filePath := path.Join(DataFolder, hashedBucket, HeaderFolder, fmt.Sprintf("%d", headerId))
+	filePath := path.Join(s.Name, DataFolder, hashedBucket, HeaderFolder, fmt.Sprintf("%d", headerId))
 	keyId := s.keystore.LastKeyId
 	keyValue := s.keystore.Keys[keyId]
 	err = writeHeaders(store, s.Name, filePath, keyId, keyValue, []Header{header})
@@ -364,7 +332,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerId uint64, head
 		return Header{}, err
 	}
 	core.Info("Wrote header for %s[%d]", header.Name, header.FileId)
-	err = SetCached(s.Name, store, fmt.Sprintf(".data.%s.touch", hashedBucket), nil, true)
+	err = SetCached(s.Name, store, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, s.CurrentUser.Id)
 	if core.IsErr(err, nil, "cannot set touch file: %v", err) {
 		return Header{}, err
 	}
@@ -429,7 +397,7 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 }
 
 func deleteFile(stores []storage.Store, safeName string, hashedDir string, fileId uint64) error {
-	fullName := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", fileId))
+	fullName := path.Join(safeName, DataFolder, hashedDir, fmt.Sprintf("%d.b", fileId))
 	for _, store := range stores {
 		err := store.Delete(fullName)
 		if !core.IsErr(err, nil, "cannot delete file: %v", err) {

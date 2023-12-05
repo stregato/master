@@ -30,7 +30,7 @@ func EcDecrypt(identity Identity, data []byte) ([]byte, error) {
 	}
 
 	data, err = eciesgo.Decrypt(eciesgo.NewPrivateKeyFromBytes(cryptKey), data)
-	if core.IsWarn(err, "cannot decrypt with secp256k1: %v") {
+	if err != nil {
 		return nil, err
 	}
 	return data, nil

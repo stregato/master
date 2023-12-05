@@ -37,7 +37,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 	var touch time.Time
 
 	hashedBucket := hashPath(bucket)
-	synced, err := GetCached(safeName, store, fmt.Sprintf(".data.%s.touch", hashedBucket), nil)
+	synced, err := GetCached(safeName, store, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, "")
 	if core.IsErr(err, nil, "cannot check sync file: %v") {
 		return 0, err
 	}
@@ -46,7 +46,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 		return 0, nil
 	}
 
-	ls, err := store.ReadDir(path.Join(DataFolder, hashedBucket, HeaderFolder), storage.Filter{})
+	ls, err := store.ReadDir(path.Join(safeName, DataFolder, hashedBucket, HeaderFolder), storage.Filter{})
 	if os.IsNotExist(err) || core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedBucket, err) {
 		return 0, err
 	}
@@ -74,7 +74,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 			continue
 		}
 
-		filepath := path.Join(DataFolder, hashedBucket, HeaderFolder, name)
+		filepath := path.Join(safeName, DataFolder, hashedBucket, HeaderFolder, name)
 		headers, _, err := readHeaders(store, safeName, filepath, keys)
 		if core.IsErr(err, nil, "cannot read headers: %v", err) {
 			continue
@@ -101,7 +101,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}
-	err = SetCached(safeName, store, fmt.Sprintf(".data.%s.touch", hashedBucket), nil, false)
+	err = SetCached(safeName, store, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, "")
 	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 		return 0, err
 	}

@@ -21,14 +21,15 @@ class _ContentUploadState extends State<ContentUpload> {
   final _formKey = GlobalKey<FormState>();
   String _targetName = "";
   late Safe _safe;
+  late String _room;
   late String _folder;
   late FileSelection _selection;
   bool _copyLocally = false;
-  bool _uploading = false;
 
   Future<Header> _uploadFile(
       String name, FileSelection selection, PutOptions options) async {
-    return await _safe.putFile("content", name, selection.path, options);
+    return await _safe.putFile(
+        "rooms/$_room/content", name, selection.path, options);
   }
 
   @override
@@ -38,35 +39,34 @@ class _ContentUploadState extends State<ContentUpload> {
 
     _selection = args["selection"] as FileSelection;
     _safe = args["safe"] as Safe;
+    _room = args["room"] as String;
     _folder = args["folder"] as String;
     _targetName = _selection.name;
 
-    var action = _uploading
-        ? const CircularProgressIndicator()
-        : PlatformElevatedButton(
-            onPressed: () async {
-              try {
-                var options = PutOptions(async: true);
-                if (_copyLocally) {
-                  var localPath =
-                      join(documentsFolder, _safe.name, _folder, _targetName);
-                  File(_selection.path).copySync(localPath);
-                  options.source = localPath;
-                }
-                _uploadFile(join(_folder, _targetName), _selection, options);
-                if (!mounted) return;
+    var action = PlatformElevatedButton(
+      onPressed: () async {
+        try {
+          var options = PutOptions(async: true);
+          if (_copyLocally) {
+            var localPath =
+                join(documentsFolder, _safe.name, _room, _folder, _targetName);
+            File(_selection.path).copySync(localPath);
+            options.source = localPath;
+          }
+          _uploadFile(join(_folder, _targetName), _selection, options);
+          if (!mounted) return;
 
-                showPlatformSnackbar(
-                    context, "File $_targetName is uploading in background",
-                    backgroundColor: Colors.green);
-                Navigator.pop(context);
-              } catch (e) {
-                showPlatformSnackbar(context, "Cannot upload $_targetName: $e",
-                    backgroundColor: Colors.green);
-              }
-            },
-            child: const Text('Upload'),
-          );
+          showPlatformSnackbar(
+              context, "File $_targetName is uploading in background",
+              backgroundColor: Colors.green);
+          Navigator.pop(context);
+        } catch (e) {
+          showPlatformSnackbar(context, "Cannot upload $_targetName: $e",
+              backgroundColor: Colors.green);
+        }
+      },
+      child: const Text('Upload'),
+    );
 
     return Scaffold(
       appBar: AppBar(

@@ -25,12 +25,12 @@ func prepareStatement(key, s string, line int) error {
 	}
 
 	stmt, err := db.Prepare(s)
-	if core.IsErr(err, nil, "cannot compile SQL statement (%d) '%s': %v", line, s) {
+	if core.IsErr(err, nil, "cannot compile SQL statement '%s' (%d) '%s': %v", key, line, s) {
 		return err
 	}
 	stmtCache[key] = stmt
 	queriesCache[key] = s
-	core.Info("SQL statement (%d) '%s' compiled", line, s)
+	core.Info("SQL statement '%s' (%d) '%s' compiled", key, line, s)
 	return nil
 }
 

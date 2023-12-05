@@ -24,6 +24,7 @@ class ContentActions extends StatefulWidget {
 class _ContentActionsState extends State<ContentActions> {
   AppTheme theme = LightTheme();
   late Safe _safe;
+  late String _room;
   late String _name;
   late String _folder;
   late List<Header> _headers;
@@ -45,15 +46,17 @@ class _ContentActionsState extends State<ContentActions> {
     var args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     _safe = args["safe"] as Safe;
+    _room = args["room"] as String;
     _name = args["name"] as String;
     _folder = args["folder"] as String;
     _headers = args["headers"] as List<Header>;
     _headers.sort((a, b) => b.modTime.compareTo(a.modTime));
 
-    var libraryFolder = path.join(documentsFolder, _safe.name);
-    var localPath = path.join(documentsFolder, _safe.name, _folder, _name);
-    var prevPath =
-        path.join(documentsFolder, _safe.name, _folder, ".previous", _name);
+    var libraryFolder = path.join(documentsFolder, _safe.name, _room);
+    var localPath =
+        path.join(documentsFolder, _safe.name, _room, _folder, _name);
+    var prevPath = path.join(
+        documentsFolder, _safe.name, _room, _folder, ".previous", _name);
     var items = <Card>[];
     var syncFileId = 0;
 
@@ -125,17 +128,18 @@ class _ContentActionsState extends State<ContentActions> {
         items.add(
           Card(
             child: ListTile(
-              title: Text("$action to ${_safe.prettyName}"),
+              title: Text("$action to $_room@${_safe.name}"),
               leading: Icon(_headers.isEmpty ? Icons.add : Icons.file_upload),
               onTap: () async {
                 try {
                   var options = PutOptions();
                   options.source = localPath;
                   var dest = _folder.isEmpty ? _name : "$_folder/$_name";
-                  await _safe.putFile("content", dest, localPath, options);
+                  await _safe.putFile(
+                      "rooms/$_room/content", dest, localPath, options);
                   if (mounted) {
                     showPlatformSnackbar(
-                        context, "$_name uploaded to ${_safe.prettyName}",
+                        context, "$_name uploaded to $_room@${_safe.name}",
                         backgroundColor: Colors.green);
                     Navigator.pop(context);
                   }
@@ -204,8 +208,8 @@ class _ContentActionsState extends State<ContentActions> {
             onTap: () async {
               try {
                 if (localExists) {
-                  Directory prevDir = Directory(path.join(
-                      documentsFolder, _safe.name, _folder, ".previous"));
+                  Directory prevDir = Directory(path.join(documentsFolder,
+                      _safe.name, _room, _folder, ".previous"));
                   if (!prevDir.existsSync()) {
                     prevDir.createSync(recursive: true);
                   }
@@ -218,8 +222,8 @@ class _ContentActionsState extends State<ContentActions> {
                 setState(() {
                   _downloading = h.fileId;
                 });
-                await _safe.getFile(
-                    "content", h.name, options.destination, options);
+                await _safe.getFile("rooms/$_room/content", h.name,
+                    options.destination, options);
                 if (!mounted) return;
                 showPlatformSnackbar(
                     context, "${h.name} downloaded to $libraryFolder",

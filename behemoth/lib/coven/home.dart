@@ -82,36 +82,27 @@ class _HomeState extends State<Home> {
   }
 
   List<Card> getNotificationsWidgets() {
-    var entries = NewsIcon.notifications.entries.toList();
-    entries.sort((a, b) => a.key.name.compareTo(b.key.name));
-    return entries.map(
-      (e) {
-        var safe = e.key;
-        var parts = covenAndRoom(safe.name);
-        var coven = Profile.current().covens[parts[0]];
-        var name = parts[1];
+    var cards = <Card>[];
 
-        var count = e.value;
-        return Card(
-          child: PlatformListTile(
-            title: PlatformText("${safe.prettyName} ($count)"),
-            trailing: const Icon(Icons.notifications),
-            onTap: coven != null && coven.rooms.containsKey(name)
-                ? () async {
-                    NewsIcon.notifications.remove(safe);
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                    await Navigator.pushNamed(context, "/coven/room",
-                        arguments: {
-                          "name": name,
-                          "coven": coven,
-                        });
-                    setState(() {});
-                  }
-                : null,
-          ),
-        );
-      },
-    ).toList();
+    for (var n in NewsIcon.notifications) {
+      var title = "${n.room}@${n.coven.name} (${n.updates})";
+      cards.add(Card(
+        child: PlatformListTile(
+          title: PlatformText(title),
+          trailing: const Icon(Icons.notifications),
+          onTap: () async {
+            NewsIcon.notifications.remove(n);
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            await Navigator.pushNamed(context, "/coven/room", arguments: {
+              "coven": n.coven,
+              "room": n.room,
+            });
+            setState(() {});
+          },
+        ),
+      ));
+    }
+    return cards;
   }
 
   connectAll(BuildContext context) async {
@@ -119,10 +110,10 @@ class _HomeState extends State<Home> {
       _connecting = true;
     });
 
-    List<Coven> covens = Profile.current().covens.values.toList();
+    List<Coven> covens = Profile.current.covens.values.toList();
     for (var coven in covens) {
       try {
-        await coven.getLounge();
+        await coven.open();
       } catch (e) {
         if (!mounted) return;
         showPlatformSnackbar(context, "Failed to connect to ${coven.name}",
@@ -149,14 +140,14 @@ class _HomeState extends State<Home> {
       );
     }
 
-    var profile = Profile.current();
+    var profile = Profile.current;
     var widgets = getNotificationsWidgets();
     widgets.addAll(profile.covens.values.map(
       (coven) {
         return Card(
           child: PlatformListTile(
             title: PlatformText(coven.name),
-            trailing: Coven.safes.keys.contains("${coven.name}/lounge")
+            trailing: Coven.opened.containsKey(coven.name)
                 ? const Icon(Icons.link)
                 : _connecting
                     ? const CircularProgressIndicator()

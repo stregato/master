@@ -1,10 +1,13 @@
-import 'package:behemoth/common/copy_field.dart';
+import 'dart:math';
+
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/common/qrcode_scan_button.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:behemoth/woland/woland.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class Join extends StatefulWidget {
@@ -19,9 +22,13 @@ class _JoinState extends State<Join> {
   DecodedToken? _decodedToken;
   String _access = "";
   List<String> accessPrefixes = ['https://behemoth.rocks/a/', 'mg://a/'];
+  final TextEditingController _secretController = TextEditingController();
   final TextEditingController _linkController = TextEditingController();
 
   _JoinState() {
+    var initialSecret = Random().nextInt(1000).toString().padLeft(4, '0');
+    _secretController.text = initialSecret;
+
     _linkController.addListener(() async {
       parseLink(_linkController.text.trim());
     });
@@ -46,7 +53,7 @@ class _JoinState extends State<Join> {
 
     try {
       _decodedToken = null;
-      _decodedToken = decodeAccess(Profile.current().identity, _access);
+      _decodedToken = decodeAccess(Profile.current.identity, _access);
       setState(() {
         _errorText = null;
       });
@@ -59,26 +66,49 @@ class _JoinState extends State<Join> {
 
   @override
   Widget build(BuildContext context) {
-    var profile = Profile.current();
+    var profile = Profile.current;
     var link = ModalRoute.of(context)!.settings.arguments as String?;
     if (link != null) {
       parseLink(link);
     }
 
     var currentUserId = profile.identity.id;
-//    var desktopLink = 'bm://i/$currentUserId/${profile.identity.nick}';
-    var mobileLink =
-        'https://behemoth.rocks/i/$currentUserId/${profile.identity.nick}';
+    // var mobileLink =
+    //     'https://behemoth.rocks/i/$currentUserId/${profile.identity.nick}';
 
     var shareIdSection = <Widget>[
       if (link == null)
         Column(
           children: [
-            const Text("Below is your id if link. "
-                " Share with your peer to get an invite. "),
-            const SizedBox(height: 20),
-            CopyField("Identity link", mobileLink),
-            const SizedBox(height: 40),
+            PlatformTextField(
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              material: (context, platform) => MaterialTextFieldData(
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  labelText: 'Secret',
+                  helperText:
+                      "This is a number that helps the admin recognize you.",
+                  errorText: _errorText,
+                ),
+              ),
+              cupertino: (context, platform) => CupertinoTextFieldData(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      width: 0,
+                      color: CupertinoColors.inactiveGray,
+                    ),
+                  ),
+                ),
+              ),
+              controller: _secretController,
+            ),
+            // const Text("Below is your id if link. "
+            //     " Share with your peer to get an invite. "),
+            // const SizedBox(height: 20),
+            // CopyField("Identity link", mobileLink),
+            // const SizedBox(height: 40),
             const Text(
                 "Once you get a link, paste it below and click on 'Join' to join the community"),
             const SizedBox(height: 20),
@@ -109,13 +139,13 @@ class _JoinState extends State<Join> {
         PlatformElevatedButton(
           onPressed: (_decodedToken != null && _errorText == null)
               ? () async {
-                  var name = prettyName(_decodedToken!.safeName);
+                  var name = _decodedToken!.safeName;
                   var access = encodeAccess(
                       currentUserId,
                       _decodedToken!.safeName,
                       _decodedToken!.creatorId,
                       _decodedToken!.urls);
-                  var task = Coven.join(access);
+                  var task = Coven.join(access, _secretController.text);
                   await progressDialog(context, "Joining $name", task,
                       successMessage: "Joined $name",
                       errorMessage: "Failed to join $name");
@@ -123,7 +153,7 @@ class _JoinState extends State<Join> {
                   Navigator.pop(context);
                 }
               : null,
-          child: Text("Join ${prettyName(_decodedToken!.safeName)}"),
+          child: Text("Join ${_decodedToken!.safeName}"),
         )
     ];
 

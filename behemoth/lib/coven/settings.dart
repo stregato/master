@@ -2,30 +2,30 @@ import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 
-class CommunitySettings extends StatefulWidget {
-  const CommunitySettings({super.key});
+class CovenSettings extends StatefulWidget {
+  const CovenSettings({super.key});
 
   @override
-  State<CommunitySettings> createState() => _CommunitySettingsState();
+  State<CovenSettings> createState() => _CovenSettingsState();
 }
 
-class _CommunitySettingsState extends State<CommunitySettings> {
+class _CovenSettingsState extends State<CovenSettings> {
   @override
   Widget build(BuildContext context) {
     var args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     final coven = args['coven'] as Coven;
-    var lounge = coven.getLoungeSync()!;
+    var safe = coven.safe;
 
     final buttonStyle = ButtonStyle(
       padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(20)),
     );
 
-    var quota = lounge.quota == 0
+    var quota = safe.quota == 0
         ? "unlimited"
-        : lounge.quota < 1e9
-            ? "${lounge.quota / 1e6}MB"
-            : "${lounge.quota / 1e9}GB";
+        : safe.quota < 1e9
+            ? "${safe.quota / 1e6}MB"
+            : "${safe.quota / 1e9}GB";
 
     return Scaffold(
       appBar: AppBar(
@@ -36,11 +36,11 @@ class _CommunitySettingsState extends State<CommunitySettings> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("Description: ${lounge.description}"),
+            Text("Description: ${safe.description}"),
             const SizedBox(height: 20),
             Text("Quota: $quota"),
             const SizedBox(height: 20),
-            Text("Quota Group: ${lounge.quotaGroup}"),
+            Text("Quota Group: ${safe.quotaGroup}"),
             const SizedBox(height: 20),
             const Text("Danger Zone",
                 textAlign: TextAlign.center,
@@ -54,7 +54,7 @@ class _CommunitySettingsState extends State<CommunitySettings> {
               label: const Text('Leave'),
               icon: const Icon(Icons.exit_to_app),
               onPressed: () {
-                var p = Profile.current();
+                var p = Profile.current;
                 p.covens.remove(coven.name);
                 p.save();
                 showPlatformSnackbar(

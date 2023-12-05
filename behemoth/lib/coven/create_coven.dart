@@ -59,9 +59,27 @@ class _CreateCovenState extends State<CreateCoven> {
     }
   }
 
+  void _createCoven(BuildContext context) async {
+    await progressDialog(
+        context,
+        "opening portal, please wait",
+        Coven.create(
+            _name,
+            _urls,
+            CreateOptions(
+                wipe: _wipe,
+                description: _description,
+                quota: _mapSliderToValue(_sliderValue),
+                quotaGroup: "$_name/")),
+        successMessage: "Congrats! You successfully created $_name",
+        errorMessage: "Creation failed");
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    var profile = Profile.current();
+    var profile = Profile.current;
 
     return Scaffold(
       appBar: AppBar(
@@ -188,7 +206,7 @@ class _CreateCovenState extends State<CreateCoven> {
                               .toList(),
                           onChanged: (name) {
                             var c = profile.covens[name];
-                            var access = c?.rooms["lounge"]!;
+                            var access = c?.access;
                             var d = decodeAccess(profile.identity, access!);
 
                             setState(() {
@@ -252,27 +270,8 @@ class _CreateCovenState extends State<CreateCoven> {
                     padding: const EdgeInsets.symmetric(
                         vertical: 16.0, horizontal: 16.0),
                     child: PlatformElevatedButton(
-                      onPressed: _validConfig()
-                          ? () async {
-                              await progressDialog(
-                                  context,
-                                  "opening portal, please wait",
-                                  Coven.create(
-                                      _name,
-                                      _urls,
-                                      CreateOptions(
-                                          wipe: _wipe,
-                                          description: _description,
-                                          quota:
-                                              _mapSliderToValue(_sliderValue),
-                                          quotaGroup: "$_name/")),
-                                  successMessage:
-                                      "Congrats! You successfully created $_name",
-                                  errorMessage: "Creation failed");
-                              if (!mounted) return;
-                              Navigator.pop(context);
-                            }
-                          : null,
+                      onPressed:
+                          _validConfig() ? () => _createCoven(context) : null,
                       child: PlatformText('Create'),
                     ),
                   ),

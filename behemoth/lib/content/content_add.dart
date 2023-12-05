@@ -16,6 +16,7 @@ class ContentAdd extends StatefulWidget {
 
 class _ContentStateAdd extends State<ContentAdd> {
   late Safe _safe;
+  late String _room;
   late String _folder;
 
   @override
@@ -23,11 +24,12 @@ class _ContentStateAdd extends State<ContentAdd> {
     var args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     _safe = args["safe"] as Safe;
+    _room = args["room"] as String;
     _folder = args["folder"] as String;
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
-        title: Text("Add to ${_safe.prettyName}"),
+        title: Text("Add to  $_room@${_safe.name}"),
       ),
       body: ListView(
         children: <Widget>[
@@ -103,7 +105,7 @@ class _ContentStateAdd extends State<ContentAdd> {
             TextButton(
               child: const Text('Create'),
               onPressed: () {
-                var d = path.join(documentsFolder, _safe.name, _folder,
+                var d = path.join(documentsFolder, _safe.name, _room, _folder,
                     "${textController.text}$suffix");
                 Directory(d).createSync(recursive: true);
                 Navigator.of(context).pop(); // Close the dialog
@@ -136,7 +138,7 @@ class _ContentStateAdd extends State<ContentAdd> {
             TextButton(
               child: const Text('Create'),
               onPressed: () async {
-                var d = path.join(documentsFolder, _safe.name, _folder,
+                var d = path.join(documentsFolder, _safe.name, _room, _folder,
                     "${textController.text}.md");
                 await Navigator.pushNamed(context, "/content/editor",
                     arguments: {"filename": d});

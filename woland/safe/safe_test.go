@@ -155,7 +155,7 @@ func testSafe(t *testing.T, dbPath string, storeUrl string) {
 	core.TestErr(t, err, "cannot put file: %v")
 	core.Assert(t, !h.Downloads[name].IsZero(), "Expected download time to be set")
 
-	err = SetUsers(s, map[string]Permission{second.Id: PermissionRead}, SetUsersOptions{})
+	err = SetUsers(s, map[string]Permission{second.Id: Reader}, SetUsersOptions{})
 	core.TestErr(t, err, "cannot set users: %v")
 
 	users, err := GetUsers(s)

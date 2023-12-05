@@ -48,7 +48,8 @@ class _CovenWidgetState extends State<CovenWidget> {
                 const Spacer(),
                 PlatformElevatedButton(
                   onPressed: () {
-                    progressDialog(context, "Joining $name", Coven.join(access),
+                    progressDialog(
+                        context, "Joining $name", Coven.join(access, ""),
                         successMessage: "Joined $name",
                         errorMessage: "Failed to join $name");
                   },
@@ -72,7 +73,7 @@ class _CovenWidgetState extends State<CovenWidget> {
         return;
       }
       var headers = await _lounge!.listFiles(
-          "chat",
+          "$_room/chat",
           ListOptions(
             privateId: _coven.identity.id,
             contentType: "application/x-behemoth-invite",
@@ -108,12 +109,12 @@ class _CovenWidgetState extends State<CovenWidget> {
       if (!mounted) {
         return;
       }
-      var profile = Profile.current();
+      var profile = Profile.current;
 
       var users = _lounge!.getUsersSync();
       _myPermission = users[profile.identity.id] ?? 0;
       var waitingUsers = users.entries
-          .where((e) => e.value == permissionWait)
+          .where((e) => e.value == blocked)
           .map((e) => e.key)
           .toList();
 
@@ -172,7 +173,7 @@ class _CovenWidgetState extends State<CovenWidget> {
                   title: title,
                   onTap: () async {
                     Navigator.pushNamed(context, "/coven/room", arguments: {
-                      "future": _coven.getSafe(room),
+                      "future": _coven.getSafe(),
                       "name": Safe.pretty(safeName),
                       "lounge": _lounge,
                     }).then((value) {
@@ -187,13 +188,13 @@ class _CovenWidgetState extends State<CovenWidget> {
 
     _waitingRoom();
     _checkInvites();
-    var amAdmin = _myPermission & permissionAdmin == permissionAdmin;
+    var amAdmin = _myPermission & admin == admin;
     for (var id in _waitingUsers) {
       var identity = getIdentity(id);
       if (identity.nick.isEmpty) {
         continue;
       }
-      var accessPermission = permissionRead + permissionWrite + permissionAdmin;
+      var accessPermission = reader + standard + admin;
       zonesWidgets.add(Card(
           child: ListTile(
         title: Row(
@@ -290,7 +291,7 @@ class _CovenWidgetState extends State<CovenWidget> {
                       const SizedBox(height: 40),
                       PlatformElevatedButton(
                         onPressed: () {
-                          var p = Profile.current();
+                          var p = Profile.current;
                           p.covens.remove(_coven.name);
                           p.save();
                           Navigator.pop(context);

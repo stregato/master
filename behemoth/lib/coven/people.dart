@@ -27,8 +27,7 @@ class _PeopleState extends State<People> {
     var safe = widget.safe;
 
     var users = safe.getUsersSync();
-    var items =
-        users.entries.where((e) => e.value & permissionRead > 0).map((e) {
+    var items = users.entries.where((e) => e.value & reader > 0).map((e) {
       var identity = getCachedIdentity(e.key);
       var nick = identity.nick;
 

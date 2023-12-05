@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
 
-// GetCached returns the modification time of the guard file.
-func GetCached(name string, store storage.Store, key string, data any) (synced bool, err error) {
+// GetCached returns the modification time of the guard file. If the creatorID is not empty, it returns true if the guard file creator has the same ID.
+func GetCached(name string, store storage.Store, key string, data any, creatorId string) (synced bool, err error) {
 	node := fmt.Sprintf("safe:cache:%s", name)
 
 	_, modTime, d, ok := sql.GetConfig(node, key)
@@ -19,7 +20,7 @@ func GetCached(name string, store storage.Store, key string, data any) (synced b
 		core.Info("touch %s in '%s' does not exist in db", key, name)
 		return false, nil
 	}
-	fileInfo, err := store.Stat(key)
+	fileInfo, err := store.Stat(path.Join(name, key))
 	if !os.IsNotExist(err) && core.IsErr(err, nil, "cannot check touch file: %v", err) {
 		return false, err
 	}
@@ -33,6 +34,16 @@ func GetCached(name string, store storage.Store, key string, data any) (synced b
 	if diff > 1 {
 		core.Info("touch %s in '%s' is %d seconds older", key, name, diff)
 		return false, nil
+	}
+	if creatorId != "" {
+		data, err := storage.ReadFile(store, path.Join(name, key))
+		if core.IsErr(err, nil, "cannot read touch file %s in %s: %v", key, name, err) {
+			return false, err
+		}
+		if string(data) != creatorId {
+			core.Info("touch %s in '%s' has different creator id %s != %s", key, name, string(data), creatorId)
+			return false, nil
+		}
 	}
 
 	if data != nil {
@@ -51,7 +62,7 @@ func GetCached(name string, store storage.Store, key string, data any) (synced b
 	return true, nil
 }
 
-func SetCached(name string, store storage.Store, key string, value any, invalidateStore bool) error {
+func SetCached(name string, store storage.Store, key string, value any, creatorId string) error {
 	node := fmt.Sprintf("safe:cache:%s", name)
 
 	var data []byte
@@ -68,17 +79,17 @@ func SetCached(name string, store storage.Store, key string, value any, invalida
 		}
 	}
 
-	stat, err := store.Stat(key)
+	stat, err := store.Stat(path.Join(name, key))
 	if !os.IsNotExist(err) && core.IsErr(err, nil, "cannot stat touch file %s in %s: %v", key, name, err) {
 		return err
 	}
 
-	if os.IsNotExist(err) || invalidateStore {
-		err = storage.WriteFile(store, key, []byte{})
+	if os.IsNotExist(err) || creatorId != "" {
+		err = storage.WriteFile(store, path.Join(name, key), []byte(creatorId))
 		if core.IsErr(err, nil, "cannot write touch file %s in %s: %v", key, name, err) {
 			return err
 		}
-		stat, err = store.Stat(key)
+		stat, err = store.Stat(path.Join(name, key))
 		if core.IsErr(err, nil, "cannot stat touch file %s in %s: %v", key, name, err) {
 			return err
 		}

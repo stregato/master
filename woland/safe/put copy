@@ -88,7 +88,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 
 	hsr := hashSizeReader(r, hash, options.Progress)
 	var r2 io.ReadSeeker = hsr
-	bodyFile := path.Join(DataFolder, dir, BodyFolder, fmt.Sprintf("%d", bodyId))
+	bodyFile := path.Join(s.Name, DataFolder, dir, BodyFolder, fmt.Sprintf("%d", bodyId))
 	if options.Zip {
 		r2, err = gzipStream(r2)
 		if core.IsErr(err, nil, "cannot compress data: %v", err) {
@@ -170,7 +170,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 			Extra:       options.Meta,
 		},
 	}
-	filePath := path.Join(DataFolder, dir, HeaderFolder, fmt.Sprintf("%d", headerId))
+	filePath := path.Join(s.Name, DataFolder, dir, HeaderFolder, fmt.Sprintf("%d", headerId))
 	if options.Private != "" {
 		var encryptedHeader = header
 		var encryptedAttributes []byte
@@ -191,7 +191,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 		return Header{}, err
 	}
 	core.Info("Wrote header for %s[%d]", header.Name, header.FileId)
-	_, err = SetTouch(store, DataFolder, dir, ".touch")
+	_, err = SetTouch(store, path.Join(s.Name, DataFolder), dir, ".touch")
 	if core.IsErr(err, nil, "cannot check touch file: %v", err) {
 		return Header{}, err
 	}
@@ -263,7 +263,7 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 }
 
 func deleteFile(stores []storage.Store, safeName string, hashedDir string, fileId uint64) error {
-	fullName := path.Join(DataFolder, hashedDir, fmt.Sprintf("%d.b", fileId))
+	fullName := path.Join(safeName, DataFolder, hashedDir, fmt.Sprintf("%d.b", fileId))
 	for _, store := range stores {
 		err := store.Delete(fullName)
 		if !core.IsErr(err, nil, "cannot delete file: %v", err) {

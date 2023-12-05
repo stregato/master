@@ -18,7 +18,7 @@ func writeIdentity(st storage.Store, self security.Identity) error {
 	if core.IsErr(err, nil, "cannot marshal identity %s: %v", self.Id) {
 		return err
 	}
-	err = storage.WriteFile(st, path.Join(UsersFolder, self.Id, UserFile), data)
+	err = storage.WriteFile(st, path.Join(IdentitiesFolder, self.Id), data)
 	if core.IsErr(err, nil, "cannot write identity %s: %v", self.Id) {
 		return err
 	}
@@ -37,24 +37,15 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 		m[i.Id] = i
 	}
 
-	ls, err := st.ReadDir(UsersFolder, storage.Filter{})
+	ls, err := st.ReadDir(IdentitiesFolder, storage.Filter{})
 	if !os.IsNotExist(err) && core.IsErr(err, nil, "cannot list identity files': %v", err) {
 		return nil, err
 	}
-	core.Info("reading identities from %s, %d files found", UsersFolder, len(ls))
+	core.Info("reading identities from %s, %d files found", IdentitiesFolder, len(ls))
 
 	var identities []security.Identity
 	for _, l := range ls {
-		if !l.IsDir() {
-			core.Info("file '%s' is not a directory: skip", l.Name())
-			continue
-		}
-
 		userId := l.Name()
-		l, err = st.Stat(path.Join(UsersFolder, userId, UserFile))
-		if os.IsNotExist(err) || core.IsErr(err, nil, "cannot stat identity file '%s': %v", userId, err) {
-			continue
-		}
 
 		if identity, ok := m[userId]; ok && identity.ModTime.Before(l.ModTime()) {
 			identities = append(identities, identity)
@@ -63,8 +54,8 @@ func readIdentities(st storage.Store) ([]security.Identity, error) {
 		}
 
 		var identity security.Identity
-		data, err := storage.ReadFile(st, path.Join(UsersFolder, userId, UserFile))
-		if core.IsErr(err, nil, "cannot read identity file '%s/%s': %v", userId, UserFile, err) {
+		data, err := storage.ReadFile(st, path.Join(IdentitiesFolder, userId))
+		if core.IsErr(err, nil, "cannot read identity file '%s/%s': %v", userId, err) {
 			continue
 		}
 

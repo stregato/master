@@ -31,7 +31,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
     var id = args["id"] ?? "";
     var nick = args["nick"];
 
-    var current = Profile.current();
+    var current = Profile.current;
     var desktopLink = 'mg://a/$_access';
     var mobileLink = 'https://behemoth.rocks/a/$_access';
 
@@ -62,7 +62,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text("Invite ${nick ?? '?'} to community"),
+        title: Text("Invite ${nick ?? '?'} to coven"),
       ),
       body: SingleChildScrollView(
         child: Container(
@@ -72,7 +72,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
               if (_access.isEmpty)
                 Column(
                   children: [
-                    const Text("Choose the community"),
+                    const Text("Choose the coven"),
                     const SizedBox(height: 20),
                     ListView(
                       shrinkWrap: true,
@@ -84,9 +84,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
                                   onTap: () {
                                     setState(() {
                                       _access = reencodeAccess(
-                                          e.value.rooms["lounge"]!,
-                                          current.identity,
-                                          id);
+                                          e.value.access, current.identity, id);
                                     });
                                   }),
                             ),

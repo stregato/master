@@ -42,7 +42,6 @@ class _Reset extends State<Reset> {
                 icon: const Icon(Icons.restore),
                 onPressed: () => setState(() {
                       if (_fullReset == 0) {
-                        stop();
                         clearIdentities();
                         factoryReset();
                         start(

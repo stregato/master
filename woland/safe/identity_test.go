@@ -23,7 +23,7 @@ func TestSyncIdentities(t *testing.T) {
 	s2, err := security.NewIdentity("s2")
 	assert.Nil(t, err)
 
-	ls, err := s.ReadDir(path.Join("test", UsersFolder), storage.Filter{})
+	ls, err := s.ReadDir(path.Join("test", IdentitiesFolder), storage.Filter{})
 	assert.Nil(t, err)
 	assert.Empty(t, ls)
 

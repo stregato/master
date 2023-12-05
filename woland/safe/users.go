@@ -23,44 +23,33 @@ const (
 )
 
 type SetUsersOptions struct {
-	ReplaceUsers bool          `json:"replaceUsers"`
-	AlignDelay   time.Duration `json:"alignDelay"`
-	SyncAlign    bool          `json:"syncAlign"`
+	AlignDelay time.Duration `json:"alignDelay"`
+	SyncAlign  bool          `json:"syncAlign"`
 }
 
 // SetUsers sets some users with corresponding permissions for a zone.
 func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 	currentUserId := s.CurrentUser.Id
 
-	users_, _, err := syncUsers(s.Name, s.stores[0], s.CurrentUser, s.CreatorId, true)
+	_, err := SyncUsers(s)
 	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
 		return err
 	}
-	if users_[currentUserId]&PermissionAdmin == 0 {
+	if s.users[currentUserId]&Admin == 0 {
+		// error if the current user is not admin
 		return fmt.Errorf(ErrNotAdmin, currentUserId, s.Name)
 	}
-	keystore, _, err := syncKeystore(s.stores[0], s.Name, s.CurrentUser, users)
-	if core.IsErr(err, nil, "cannot read keystores in %s: %v", s.Name) {
-		return err
-	}
-	s.keystore = keystore
 
-	delta := map[string]Permission{}
-	var includesRevoke bool
+	delta := map[string]Permission{} // delta is the difference between the current users and the new users
+	var includesRevoke bool          // includesRevoke is true if the new users include a revoke of a permission
 
 	for userId, permission := range users {
-		if p, ok := users_[userId]; !ok || p != permission {
+		if p, ok := s.users[userId]; !ok || p != permission {
 			delta[userId] = permission
-			includesRevoke = includesRevoke || permission == PermissionNone
-		}
-	}
-	for userId := range users_ {
-		if p, ok := users[userId]; !ok {
-			if options.ReplaceUsers {
-				delta[userId] = PermissionNone
-				includesRevoke = true
-			} else {
-				users[userId] = p
+			includesRevoke = includesRevoke || permission <= Blocked
+			err = setUserInDB(s.Name, userId, permission)
+			if core.IsErr(err, nil, "cannot set user in %s: %v", s.Name) {
+				return err
 			}
 		}
 	}
@@ -71,14 +60,21 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 	}
 
 	if includesRevoke {
-		keystore.LastKeyId = snowflake.ID()
-		key := core.GenerateRandomBytes(KeySize)
-		keystore.Keys[keystore.LastKeyId] = key
+		keystore := Keystore{
+			LastKeyId: snowflake.ID(),
+			Keys:      make(map[uint64][]byte),
+		}
+		keystore.Keys[keystore.LastKeyId] = core.GenerateRandomBytes(KeySize)
 		err = writeKeyStoreFile(s.stores[0], s.Name, s.CurrentUser, keystore, users)
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
 		}
-		s.keystore = keystore
+		s.keystore.LastKeyId = keystore.LastKeyId
+		s.keystore.Keys[keystore.LastKeyId] = keystore.Keys[keystore.LastKeyId]
+		err = writeKeyStoreToDB(s.Name, s.keystore)
+		if core.IsErr(err, nil, "cannot write keystore in DB for %s: %v", s.Name) {
+			return err
+		}
 
 		var align = func() {
 			time.Sleep(options.AlignDelay)
@@ -92,18 +88,22 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		}
 
 	} else {
-		err = writeKeyStoreFile(s.stores[0], s.Name, s.CurrentUser, keystore, delta)
+		err = writeKeyStoreFile(s.stores[0], s.Name, s.CurrentUser, s.keystore, delta)
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
 		}
 	}
 
-	err = SetCached(s.Name, s.stores[0], ".users.touch", nil, true)
+	err = SetCached(s.Name, s.stores[0], "config/.access.touch", nil, s.CurrentUser.Id)
 	if core.IsErr(err, nil, "cannot create touch file in %s: %v", s.Name) {
 		return err
 	}
 
-	s.users = users
+	for userId, permission := range delta {
+		s.users[userId] = permission
+		deleteInitiateFile(s.Name, s.stores[0], userId)
+	}
+
 	return nil
 }
 
@@ -115,17 +115,54 @@ func SyncUsers(s *Safe) (int, error) {
 	core.Info("synchronizing users in %s", s.Name)
 	s.usersLock.Lock()
 	defer s.usersLock.Unlock()
-	users, count, err := syncUsers(s.Name, s.stores[0], s.CurrentUser, s.CreatorId, false)
+
+	synced, err := GetCached(s.Name, s.stores[0], "config/.access.touch", nil, "")
+	if core.IsErr(err, nil, "cannot sync touch file in %s: %v", s.Name) {
+		return 0, err
+	}
+	if synced {
+		core.Info("users in %s are up to date", s.Name)
+		return 0, nil
+	}
+
+	var store = s.stores[0]
+	identities, err := syncIdentities(store, s.Name, s.CurrentUser)
+	if core.IsErr(err, nil, "cannot read identities in %s: %v", s.Name) {
+		return 0, err
+	}
+	core.Info("found %d new identities in safe %s", len(identities), s.Name)
+
+	users, count, err := syncUsers(s.Name, store, s.CurrentUser, s.CreatorId, s.users)
 	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
 		return 0, err
 	}
-	s.users = users
 	core.Info("synchronized %d users in %s", count, s.Name)
+
+	keystore, _, err := syncKeystore(store, s.Name, s.CurrentUser, s.users)
+	if core.IsErr(err, nil, "cannot sync keystore in %s: %v", s.Name) {
+		return 0, err
+	}
+
+	s.users = users
+	s.keystore = keystore
+	s.Permission = users[s.CurrentUser.Id]
 	return count, nil
 }
 
-func getSafeUsers(name string) (Users, error) {
-	rows, err := sql.Query("GET_USERS", sql.Args{"safe": name})
+func setUserInDB(safeName string, userId string, permission Permission) error {
+	_, err := sql.Exec("SET_USER", sql.Args{
+		"safe":       safeName,
+		"id":         userId,
+		"permission": permission,
+	})
+	if core.IsErr(err, nil, "cannot set user in %s: %v", safeName) {
+		return err
+	}
+	return nil
+}
+
+func getUsersFromDB(safeName string) (Users, error) {
+	rows, err := sql.Query("GET_USERS", sql.Args{"safe": safeName})
 	if core.IsErr(err, nil, "cannot query users: %v", err) {
 		return nil, err
 	}
@@ -140,79 +177,48 @@ func getSafeUsers(name string) (Users, error) {
 		users[userId] = Permission(permission)
 	}
 	rows.Close()
-	core.Info("read %d users in %s", len(users), name)
+	core.Info("read %d users in %s", len(users), safeName)
 	return users, nil
 }
 
-func syncUsers(safeName string, store storage.Store, currentUser security.Identity, creatorId string, force bool) (users Users, diff int, err error) {
+func syncUsers(safeName string, store storage.Store, currentUser security.Identity, creatorId string, users_ Users) (users Users, diff int, err error) {
 	var count int
 
-	identities, err := syncIdentities(store, safeName, currentUser)
-	if core.IsErr(err, nil, "cannot read identities in %s: %v", safeName) {
-		return Users{}, 0, err
-	}
-	count += len(identities)
-	core.Info("found %d new identities in safe %s", len(identities), safeName)
+	// users_, err := getUsersFromDB(safeName)
+	// if core.IsErr(err, nil, "cannot get users in %s: %v", safeName) {
+	// 	return Users{}, 0, err
+	// }
+	// core.Info("found %d users in safe %s", len(users_), safeName)
 
-	users_, err := getSafeUsers(safeName)
-	if core.IsErr(err, nil, "cannot get users in %s: %v", safeName) {
-		return Users{}, 0, err
-	}
-	core.Info("found %d users in safe %s", len(users_), safeName)
+	// var synced bool
+	// if !force {
+	// 	synced, err = GetCached(safeName, store, ".users.touch", nil, "")
+	// 	if core.IsErr(err, nil, "cannot sync touch file in %s: %v", safeName) {
+	// 		return Users{}, 0, err
+	// 	}
+	// 	if synced {
+	// 		core.Info("synchronized %d users in %s", count, safeName)
+	// 		return users_, count, nil
+	// 	}
+	// }
 
-	var synced bool
-	if !force {
-		synced, err = GetCached(safeName, store, ".users.touch", nil)
-		if core.IsErr(err, nil, "cannot sync touch file in %s: %v", safeName) {
-			return Users{}, 0, err
-		}
-		if synced {
-			core.Info("synchronized %d users in %s", count, safeName)
-			return users_, count, nil
-		}
-	}
-
-	users, _, err = readChangeLogs(store, safeName, currentUser, creatorId, "")
+	users, _, err = readChangeLogs(safeName, store, currentUser, creatorId, "")
 	if core.IsErr(err, nil, "cannot read change logs in %s: %v", safeName) {
 		return Users{}, 0, err
 	}
 	core.Info("found %d users in changelogs of safe %s", len(users), safeName)
 
-	for _, identity := range identities {
-		if _, ok := users[identity.Id]; !ok {
-			users[identity.Id] = PermissionWait
-			core.Info("identity '%s' is waiting for access", identity.Id)
-		}
-	}
-
 	for userId, permission := range users {
 		if p, ok := users_[userId]; !ok || p != permission {
-			sql.Exec("SET_USER", sql.Args{
-				"safe":       safeName,
-				"id":         userId,
-				"permission": permission,
-			})
+			err = setUserInDB(safeName, userId, permission)
+			if core.IsErr(err, nil, "cannot set user in %s: %v", safeName) {
+				return Users{}, 0, err
+			}
 			count++
 			core.Info("update user '%s' with permission %d", userId, permission)
 		}
 	}
 
-	for userId := range users_ {
-		if _, ok := users[userId]; !ok {
-			sql.Exec("SET_USER", sql.Args{
-				"safe":       safeName,
-				"id":         userId,
-				"permission": PermissionNone,
-			})
-			count++
-			core.Info("delete user '%s'", userId)
-		}
-	}
-
-	err = SetCached(safeName, store, ".users.touch", nil, false)
-	if core.IsErr(err, nil, "cannot create touch file in %s: %v", safeName) {
-		return Users{}, 0, err
-	}
 	core.Info("synchronized %d users in %s", count, safeName)
 	return users, count, nil
 }
@@ -233,22 +239,11 @@ func syncUserJob(s *Safe) {
 
 func syncIdentities(store storage.Store, name string, currentUser security.Identity) (new []security.Identity, err error) {
 
-	synced, err := GetCached(name, store, ".identities.touch", nil)
-	if core.IsErr(err, nil, "cannot sync touch file in %s: %v", name) {
+	new, err = readIdentities(store)
+	if core.IsErr(err, nil, "cannot read identities in %s: %v", name) {
 		return nil, err
 	}
-
-	if !synced {
-		if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
-			return nil, err
-		}
-
-		new, err = readIdentities(store)
-		if core.IsErr(err, nil, "cannot read identities in %s: %v", name) {
-			return nil, err
-		}
-	}
-	_, err = store.Stat(path.Join(UsersFolder, currentUser.Id, UserFile))
+	_, err = store.Stat(path.Join(name, IdentitiesFolder, currentUser.Id))
 	missingIdentity := os.IsNotExist(err)
 	if missingIdentity {
 		err = writeIdentity(store, currentUser)
@@ -261,29 +256,13 @@ func syncIdentities(store storage.Store, name string, currentUser security.Ident
 		return nil, err
 	}
 
-	if missingIdentity || !synced {
-		users, err := getSafeUsers(name)
-		if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
-			return nil, err
-		}
-		for _, identity := range new {
-			if _, ok := users[identity.Id]; !ok {
-				core.Info("user %s not found in %s users, added it", identity.Id, name)
-				_, err = sql.Exec("INSERT_USER", sql.Args{
-					"safe":       name,
-					"id":         identity.Id,
-					"permission": PermissionWait,
-				})
-				if core.IsErr(err, nil, "cannot insert user %s in %s: %v", identity.Id, name) {
-					return nil, err
-				}
-			}
-		}
-
-		err = SetCached(name, store, ".identities.touch", nil, missingIdentity)
-		if core.IsErr(err, nil, "cannot write touch file in %s: %v", name) {
-			return nil, err
-		}
+	var creatorId string
+	if missingIdentity {
+		creatorId = currentUser.Id
+	}
+	err = SetCached(name, store, "config/.access.touch", nil, creatorId)
+	if core.IsErr(err, nil, "cannot write touch file in %s: %v", name) {
+		return nil, err
 	}
 
 	return new, nil

@@ -2,6 +2,7 @@ import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/coven/navigation.dart';
 import 'package:behemoth/woland/safe.dart';
+import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/chat.dart';
 import 'package:behemoth/common/news_icon.dart';
@@ -28,7 +29,6 @@ class _RoomState extends State<Room> {
   Navigation? _navigation;
   late Coven _coven;
   late String _room;
-  Safe? _safe;
 
   @override
   Widget build(BuildContext context) {
@@ -43,9 +43,17 @@ class _RoomState extends State<Room> {
       _currentItem = currentPanelIdx[_title] ?? 0;
     }
 
+    var addPerson = PlatformIconButton(
+        onPressed: () async {
+          await Navigator.pushNamed(context, "/coven/room/invite", arguments: {
+            "coven": _coven,
+            "room": _room,
+          });
+        },
+        icon: const Icon(Icons.person_add_alt));
+
     var invite = PlatformIconButton(
         onPressed: () async {
-          if (_safe == null) return;
           await Navigator.pushNamed(context, "/invite", arguments: {
             "coven": _coven,
           });
@@ -73,17 +81,20 @@ class _RoomState extends State<Room> {
         title: Text(_title, style: const TextStyle(fontSize: 18)),
         trailingActions: [
           // const NewsIcon(),
-          // const SizedBox(width: 10),
+          if (_room != "lounge") addPerson,
+          const SizedBox(width: 20),
           invite,
         ],
       ),
       body: FutureBuilder<Safe>(
-          future: _coven.getSafe(_room),
+          future: _coven.open(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               var message = snapshot.error.toString();
-              if (message == "no key found") {
+              if (message == "access pending") {
                 message = "Admin didn't provide access yet. Retry later.";
+              } else if (message == "access denied") {
+                message = "Admin removed your access.";
               } else {
                 message = "Technical Error: $message";
               }
@@ -105,7 +116,7 @@ class _RoomState extends State<Room> {
                   const SizedBox(height: 20),
                   PlatformElevatedButton(
                     onPressed: () {
-                      var p = Profile.current();
+                      var p = Profile.current;
                       p.covens.remove(_coven.name);
                       p.save();
                       Navigator.pop(context);
@@ -122,14 +133,17 @@ class _RoomState extends State<Room> {
               ));
             }
             if (snapshot.hasData) {
-              _safe = snapshot.data!;
-              _title = _safe!.prettyName;
+              if (!_coven.rooms.contains(_room)) {
+                _coven.addRoom(_room);
+                Profile.current.update(_coven);
+              }
+
               switch (_currentItem) {
                 case 0:
-                  _chat ??= Chat(_safe!, "");
+                  _chat ??= Chat(_coven, _room, "");
                   return _chat!;
                 case 1:
-                  _content ??= Content(_safe!);
+                  _content ??= Content(_coven, _room);
                   return _content!;
                 case 2:
                   _navigation ??= Navigation(_coven, _room);

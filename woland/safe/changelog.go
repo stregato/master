@@ -37,12 +37,11 @@ type Change struct {
 type Permission int
 
 const (
-	PermissionNone       Permission = 0
-	PermissionWait       Permission = 1
-	PermissionRead       Permission = 2
-	PermissionWrite      Permission = 4
-	PermissionAdmin      Permission = 16
-	PermissionSuperAdmin Permission = 32
+	Blocked  Permission = 1
+	Reader   Permission = 2
+	Standard Permission = 4
+	Admin    Permission = 16
+	Creator  Permission = 32
 )
 
 type Users map[string]Permission
@@ -65,15 +64,15 @@ func isSignatureValid(change Change) bool {
 	return security.Verify(change.By, hash, change.Signature)
 }
 
-func readChangeLogs(s storage.Store, safeName string, currentUser security.Identity,
+func readChangeLogs(safeName string, s storage.Store, currentUser security.Identity,
 	creatorId string, afterName string) (users Users, newestChangeFile string, err error) {
 
-	files, err := s.ReadDir(ConfigFolder, storage.Filter{Suffix: ".change", AfterName: afterName})
+	files, err := s.ReadDir(path.Join(safeName, ConfigFolder), storage.Filter{Suffix: ".change", AfterName: afterName})
 	if core.IsErr(err, nil, "cannot read change log files: %v", err) {
 		return nil, "", err
 	}
 
-	users = Users{creatorId: PermissionRead + PermissionWrite + PermissionAdmin + PermissionSuperAdmin}
+	users = Users{creatorId: Standard + Admin + Creator}
 	for _, file := range files {
 		var changeLog ChangeLog
 		name := file.Name()
@@ -81,7 +80,7 @@ func readChangeLogs(s storage.Store, safeName string, currentUser security.Ident
 			newestChangeFile = name
 		}
 
-		data, err := storage.ReadFile(s, path.Join(ConfigFolder, name))
+		data, err := storage.ReadFile(s, path.Join(safeName, ConfigFolder, name))
 		if err != nil {
 			continue
 		}
@@ -104,7 +103,7 @@ func readChangeLogs(s storage.Store, safeName string, currentUser security.Ident
 			}
 
 			if change.Type == ChangePermission {
-				if users[change.By]&PermissionAdmin == 0 {
+				if users[change.By]&Admin == 0 {
 					continue
 				}
 
@@ -118,7 +117,7 @@ func readChangeLogs(s storage.Store, safeName string, currentUser security.Ident
 			}
 		}
 
-		if users[signedBy]&PermissionAdmin == 0 {
+		if users[signedBy]&Admin == 0 {
 			return nil, "", fmt.Errorf("invalid change log file: not signed by administrator")
 		}
 	}
@@ -162,9 +161,10 @@ func writePermissionChange(s storage.Store, safeName string, currentUser securit
 		return err
 	}
 	name := fmt.Sprintf("%d.change", snowflake.ID())
-	err = storage.WriteFile(s, path.Join(ConfigFolder, name), data)
+	err = storage.WriteFile(s, path.Join(safeName, ConfigFolder, name), data)
 	if core.IsErr(err, nil, "cannot write change log '%s': %v", name, err) {
 		return err
 	}
+	core.Info("wrote change log '%s' in safe %s, #users=%d", name, safeName, len(users))
 	return nil
 }

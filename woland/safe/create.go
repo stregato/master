@@ -63,11 +63,11 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	}
 
 	for _, store := range stores {
-		_, err = store.Stat("")
+		_, err = store.Stat(name)
 		if err == nil {
 			if options.Wipe {
 				core.Info("wiping safe: name %s", name)
-				store.Delete("")
+				store.Delete(name)
 			} else {
 				return nil, fmt.Errorf("safe already exist: name %s", name)
 			}
@@ -82,7 +82,7 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	if users == nil {
 		users = make(Users)
 	}
-	users[creatorId] = PermissionRead + PermissionWrite + PermissionAdmin + PermissionSuperAdmin
+	users[creatorId] = Reader + Standard + Admin + Creator
 
 	if options.ChangeLogWatch == 0 {
 		options.ChangeLogWatch = DefaultChangeLogWatch
@@ -107,11 +107,12 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	if core.IsErr(err, nil, "cannot write permission change in %s: %v", name) {
 		return nil, err
 	}
-	err = SetCached(name, stores[0], ".users.touch", nil, true)
-	if core.IsErr(err, nil, "cannot create touch file in %s: %v", name) {
+	setUserInDB(name, currentUser.Id, Reader|Standard|Admin|Creator)
+
+	err = writeKeyStoreToDB(name, keystore)
+	if core.IsErr(err, nil, "cannot write keystore in DB for %s: %v", name) {
 		return nil, err
 	}
-
 	err = writeKeyStoreFile(stores[0], name, currentUser, keystore, users)
 	if core.IsErr(err, nil, "cannot write keystore in %s: %v", name) {
 		return nil, err
@@ -122,8 +123,8 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		return nil, err
 	}
 
-	_, err = sql.Exec("SET_USER", sql.Args{"safe": name, "id": currentUser.Id, "permission": PermissionRead | PermissionWrite | PermissionAdmin | PermissionSuperAdmin})
-	if core.IsErr(err, nil, "cannot set user: %v", err) {
+	err = SetCached(name, stores[0], "config/.access.touch", nil, currentUser.Id)
+	if core.IsErr(err, nil, "cannot create touch file in %s: %v", name) {
 		return nil, err
 	}
 

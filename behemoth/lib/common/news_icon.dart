@@ -1,12 +1,20 @@
 import 'dart:async';
-import 'dart:math';
 
-import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
+
+class Notification {
+  Coven coven;
+  String room;
+  int updates;
+
+  Notification(this.coven, this.room, this.updates);
+}
+
+typedef Notifications = List<Notification>;
 
 class NewsIcon extends StatefulWidget {
   const NewsIcon({Key? key}) : super(key: key);
@@ -14,13 +22,13 @@ class NewsIcon extends StatefulWidget {
   @override
   State<NewsIcon> createState() => _NewsIconState();
 
-  static Map<Safe, int> notifications = {};
+  static Notifications notifications = [];
 
   static Timer? _timer;
   static DateTime _lastUpdate = DateTime(0);
-  static Function(Map<Safe, int>)? _onChange;
+  static Function(Notifications)? _onChange;
 
-  static set onChange(Function(Map<Safe, int>)? f) {
+  static set onChange(Function(Notifications)? f) {
     if (f == _onChange) return;
 
     Future.delayed(const Duration(seconds: 1), () {
@@ -36,15 +44,20 @@ class NewsIcon extends StatefulWidget {
   }
 
   static _updateNotifications() async {
-    notifications = {};
-    for (var safe in Coven.safes.values) {
+    notifications = [];
+    for (var coven in Coven.opened.values) {
       try {
-        var files = await safe.listFiles(
-            "chat", ListOptions(knownSince: safe.accessed));
-        if (files.isNotEmpty) {
-          notifications[safe] = files.length;
+        for (var room in coven.rooms) {
+          var updates =
+              await coven.safe.syncBucket("$room/chat", SyncOptions());
+          if (updates > 0) {
+            notifications.add(Notification(coven, room, updates));
+          }
+          // var files = await coven.safe
+          //     .listFiles("$room/chat", ListOptions(knownSince: safe.accessed));
+          // if (files.isNotEmpty) {}
+          // files.where((e) => e.name.endsWith(".i")).forEach((element) {});
         }
-        files.where((e) => e.name.endsWith(".i")).forEach((element) {});
       } catch (e) {
         continue;
       }
@@ -60,7 +73,7 @@ class NewsIcon extends StatefulWidget {
 
 class _NewsIconState extends State<NewsIcon> {
   static DateTime _nextRefresh = DateTime(0);
-  static Map<Safe, int> _news = {};
+//  static Map<Safe, int> _news = {};
 
   @override
   void initState() {
@@ -73,109 +86,9 @@ class _NewsIconState extends State<NewsIcon> {
     }
   }
 
-  _refresh() async {
-    if (mounted && DateTime.now().isAfter(_nextRefresh)) {
-      var news = await checkNotifications();
-      var diff = news.length - _news.length;
-      diff = 1 + diff * diff;
-      setState(() {
-        _news = news;
-        _nextRefresh =
-            DateTime.now().add(Duration(seconds: max((120 / diff).ceil(), 10)));
-        setConfig("news", "next_refresh",
-            SIB.fromInt(_nextRefresh.millisecondsSinceEpoch));
-      });
-    }
-  }
-
-  void showNotifications(Map<Safe, int> news) async {
-    var news = await checkNotifications();
-    var entries = news.entries.toList();
-    entries.sort((a, b) => a.key.name.compareTo(b.key.name));
-    var notificationsList = entries.map(
-      (e) {
-        var safe = e.key;
-        Safe lounge;
-        Future<Safe> future() async {
-          return safe;
-        }
-
-        if (safe.name.endsWith("/lounge")) {
-          lounge = safe;
-        } else {
-          var parts = covenAndRoom(safe.name);
-          lounge = Coven.safes["${parts[0]}/lounge"]!;
-        }
-
-        var count = e.value;
-        return Card(
-          child: ListTile(
-            title: Text("${safe.prettyName} ($count)"),
-            onTap: () {
-              _news.remove(safe);
-              Navigator.pop(context);
-              Navigator.pushNamed(context, "/coven/room", arguments: {
-                "name": safe.name,
-                "future": future(),
-                "lounge": lounge,
-              });
-            },
-          ),
-        );
-      },
-    ).toList();
-
-    if (!mounted) return;
-
-    showModalBottomSheet<void>(
-        context: context,
-        builder: (BuildContext context) {
-          return Padding(
-              padding: const EdgeInsets.all(1.0),
-              child: Column(children: [
-                PlatformElevatedButton(
-                  onPressed: () {},
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment
-                        .center, // Center the icon and text horizontally
-                    children: <Widget>[
-                      Icon(Icons.auto_awesome), // Add the Home icon
-                      SizedBox(
-                          width:
-                              8), // Add some spacing between the icon and text
-                      Text("Back to Home"),
-                    ],
-                  ),
-                ),
-                ListView(
-                  shrinkWrap: true,
-                  children: notificationsList,
-                )
-              ]));
-        });
-  }
-
-  static Future<Map<Safe, int>> checkNotifications() async {
-    var news = <Safe, int>{};
-    for (var safe in Coven.safes.values) {
-      try {
-        var files = await safe.listFiles(
-            "chat", ListOptions(knownSince: safe.accessed));
-        if (files.isNotEmpty) {
-          news[safe] = files.length;
-        }
-        files.where((e) => e.name.endsWith(".i")).forEach((element) {});
-      } catch (e) {
-        continue;
-      }
-    }
-
-    return news;
-  }
-
   @override
   Widget build(BuildContext context) {
-    _refresh();
+    //  _refresh();
     return PlatformIconButton(
       icon: NewsIcon.notifications.isEmpty
           ? const Icon(

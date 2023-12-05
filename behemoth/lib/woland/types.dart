@@ -223,16 +223,19 @@ class CreateOptions {
 }
 
 class OpenOptions {
+  String initiateSecret;
   bool forceCreate;
   bool adaptiveSync;
   Duration syncPeriod;
 
-  OpenOptions()
-      : forceCreate = false,
-        adaptiveSync = false,
-        syncPeriod = Duration.zero;
+  OpenOptions(
+      {this.initiateSecret = '',
+      this.forceCreate = false,
+      this.adaptiveSync = false,
+      this.syncPeriod = Duration.zero});
 
   Map<String, dynamic> toJson() => {
+        'initiateSecret': initiateSecret,
         'forceCreate': forceCreate,
         'adaptiveSync': adaptiveSync,
         'syncPeriod': syncPeriod.inMicroseconds * 1000,
@@ -282,7 +285,7 @@ class ListOptions {
   bool includeDeleted;
   bool prefetch;
   bool errorIfNotExist;
-  String orderBy;
+  String orderBy; // modTime, name, size
   bool reverseOrder;
 
   ListOptions(
@@ -429,9 +432,10 @@ class SetUsersOptions {
 
 typedef Permission = int;
 typedef Users = Map<String, Permission>;
+typedef Initiates = Map<String, String>;
 
-var permissionWait = 1;
-var permissionRead = 2;
-var permissionWrite = 4;
-var permissionAdmin = 16;
-var permissionSuperAdmin = 32;
+var blocked = 1;
+var reader = 2;
+var standard = 4;
+var admin = 16;
+var creator = 32;

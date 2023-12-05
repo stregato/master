@@ -17,7 +17,7 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
     var args =
         ModalRoute.of(context)?.settings.arguments as Map<String, String>;
     var access = args["access"] ?? "";
-    var p = Profile.current();
+    var p = Profile.current;
     String title;
     Widget body;
 
@@ -34,7 +34,7 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
               child: const Text("Accept"),
               onPressed: () async {
                 await progressDialog<Coven>(
-                    context, "Connect to ${names[0]}", Coven.join(access),
+                    context, "Connect to ${names[0]}", Coven.join(access, ""),
                     successMessage: "Successfully connected to ${names[0]}",
                     errorMessage: "Failed to connect to ${names[0]}");
                 if (mounted) {

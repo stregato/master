@@ -104,8 +104,10 @@ extern Result wlnd_putFile(int hnd, char* bucket, char* name, char* sourceFile, 
 extern Result wlnd_getData(int hnd, char* bucket, char* name, Writer* w, char* getOptions);
 extern Result wlnd_getCString(int hnd, char* bucket, char* name, char* getOptions);
 extern Result wlnd_getFile(int hnd, char* bucket, char* name, char* destFile, char* getOptions);
+extern Result wlnd_deleteFile(int hnd, char* bucket, long int fileId);
 extern Result wlnd_setUsers(int hnd, char* users, char* setUsersOptions);
 extern Result wlnd_getUsers(int hnd);
+extern Result wlnd_getInitiates(int hnd);
 extern Result wlnd_getAllIdentities();
 extern Result wlnd_getLogs();
 extern Result wlnd_setLogLevel(int level);

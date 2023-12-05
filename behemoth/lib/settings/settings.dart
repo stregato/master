@@ -65,7 +65,7 @@ class _SettingsState extends State<Settings> {
       "Trace": 6,
     };
 
-    var profile = Profile.hasProfile() ? Profile.current() : Profile();
+    var profile = Profile.hasProfile() ? Profile.current : Profile();
     var currentUser = profile.identity;
     var nick = TextEditingController(text: profile.identity.nick);
     var email = TextEditingController(text: profile.identity.email);

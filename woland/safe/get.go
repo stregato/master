@@ -69,6 +69,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 	}
 
 	if w != nil {
+
 		w, err = decryptWriter(w, header.BodyKey, header.IV)
 		if core.IsErr(err, nil, "cannot create decrypting writer: %v", err) {
 			return Header{}, err
@@ -216,24 +217,11 @@ func copyFromCachedFile(header Header, w io.Writer) error {
 	return err
 }
 
-// func getCacheFile(header Header) (*os.File, error) {
-// 	if currentCacheSize < 0 {
-// 		currentCacheSize = getCurrentCacheSize()
-// 	}
-
-// 	cacheFilename := filepath.Join(CacheFolder, fmt.Sprintf("%d.cache", header.FileId))
-// 	cacheFile, err := os.Create(cacheFilename)
-// 	if core.IsErr(err, nil, "cannot create cache file: %v", err) {
-// 		return nil, err
-// 	}
-// 	return cacheFile, nil
-// }
-
 func writeFile(store storage.Store, safeName, bucket string, options GetOptions, header Header, w io.Writer) error {
 	var err error
 
 	dir := hashPath(bucket)
-	fullname := path.Join(DataFolder, dir, BodyFolder, fmt.Sprintf("%d", header.FileId))
+	fullname := path.Join(safeName, DataFolder, dir, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
 	err = store.Read(fullname, options.Range, w, nil)
 	if core.IsErr(err, nil, "cannot read file: %v", err) {

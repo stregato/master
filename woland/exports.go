@@ -208,8 +208,11 @@ func wlnd_createSafe(creator *C.char, token *C.char, users *C.char, createOption
 	if core.IsErr(err, nil, "cannot create safe: %v") {
 		return cResult(nil, err)
 	}
-	safe.Close(s)
-	return cResult(nil, err)
+	safesSync.Lock()
+	safes[s.Hnd] = s
+	safesSync.Unlock()
+
+	return cResult(s, err)
 }
 
 //export wlnd_openSafe
@@ -501,6 +504,21 @@ func wlnd_getFile(hnd C.int, bucket, name, destFile, getOptions *C.char) C.Resul
 	return cResult(header, nil)
 }
 
+//export wlnd_deleteFile
+func wlnd_deleteFile(hnd C.int, bucket *C.char, fileId C.long) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
+	if !ok {
+		return cResult(nil, ErrSafeNotFound)
+	}
+	err := safe.DeleteFile(s, C.GoString(bucket), uint64(fileId))
+	if core.IsErr(err, nil, "cannot delete file: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(nil, nil)
+}
+
 //export wlnd_setUsers
 func wlnd_setUsers(hnd C.int, users *C.char, setUsersOptions *C.char) C.Result {
 	safesSync.Lock()
@@ -543,6 +561,22 @@ func wlnd_getUsers(hnd C.int) C.Result {
 		return cResult(nil, err)
 	}
 	return cResult(users, nil)
+}
+
+//export wlnd_getInitiates
+func wlnd_getInitiates(hnd C.int) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
+	if !ok {
+		return cResult(nil, ErrSafeNotFound)
+	}
+
+	initiates, err := safe.GetInitiates(s)
+	if core.IsErr(err, nil, "cannot get initiates: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(initiates, nil)
 }
 
 // //export checkForUpdates

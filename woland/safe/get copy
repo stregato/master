@@ -146,7 +146,7 @@ func writeFile(store storage.Store, safeName, bucket string, options GetOptions,
 	}
 
 	dir := hashPath(bucket)
-	fullname := path.Join(DataFolder, dir, BodyFolder, fmt.Sprintf("%d", header.FileId))
+	fullname := path.Join(safeName, DataFolder, dir, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
 	err = store.Read(fullname, options.Range, w, nil)
 	if core.IsErr(err, nil, "cannot read file: %v", err) {

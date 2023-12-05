@@ -20,7 +20,7 @@ import 'package:behemoth/room/create_room.dart';
 import 'package:behemoth/coven/home.dart';
 import 'package:behemoth/content/content_actions.dart';
 import 'package:behemoth/content/content_upload.dart';
-import 'package:behemoth/coven/coven.dart';
+
 import 'package:behemoth/room/room.dart';
 import 'package:behemoth/coven/unilink_accept.dart';
 import 'package:behemoth/coven/unilink_invite.dart';
@@ -143,12 +143,12 @@ class _BehemothAppState extends State<BehemothApp> {
             "/settings/update_key": (context) => const UpdatePrivateKey(),
             "/settings/import_profile": (context) => const ImportProfile(),
 
-            "/coven": (context) => const CovenWidget(),
+            //       "/coven": (context) => const CovenWidget(),
             "/coven/room": (context) => const Room(),
-            "/coven/add_person": (context) => const AddPerson(),
+            "/coven/room/invite": (context) => const InvitoToRoom(),
             "/coven/create": (context) => const CreateRoom(),
             "/coven/onetoone": (context) => const Privates(),
-            "/coven/settings": (context) => const CommunitySettings(),
+            "/coven/settings": (context) => const CovenSettings(),
             "/content/add": (context) => const ContentAdd(),
             "/content/upload": (context) => const ContentUpload(),
             "/content/editor": (context) => const ContentEditor(),

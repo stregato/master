@@ -22,7 +22,7 @@ type manifestFile struct {
 func readManifestFile(safeName string, s storage.Store, creatorId string) (manifestFile, error) {
 	var manifest manifestFile
 
-	synced, err := GetCached(safeName, s, "manifest", &manifest)
+	synced, err := GetCached(safeName, s, "config/.manifest.touch", &manifest, "")
 	if core.IsErr(err, nil, "cannot check manifest file: %v") {
 		return manifest, err
 	}
@@ -31,7 +31,7 @@ func readManifestFile(safeName string, s storage.Store, creatorId string) (manif
 		return manifest, nil
 	}
 
-	data, err := storage.ReadFile(s, path.Join(ConfigFolder, "manifest.json"))
+	data, err := storage.ReadFile(s, path.Join(safeName, ConfigFolder, "manifest.json"))
 	if core.IsErr(err, nil, "cannot read manifest file: %v") {
 		return manifest, err
 	}
@@ -43,7 +43,7 @@ func readManifestFile(safeName string, s storage.Store, creatorId string) (manif
 		return manifest, fmt.Errorf("invalid manifest file: creatorId mismatch")
 	}
 
-	err = SetCached(safeName, s, "manifest", &manifest, false)
+	err = SetCached(safeName, s, "config/.manifest.touch", &manifest, "")
 	if core.IsErr(err, nil, "cannot set manifest cache: %v") {
 		return manifest, err
 	}
@@ -57,12 +57,12 @@ func writeManifestFile(safeName string, s storage.Store, currentUser security.Id
 		return err
 	}
 
-	err = storage.WriteFile(s, path.Join(ConfigFolder, "manifest.json"), data)
+	err = storage.WriteFile(s, path.Join(safeName, ConfigFolder, "manifest.json"), data)
 	if core.IsErr(err, nil, "cannot write manifest file: %v", err) {
 		return err
 	}
 
-	err = SetCached(safeName, s, "manifest", &manifest, true)
+	err = SetCached(safeName, s, "config/.manifest.touch", &manifest, currentUser.Id)
 	if core.IsErr(err, nil, "cannot set manifest cache: %v") {
 		return err
 	}

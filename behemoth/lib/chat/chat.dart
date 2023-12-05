@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:snowflake_dart/snowflake_dart.dart';
 
 import 'package:behemoth/common/image.dart';
@@ -24,16 +25,18 @@ import 'package:mime/mime.dart';
 import 'package:path/path.dart' as ph;
 
 class Chat extends StatefulWidget {
-  final Safe safe;
+  final Coven coven;
+  final String room;
   final String privateId;
 
-  const Chat(this.safe, this.privateId, {Key? key}) : super(key: key);
+  const Chat(this.coven, this.room, this.privateId, {Key? key})
+      : super(key: key);
 
   @override
   State<Chat> createState() => _ChatState();
 }
 
-class _ChatState extends State<Chat> {
+class _ChatState extends State<Chat> with WidgetsBindingObserver {
   List<types.Message> _messages = [];
   DateTime _from = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _to = DateTime.now();
@@ -46,16 +49,18 @@ class _ChatState extends State<Chat> {
   final double _pageThresold = isDesktop ? 40 : 20;
   bool _isLastPage = false;
   late Safe _safe;
+  late String _room;
   final FocusNode _focusNode = FocusNode();
   late String _picsFolder;
-  DateTime _lastPeerMessage = DateTime(0);
+  DateTime _lastAction = DateTime(0);
 
   @override
   void initState() {
     super.initState();
-    _safe = widget.safe;
-    _picsFolder = ph.join(documentsFolder, _safe.name, ".gallery");
-    var currentUser = Profile.current().identity;
+    _safe = widget.coven.safe;
+    _room = widget.room;
+    _picsFolder = ph.join(documentsFolder, _safe.name, _room, ".gallery");
+    var currentUser = Profile.current.identity;
     _currentUser = types.User(
         id: currentUser.id,
         firstName: currentUser.nick,
@@ -73,14 +78,23 @@ class _ChatState extends State<Chat> {
     });
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed) {
+      _lastAction = DateTime.now();
+    }
+  }
+
   void _refresh() async {
     if (!mounted) return;
 
     var now = DateTime.now();
-    var diff = now.difference(_lastPeerMessage).inSeconds;
+    var diff = now.difference(_lastAction).inSeconds;
     var diff2 = now.difference(_lastSync).inSeconds;
-    if (diff < 20 || diff2 > 60) {
-      if (await _safe.syncBucket("chat", SyncOptions()) > 0) {
+    if (diff < 60 || diff2 > 60) {
+      if (await _safe.syncBucket("rooms/$_room/chat", SyncOptions()) > 0) {
         _loadMoreMessages();
       }
       _lastSync = now;
@@ -129,7 +143,8 @@ class _ChatState extends State<Chat> {
         file.writeAsBytesSync(h.attributes.thumbnail);
       }
       _safe
-          .getFile("chat", h.name, file.path, GetOptions(fileId: h.fileId))
+          .getFile("rooms/$_room/chat", h.name, file.path,
+              GetOptions(fileId: h.fileId))
           .then((value) {});
     }
 
@@ -213,7 +228,7 @@ class _ChatState extends State<Chat> {
     } else {
       options.noPrivate = true;
     }
-    return _safe.listFiles("chat", options);
+    return _safe.listFiles("rooms/$_room/chat", options);
   }
 
   _loadMoreMessages([bool showProgress = false]) async {
@@ -233,9 +248,9 @@ class _ChatState extends State<Chat> {
     var anyNew = false;
     for (var header in headers) {
       if (!_loaded.contains(header.name)) {
-        if (header.modTime.isAfter(_lastPeerMessage) &&
+        if (header.modTime.isAfter(_lastAction) &&
             header.creator != _safe.currentUser.id) {
-          _lastPeerMessage = header.modTime;
+          _lastAction = header.modTime;
         }
         _messages.insert(0, _convert(header));
         _loaded.add(header.name);
@@ -301,7 +316,7 @@ class _ChatState extends State<Chat> {
                   PlatformElevatedButton(
                     onPressed: () async {
                       await progressDialog(
-                          context, "Joining $name", Coven.join(access),
+                          context, "Joining $name", Coven.join(access, ""),
                           successMessage: "Joined $name",
                           errorMessage: "Failed to join $name");
                     },
@@ -319,15 +334,18 @@ class _ChatState extends State<Chat> {
   Future<void> _handleEndReached() async {
     var after = _from.add(-const Duration(days: -1));
     var before = _from;
+    await _safe.syncBucket("rooms/$_room/chat", SyncOptions());
+    if (!mounted) return;
+
     var headers = await progressDialog<List<Header>>(
         context, "Getting messages", _listFiles(widget, after, before));
 
-    setState(() {
-      if (headers == null || headers.isEmpty) {
-        _isLastPage = true;
-        return;
-      }
+    if (headers == null || headers.isEmpty) {
+      _isLastPage = true;
+      return;
+    }
 
+    setState(() {
       for (var header in headers.reversed) {
         if (!_loaded.contains(header.name)) {
           _messages.add(_convert(header));
@@ -347,7 +365,8 @@ class _ChatState extends State<Chat> {
       meta: {'text': message.text},
     );
 
-    var header = await _safe.putBytes("chat", name, Uint8List(0), putOptions);
+    var header = await _safe.putBytes(
+        "rooms/$_room/chat", name, Uint8List(0), putOptions);
 
     final textMessage = types.TextMessage(
       author: _currentUser,
@@ -358,9 +377,11 @@ class _ChatState extends State<Chat> {
 
     _loaded.add(name);
     _addMessage(textMessage);
+    _lastAction = DateTime.now();
   }
 
   void _handleAttachmentPressed(BuildContext context) {
+    _lastAction = DateTime.now();
     showModalBottomSheet<void>(
       context: context,
       builder: (BuildContext context) => SafeArea(
@@ -430,7 +451,8 @@ class _ChatState extends State<Chat> {
 
     var size = File(filePath).lengthSync();
     var name = ph.basename(filePath);
-    var header = await _safe.putFile("chat", name, filePath, options);
+    var header =
+        await _safe.putFile("rooms/$_room/chat", name, filePath, options);
 
     final message = types.FileMessage(
       author: _currentUser,
@@ -485,7 +507,8 @@ class _ChatState extends State<Chat> {
     options.autoThumbnail = true;
     options.contentType = lookupMimeType(xfile.path) ?? '';
 
-    var header = await _safe.putFile("chat", name, xfile.path, options);
+    var header =
+        await _safe.putFile("rooms/$_room/chat", name, xfile.path, options);
 
     final message = types.ImageMessage(
       author: _currentUser,
@@ -515,6 +538,8 @@ class _ChatState extends State<Chat> {
   }
 
   void _handleMessageTap(BuildContext context, types.Message message) async {
+    _lastAction = DateTime.now();
+
     if (message is types.FileMessage) {
       if (message.uri.startsWith('library:/')) {
         var folder = message.uri.replaceFirst("library:/", "");
@@ -523,6 +548,18 @@ class _ChatState extends State<Chat> {
 
         //   Navigator.pushNamed(context, "/apps/library",
         //       arguments: LibraryArgs(_poolName, folder));
+      }
+    }
+  }
+
+  void _handleMessageLongPress(
+      BuildContext context, types.Message message) async {
+    _lastAction = DateTime.now();
+    if (message is types.ImageMessage) {
+      var file = message.metadata?['file'] as File;
+      if (file.existsSync()) {
+        var xfiles = [XFile(file.path)];
+        Share.shareXFiles(xfiles);
       }
     }
   }
@@ -562,6 +599,7 @@ class _ChatState extends State<Chat> {
   }
 
   void _dropFiles(List<XFile> files) async {
+    _lastAction = DateTime.now();
     var imageFiles = files.where((f) {
       var mimeType = lookupMimeType(f.path);
       return mimeType.toString().startsWith("image/");
@@ -614,6 +652,7 @@ class _ChatState extends State<Chat> {
             _handleAttachmentPressed(context);
           },
           onMessageTap: _handleMessageTap,
+          onMessageLongPress: _handleMessageLongPress,
           onPreviewDataFetched: _handlePreviewDataFetched,
           onSendPressed: _handleSendPressed,
           onEndReached: _handleEndReached,
