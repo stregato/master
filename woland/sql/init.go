@@ -91,7 +91,8 @@ func OpenDB(dbPath string) error {
 	}
 
 	var err error
-	db, err = sql.Open("sqlite3", DbPath+"cache=shared&mode=rwc")
+	db, err = sql.Open("sqlite3", DbPath)
+	//	db, err = sql.Open("sqlite3", DbPath+"cache=shared&mode=rwc")
 	if err != nil {
 		logrus.Errorf("cannot open SQLite db in %s: %v", DbPath, err)
 		return err

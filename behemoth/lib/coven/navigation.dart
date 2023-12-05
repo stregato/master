@@ -64,9 +64,7 @@ class _NavigationState extends State<Navigation> {
               PlatformElevatedButton(
                 onPressed: () {
                   _safe.setUsers({id: accessPermission}, SetUsersOptions());
-                  setState(() {
-                    initiates.remove(id);
-                  });
+                  _safe.syncUsers().then((value) => setState(() {}));
                 },
                 cupertino: (_, __) => CupertinoElevatedButtonData(
                   padding:
@@ -88,9 +86,7 @@ class _NavigationState extends State<Navigation> {
               PlatformElevatedButton(
                 onPressed: () {
                   _safe.setUsers({id: 0}, SetUsersOptions());
-                  setState(() {
-                    initiates.remove(id);
-                  });
+                  _safe.syncUsers().then((value) => setState(() {}));
                 },
                 cupertino: (_, __) => CupertinoElevatedButtonData(
                   padding:

@@ -71,6 +71,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       if (_focusNode.hasFocus) {
         _timer ??=
             Timer.periodic(const Duration(seconds: 2), (_) => _refresh());
+        _touch();
+        _refresh();
       } else {
         _timer?.cancel();
         _timer = null;
@@ -85,6 +87,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _lastAction = DateTime.now();
     }
+  }
+
+  void _touch() async {
+    _lastAction = DateTime.now();
   }
 
   void _refresh() async {
@@ -377,11 +383,12 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
     _loaded.add(name);
     _addMessage(textMessage);
-    _lastAction = DateTime.now();
+    _touch();
   }
 
   void _handleAttachmentPressed(BuildContext context) {
-    _lastAction = DateTime.now();
+    _touch();
+
     showModalBottomSheet<void>(
       context: context,
       builder: (BuildContext context) => SafeArea(
@@ -538,7 +545,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   void _handleMessageTap(BuildContext context, types.Message message) async {
-    _lastAction = DateTime.now();
+    _touch();
 
     if (message is types.FileMessage) {
       if (message.uri.startsWith('library:/')) {
@@ -554,7 +561,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
   void _handleMessageLongPress(
       BuildContext context, types.Message message) async {
-    _lastAction = DateTime.now();
+    _touch();
+
     if (message is types.ImageMessage) {
       var file = message.metadata?['file'] as File;
       if (file.existsSync()) {
@@ -599,7 +607,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   void _dropFiles(List<XFile> files) async {
-    _lastAction = DateTime.now();
+    _touch();
+
     var imageFiles = files.where((f) {
       var mimeType = lookupMimeType(f.path);
       return mimeType.toString().startsWith("image/");

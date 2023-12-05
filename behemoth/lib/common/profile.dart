@@ -48,12 +48,13 @@ class Coven {
       String name, List<String> urls, CreateOptions options) async {
     var p = Profile.current;
     var token = encodeAccess(p.identity.id, name, p.identity.id, urls);
-    var coven = Coven(p.identity, name, token, {"lounge"});
-    p.update(coven);
 
     var safe = await Safe.create(p.identity, token, {}, options);
     await safe.putBytes("rooms/.list", "lounge", Uint8List(0), PutOptions());
     safe.close();
+
+    var coven = Coven(p.identity, name, token, {"lounge"});
+    p.update(coven);
   }
 
   Coven(this.identity, this.name, this.access, this.rooms);
