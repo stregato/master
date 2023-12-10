@@ -104,7 +104,7 @@ func writeKeyStoreFile(s storage.Store, safeName string, currentUser security.Id
 	}
 
 	for userId, permission := range users {
-		if permission > Blocked {
+		if permission > Suspended {
 			encryptedKey, err := security.EcEncrypt(userId, keystore.Keys[keystore.LastKeyId])
 			if core.IsErr(err, nil, "cannot encrypt primary key: %v", err) {
 				return err

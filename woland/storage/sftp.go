@@ -73,7 +73,7 @@ func OpenSFTP(connectionUrl string) (Store, error) {
 		repr = fmt.Sprintf("sftp://%s@%s/%s", u.User.Username(), addr, u.Path)
 	}
 
-	if key := params.Get("key"); key != "" {
+	if key := params.Get("k"); key != "" {
 		pkey, err := base64.StdEncoding.DecodeString(key)
 		if core.IsErr(err, nil, "private key is invalid: %v") {
 			return nil, err

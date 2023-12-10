@@ -46,6 +46,11 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 	}
 	core.Info("header for %s/%s found, fileId %d", bucket, name, header.FileId)
 
+	header, err = decryptPrivateHeader(s.CurrentUser, header)
+	if core.IsErr(err, nil, "cannot decrypt header: %v", err) {
+		return Header{}, err
+	}
+
 	if dest == nil && options.NoCache {
 		return header, nil
 	}
@@ -69,7 +74,6 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 	}
 
 	if w != nil {
-
 		w, err = decryptWriter(w, header.BodyKey, header.IV)
 		if core.IsErr(err, nil, "cannot create decrypting writer: %v", err) {
 			return Header{}, err

@@ -151,7 +151,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 		core.Info("Replacing %d files with id %d", len(replaceable), options.ReplaceID)
 	}
 
-	headerId := snowflake.ID()
+	headerFile := snowflake.ID()
 	header := Header{
 		Name:      name,
 		Size:      hsr.bytesRead,
@@ -170,7 +170,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 			Extra:       options.Meta,
 		},
 	}
-	filePath := path.Join(s.Name, DataFolder, dir, HeaderFolder, fmt.Sprintf("%d", headerId))
+	filePath := path.Join(s.Name, DataFolder, dir, HeaderFolder, fmt.Sprintf("%d", headerFile))
 	if options.Private != "" {
 		var encryptedHeader = header
 		var encryptedAttributes []byte
@@ -209,7 +209,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 		header.Downloads = map[string]time.Time{options.Source: stat.ModTime()}
 		core.Info("Added download location for %s: %s", name, options.Source)
 	}
-	err = insertHeaderOrIgnoreToDB(s.Name, bucket, headerId, header)
+	err = insertHeaderOrIgnoreToDB(s.Name, bucket, headerFile, header)
 	core.IsErr(err, nil, "cannot insert header: %v", err)
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
 

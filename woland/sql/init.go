@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,8 +117,36 @@ func CloseDB() error {
 }
 
 func DeleteDB(dbPath string) error {
+	var err error
+	if db == nil {
+		db, err = sql.Open("sqlite3", dbPath)
+		if core.IsErr(err, nil, "cannot open SQLite db in %s: %v", dbPath) {
+			return err
+		}
+	}
+
+	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='table'")
+	if core.IsErr(err, nil, "cannot list tables in SQLite db in %s: %v", dbPath) {
+		return err
+	}
+	defer rows.Close()
+
+	var tableName string
+	for rows.Next() {
+		err = rows.Scan(&tableName)
+		if core.IsErr(err, nil, "cannot scan table name in SQLite db in %s: %v", dbPath) {
+			continue
+		}
+
+		_, err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
+		if core.IsErr(err, nil, "cannot drop table %s in SQLite db in %s: %v", tableName, dbPath) {
+			continue
+		}
+	}
+
+	CloseDB()
 	os.Create(dbPath)
-	err := os.Remove(dbPath)
+	err = os.Remove(dbPath)
 	if core.IsErr(err, nil, "cannot delete SQLite db in %s: %v", dbPath) {
 		return err
 	}

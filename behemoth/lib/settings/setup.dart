@@ -123,6 +123,7 @@ class _SetupState extends State<Setup> {
                         profile.identity.avatar = _avatar;
                         profile.identity.email = email.text;
                         profile.save();
+                        Navigator.of(context).pop();
                         Navigator.pushReplacementNamed(context, "/");
                       }),
           ],

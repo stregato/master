@@ -140,6 +140,7 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		CurrentUser: currentUser,
 		CreatorId:   creatorId,
 		Access:      access,
+		Permission:  users[currentUser.Id],
 		Name:        name,
 		Description: options.Description,
 		Storage:     stores[0].Describe(),
@@ -151,13 +152,13 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		users:       users,
 		usersLock:   sync.Mutex{},
 
-		syncUsers: time.NewTicker(10 * time.Minute),
-		uploads:   time.NewTicker(time.Minute),
-		upload:    make(chan bool),
-		quit:      make(chan bool),
-		wg:        sync.WaitGroup{},
+		background:     time.NewTicker(time.Minute),
+		syncUsers:      make(chan bool),
+		uploadFile:     make(chan bool),
+		compactHeaders: make(chan CompactHeader),
+		quit:           make(chan bool),
+		wg:             sync.WaitGroup{},
 	}
-	go syncUserJob(s)
-	go uploadJob(s)
+	go backgroundJob(s)
 	return s, nil
 }

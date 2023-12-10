@@ -18,7 +18,7 @@ Peers possess varying degrees of control over the safe, establishing a hierarchy
 - 1: read when the peer can only read the safe
 - 2: add when the peer can add content to the safe
 - 16: admin when the peer can add or remove other peers
-- 32: superadmin when the peer can add or remove administrators
+- 32: creator when the peer can add or remove administrators
 
 Data can only be appended to the safe, and explicit removal and modification are prohibited. This design ensures data immutability. However, due to space constraints, the safe can be configured to perform periodic housekeeping operations that remove older data to manage storage limitations.
 
@@ -30,7 +30,7 @@ Each change has a timestamp and changes are validated in chronological order. Fo
 The first record in the _changelog_ must be created by the safe creator, whose public key is provided to the peer by email or other means.
 While the _changelog_ is used mostly for membership changes, it can be used for other changes like housekeeping operations.
 
-The third one is metadata records, one for each file in the safe. Since files are organized in hierarchical structure, the metadata records are organized in a hierarchical structure as well. The metadata records are named _metadata_ to recall the concept of a metadata store. Each record contains a secondary encryption key that is used to encrypt the file content. The record is instead encrypted with the primary key of the safe. The use of different keys for the metadata and the file content allows to change the primary key without re-encrypting the file content. The metadata records are signed by the peer who created the file.
+The third one is a header, one for each file in the safe. Each header contains a secondary encryption key that is used to encrypt the file content. The header is instead encrypted with the primary key of the safe. The use of different keys for the header and the file content allows to change the primary key without re-encrypting the file content. For performance reason multiple headers are kept in the same file and a process exists to periodically compact headers in this file.
 
 The last supporting data structure is a configuration with information about the safe and like the administrators list, it is protected by a signature of the creator. The configuration is named _manifest_ to recall the concept of a manifest file.
 
@@ -50,6 +50,24 @@ When modifications are applied to the safe, it necessitates that other peers syn
 3. The peer designates the new encryption key as the primary key, which is then employed for ensuing operations.
 
 In essence, this process guarantees the accurate propagation of peer membership changes throughout the safe's data structures, all the while upholding security and consistency through encryption, signing, and re-encryption protocols. The practical implementation is slightly more intricate, devised to optimize input/output (I/O) operations—particularly during scenarios involving simultaneous removal of multiple peers or when peers have previously read the changelog. 
+
+
+### Headers algorithm
+When a new file is incorporated into the safe, an accompanying header file is simultaneously generated. This file comprises a solitary header, streamlining the process and minimizing the time required to add fresh content to the safe.
+When the quantity of header files surpasses 1024, a background procedure initiates to amalgamate multiple header files into a single file. This process employs a stochastic approach, factoring in both the number of files and the number of users, to equitably distribute the computational load. The probability of starting the merge uses an exponential function
+
+$$ P(n, x) = 1 - e^{-\lambda \frac{(n - \theta)}{x}} $$
+
+
+When initiating the merge, the procedure unfolds as follows:
+1. **Creation of a Guard File**: This step establishes a guard file, acting as a signal to dissuade other users from initiating the merge process concurrently. 
+2. **File Selection Criteria**: The process targets files that encompass fewer than 8192 headers, ensuring manageable merge sizes.
+3. **Batch Merging**: Files are merged in batches, with the batch size (n) being a configurable parameter. This allows for controlled, scalable merging operations.
+4. **Original File Deletion**: Post-merge, the original files in each batch are deleted, cleaning up space and reducing clutter.
+5. **Memory Data Structure Update**: Relevant in-memory data structures, such as database records, are updated to reflect the changes from the merge. This ensures consistency between the file system and any related data representations.
+6. **Guard File Removal**: The concluding step involves deleting the guard file, signaling the end of the merge process and permitting other merges to commence.
+
+While this algorithm incorporates a lock mechanism through the guard file, it's crucial to recognize that file systems might not provide exclusive access, making this a soft lock rather than a hard one. The guard file is primarily a deterrent against redundant merge operations but isn't a foolproof method against concurrent processes. Hence, the design of this merge algorithm must be inherently robust and capable of handling potential conflicts arising from simultaneous processing.
 
 
 ### Replica algorithm

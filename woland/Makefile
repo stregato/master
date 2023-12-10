@@ -3,13 +3,16 @@ OUT=$(PWD)/dist
 BEHEMOTH=$(PWD)/../behemoth
 POLAND=$(PWD)/../poland
 
+test:
+	./ut
+
 linux-x86_64:
 	CGO_ENABLED=1 \
 	GOOS=linux \
 	GOARCH=amd64 \
 	go build -buildmode=c-shared -tags linux -o $(OUT)/linux/libwoland.so
 	test -e $(BEHEMOTH) && cp -rf $(OUT)/linux $(BEHEMOTH)
-linux: linux-x86_64
+linux: test linux-x86_64
 
 windows:
 	CGO_ENABLED=1 \
@@ -121,7 +124,7 @@ android-x86_64:
 	go build -v -buildmode=c-shared -o $(OUT)/android/app/src/main/jniLibs/x86_64/libwoland.so
 
 #android: android-armv7a android-arm64 android-x86 android-x86_64
-android: android-arm64 android-x86_64
+android: test android-arm64 android-x86_64
 	test -e $(BEHEMOTH) && cp -rf $(OUT)/android $(BEHEMOTH)
 
 SNAP_OUT=$(BEHEMOTH)/snap/local

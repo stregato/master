@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS Header (
   name TEXT NOT NULL,
   size INTEGER NOT NULL,
   fileId INTEGER NOT NULL,
-  headerId INTEGER NOT NULL,
+  headerFile INTEGER NOT NULL,
   base TEXT NOT NULL,
   dir TEXT,
   depth INTEGER NOT NULL,
@@ -93,23 +93,29 @@ CREATE INDEX IF NOT EXISTS fileIdIndex ON Header (fileId);
 CREATE INDEX IF NOT EXISTS nameIndex ON Header (name);
 
 -- INSERT_HEADER
-INSERT INTO Header (safe, bucket, name, headerId, fileId, size, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, uploading, cacheExpires, header)
-VALUES (:safe, :bucket, :name, :headerId, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :uploading, :cacheExpires, :header)
-ON CONFLICT (safe, bucket, name, fileId) DO UPDATE SET headerId = :headerId;
+INSERT INTO Header (safe, bucket, name, headerFile, fileId, size, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, uploading, cacheExpires, header)
+VALUES (:safe, :bucket, :name, :headerFile, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :uploading, :cacheExpires, :header)
+ON CONFLICT (safe, bucket, name, fileId) DO UPDATE SET headerFile = :headerFile;
 
 -- UPDATE_HEADER
 UPDATE Header SET header = :header, cacheExpires=:cacheExpires, uploading=:uploading WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
 
+-- UPDATE_HEADER_FILE
+UPDATE Header SET headerFile = :headerFile WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
+
 -- DELETE_HEADER
-DELETE FROM Header WHERE safe = :safe AND bucket = :bucket AND headerId = :headerId
+DELETE FROM Header WHERE safe = :safe AND bucket = :bucket AND headerFile = :headerFile
 
 -- SET_DELETED_FILE
 UPDATE Header SET deleted = 1 WHERE safe = :safe AND fileId = :fileId
 
 -- GET_HEADERS_IDS
-SELECT headerId FROM Header WHERE safe = :safe AND bucket = :bucket
+SELECT headerFile, COUNT(*) as recordCount
+FROM Header
+WHERE safe = :safe AND bucket = :bucket
+GROUP BY headerFile;
 
--- GET_FILES_NAME
+-- GET_HEADER_BY_FILE_NAME
 SELECT header FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
@@ -130,7 +136,7 @@ WHERE safe = :safe
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY name LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
--- GET_FILES_MODTIME
+-- GET_HEADER_BY_MODTIME
 SELECT header FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
@@ -151,7 +157,7 @@ WHERE safe = :safe
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY modTime LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
--- GET_FILES_NAME_DESC
+-- GET_HEADER_BY_FILE_NAME_DESC
 SELECT header FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
@@ -172,7 +178,7 @@ WHERE safe = :safe
   AND (:includeDeleted == 1 OR deleted = 0)
   ORDER BY name DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
--- GET_FILES_MODTIME_DESC
+-- GET_HEADER_BY_MODTIME_DESC
 SELECT header FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
@@ -211,8 +217,13 @@ WHERE safe = :safe
 ORDER BY modTime DESC
 LIMIT 1;
 
+-- GET_BUCKETS
+SELECT distinct bucket
+FROM Header
+WHERE safe = :safe
+
 -- GET_UPLOADS
-SELECT headerId, bucket, header FROM Header
+SELECT headerFile, bucket, header FROM Header
 WHERE safe = :safe AND uploading == 1
 ORDER BY modTime DESC;
 

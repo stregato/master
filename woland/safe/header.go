@@ -10,14 +10,21 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/godruoyi/go-snowflake"
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
+
+var MaxHeadersFiles = 16
+var MaxHeaderFileSize = 1024 * 1024 * 4 // 4MB
+var MergeBatchSize = 4
 
 var ErrInvalidHeaders = fmt.Errorf("headers are invalid")
 var ErrNoEncryptionKey = fmt.Errorf("no encryption key")
@@ -47,15 +54,19 @@ type Header struct {
 	CachedExpires       time.Time            `json:"cac,omitempty"` // Time when the cache expires
 	Uploading           bool                 `json:"up,omitempty"`  // Number of uploads retries
 	SourceFile          string               `json:"so,omitempty"`  // Source of the file
-	HashedBucket        string               `json:"hb,omitempty"`  // Hashed bucket of the file
 	ReplaceId           uint64               `json:"re,omitempty"`  // ID of the file to replace
 	Replace             bool                 `json:"rp,omitempty"`  // True if the file is replacing another file
 	Downloads           map[string]time.Time `json:"do,omitempty"`  // Map of download locations and times
 }
 
-func marshalHeaders(files []Header, keyId uint64, keyValue []byte) ([]byte, error) {
+type HeadersFile struct {
+	KeyId   uint64   `json:"-"`
+	Bucket  string   `json:"b"`
+	Headers []Header `json:"h"`
+}
 
-	data, err := json.Marshal(files)
+func marshalHeadersFile(headersFile HeadersFile, keyValue []byte) ([]byte, error) {
+	data, err := json.Marshal(headersFile)
 	if core.IsErr(err, nil, "cannot marshal files: %v", err) {
 		return nil, err
 	}
@@ -66,7 +77,7 @@ func marshalHeaders(files []Header, keyId uint64, keyValue []byte) ([]byte, erro
 	}
 
 	ciphertext := make([]byte, 8+aes.BlockSize+len(data)) // 8 bytes for the KeyID
-	binary.BigEndian.PutUint64(ciphertext[:8], keyId)
+	binary.BigEndian.PutUint64(ciphertext[:8], headersFile.KeyId)
 
 	iv := ciphertext[8 : 8+aes.BlockSize]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
@@ -81,37 +92,39 @@ func marshalHeaders(files []Header, keyId uint64, keyValue []byte) ([]byte, erro
 	return ciphertext, nil
 }
 
-func unmarshalHeaders(ciphertext []byte, keys map[uint64][]byte) (headers []Header, keyId uint64, err error) {
+func unmarshalHeadersFile(ciphertext []byte, keys map[uint64][]byte) (headersFile HeadersFile, err error) {
 	if len(ciphertext) < 8 {
-		return headers, 0, ErrInvalidHeaders
+		return HeadersFile{}, ErrInvalidHeaders
 	}
 
-	keyId = binary.BigEndian.Uint64(ciphertext[:8])
+	keyId := binary.BigEndian.Uint64(ciphertext[:8])
 
 	key := keys[keyId]
 	if key == nil {
-		return headers, 0, ErrNoEncryptionKey
+		return HeadersFile{}, ErrNoEncryptionKey
 	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return headers, 0, err
+		return HeadersFile{}, err
 	}
 
 	iv := ciphertext[8 : 8+aes.BlockSize]
 	stream := cipher.NewCFBDecrypter(block, iv)
 	stream.XORKeyStream(ciphertext[8+aes.BlockSize:], ciphertext[8+aes.BlockSize:])
 
-	err = json.Unmarshal(ciphertext[8+aes.BlockSize:], &headers)
+	var headerFile HeadersFile
+	err = json.Unmarshal(ciphertext[8+aes.BlockSize:], &headersFile)
 	if err != nil {
-		return headers, 0, err
+		return headerFile, err
 	}
 
-	return headers, keyId, nil
+	headerFile.KeyId = keyId
+	return headersFile, nil
 }
 
-func writeHeaders(store storage.Store, safeName string, filePath string, keyId uint64, key []byte, headers []Header) error {
-	data, err := marshalHeaders(headers, keyId, key)
+func writeHeadersFile(store storage.Store, safeName string, filePath string, key []byte, headersFile HeadersFile) error {
+	data, err := marshalHeadersFile(headersFile, key)
 	if core.IsErr(err, nil, "cannot encrypt header: %v", err) {
 		return err
 	}
@@ -125,21 +138,21 @@ func writeHeaders(store storage.Store, safeName string, filePath string, keyId u
 	return nil
 }
 
-func readHeaders(store storage.Store, safeName string, filePath string, keys Keys) (headers []Header, keyId uint64, err error) {
+func readHeadersFile(store storage.Store, safeName string, filePath string, keys Keys) (HeadersFile, error) {
 	var buf bytes.Buffer
-	err = store.Read(filePath, nil, &buf, nil)
+	err := store.Read(filePath, nil, &buf, nil)
 	if core.IsErr(err, nil, "cannot read file %s/%s: %v", store, filePath, err) {
-		return nil, 0, err
+		return HeadersFile{}, err
 	}
 
-	headers, keyId, err = unmarshalHeaders(buf.Bytes(), keys)
+	headersFile, err := unmarshalHeadersFile(buf.Bytes(), keys)
 	if err == ErrNoEncryptionKey || core.IsErr(err, nil, "cannot unmarshal headers: %v", err) {
-		return nil, 0, err
+		return HeadersFile{}, err
 	}
-	return headers, keyId, nil
+	return headersFile, nil
 }
 
-func insertHeaderOrIgnoreToDB(safeName, bucket string, headerId uint64, header Header) error {
+func insertHeaderOrIgnoreToDB(safeName, bucket string, headerFile uint64, header Header) error {
 	data, err := json.Marshal(header)
 	if core.IsErr(err, nil, "cannot marshal header: %v", err) {
 		return err
@@ -154,7 +167,7 @@ func insertHeaderOrIgnoreToDB(safeName, bucket string, headerId uint64, header H
 		"name":         header.Name,
 		"size":         header.Size,
 		"fileId":       header.FileId,
-		"headerId":     headerId,
+		"headerFile":   headerFile,
 		"base":         path.Base(header.Name),
 		"dir":          getDir(header.Name),
 		"depth":        depth,
@@ -260,4 +273,190 @@ func decryptHeaderAttributes(key []byte, iv []byte, encryptedAttributes []byte) 
 		return attributes, err
 	}
 	return attributes, nil
+}
+
+func decryptPrivateHeader(currentUser security.Identity, header Header) (Header, error) {
+	if header.PrivateId != "" && header.BodyKey == nil {
+		key, err := getDiffHillmanKey(currentUser, header)
+		if core.IsErr(err, nil, "cannot get hillman key: %v", err) {
+			return header, err
+		}
+		attributes, err := decryptHeaderAttributes(key, header.IV, header.EncryptedAttributes)
+		if core.IsErr(err, nil, "cannot decrypt attributes: %v", err) {
+			return header, err
+		}
+		header.Attributes = attributes
+		header.EncryptedAttributes = nil
+		header.BodyKey = key
+	}
+	return header, nil
+}
+
+func getHeadersIdsWithCount(store storage.Store, safeName, bucket string) (ids map[uint64]int, err error) {
+	rows, err := sql.Query("GET_HEADERS_IDS", sql.Args{
+		"safe":   safeName,
+		"bucket": bucket,
+	})
+	if err != sql.ErrNoRows && core.IsErr(err, nil, "cannot get headers ids: %v", err) {
+		return nil, err
+	}
+
+	ids = map[uint64]int{}
+	for rows.Next() {
+		var id uint64
+		var count int
+		if core.IsErr(rows.Scan(&id, &count), nil, "cannot scan id: %v", err) {
+			continue
+		}
+		ids[id] = count
+	}
+	rows.Close()
+	return ids, nil
+}
+
+type CompactHeader struct {
+	BucketDir string
+	NewKey    bool
+}
+
+func compactHeaders(s *Safe, newKey bool) error {
+	ls, err := s.stores[0].ReadDir(path.Join(s.Name, DataFolder), storage.Filter{})
+	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", s.stores[0], s.Name, err) {
+		return err
+	}
+
+	for _, l := range ls {
+		if l.IsDir() {
+			s.compactHeadersWg.Add(1)
+			s.compactHeaders <- CompactHeader{BucketDir: l.Name(), NewKey: true}
+		}
+	}
+
+	if newKey {
+		s.compactHeadersWg.Wait()
+	}
+
+	return nil
+}
+
+func compactHeadersInBucket(s *Safe, buckerDir string, newKey bool) {
+	defer s.compactHeadersWg.Done()
+
+	folder := path.Join(s.Name, DataFolder, buckerDir, HeaderFolder)
+	store := s.stores[0]
+	ls, err := store.ReadDir(folder, storage.Filter{})
+	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, folder, err) {
+		return
+	}
+
+	var files []string
+	for _, l := range ls {
+		if newKey || l.Size() < int64(MaxHeaderFileSize) {
+			files = append(files, l.Name())
+		}
+	}
+	if !newKey && len(files) < MaxHeadersFiles {
+		return
+	}
+
+	stat, err := store.Stat(path.Join(folder, ".merging"))
+	if err == nil && core.Since(stat.ModTime()) < time.Hour {
+		return
+	}
+
+	err = store.Write(path.Join(folder, ".merging"), core.NewBytesReader(nil), nil)
+	if core.IsErr(err, nil, "cannot write merging guard: %v", err) {
+		return
+	}
+
+	sort.Strings(files)
+	var wg sync.WaitGroup
+	for i := 0; i < len(files); {
+		fileSize := 0
+		j := i
+		for j-i < MergeBatchSize && fileSize < MaxHeaderFileSize && j < len(files) {
+			fileSize += int(ls[j].Size())
+			j++
+		}
+
+		wg.Add(1)
+		go mergeHeadersFiles(s, folder, files[i:j], &wg)
+		i = j + 1
+	}
+
+	wg.Wait()
+	err = store.Delete(path.Join(folder, ".merging"))
+	core.IsErr(err, nil, "cannot delete merging guard: %v", err)
+}
+
+func mergeHeadersFiles(s *Safe, folder string, files []string, wg *sync.WaitGroup) {
+	headersMap := map[uint64]Header{}
+	store := s.stores[0]
+	safeName := s.Name
+
+	var bucket string
+	var filesToDelete []string
+	for _, file := range files {
+		filepath := path.Join(folder, file)
+		headerFile, err := readHeadersFile(store, safeName, filepath, s.keystore.Keys)
+		if core.IsErr(err, nil, "cannot read headers: %v", err) {
+			continue
+		}
+		bucket = headerFile.Bucket
+		if bucket == "" {
+			continue
+		}
+		for _, header := range headerFile.Headers {
+			h, found := headersMap[header.FileId]
+			if !found || h.ModTime.Before(header.ModTime) {
+				headersMap[header.FileId] = header
+			}
+		}
+		filesToDelete = append(filesToDelete, filepath)
+		core.Info("Added header file %s/%s to the merge", store, filepath)
+	}
+
+	if bucket == "" {
+		return
+	}
+
+	headerFileId := snowflake.ID()
+	filepath := path.Join(folder, fmt.Sprintf("%d", headerFileId))
+
+	var headers []Header
+	for _, header := range headersMap {
+		headers = append(headers, header)
+	}
+
+	headersFile := HeadersFile{
+		KeyId:   s.keystore.LastKeyId,
+		Bucket:  bucket,
+		Headers: headers,
+	}
+	err := writeHeadersFile(store, safeName, filepath, s.keystore.Keys[s.keystore.LastKeyId], headersFile)
+	if core.IsErr(err, nil, "cannot write headers: %v", err) {
+		return
+	}
+	core.Info("Wrote merged headers to %s/%s", store, filepath)
+
+	for _, header := range headersMap {
+		res, err := sql.Exec("UPDATE_HEADER_FILE", sql.Args{
+			"safe":       safeName,
+			"bucket":     bucket,
+			"fileId":     header.FileId,
+			"headerFile": headerFileId,
+		})
+		if core.IsErr(err, nil, "cannot update header file: %v", err) {
+			return
+		}
+		cnt, _ := res.RowsAffected()
+		core.Info("Updated header file for %s/%s %d", store, header.Name, cnt)
+	}
+
+	for _, fileToDelete := range filesToDelete {
+		store.Delete(fileToDelete)
+		core.Info("Deleted header file %s/%s", store, filepath)
+	}
+
+	wg.Done()
 }

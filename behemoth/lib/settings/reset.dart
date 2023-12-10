@@ -13,7 +13,7 @@ class Reset extends StatefulWidget {
 }
 
 class _Reset extends State<Reset> {
-  int _fullReset = 5;
+  int _fullReset = 2;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +50,8 @@ class _Reset extends State<Reset> {
                         showPlatformSnackbar(
                             context, "Full Reset completed! Good luck",
                             backgroundColor: Colors.green);
-                        Navigator.pushReplacementNamed(context, "/setup");
+                        Navigator.of(context).pop();
+                        Navigator.pushReplacementNamed(context, "/");
                       } else {
                         _fullReset--;
                         showPlatformSnackbar(

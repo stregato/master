@@ -78,7 +78,6 @@ class _SettingsState extends State<Settings> {
       appBar: PlatformAppBar(
         title: const Text("Settings"),
       ),
-      //resizeToAvoidBottomInset: true, //TODO: add it back
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),

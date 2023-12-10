@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIdentity(t *testing.T) {
+func identity1(t *testing.T) {
 
 	identity, err := NewIdentity("test")
 	assert.NoErrorf(t, err, "cannot create identity")

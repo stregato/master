@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"time"
 
 	"github.com/godruoyi/go-snowflake"
 
@@ -19,12 +18,11 @@ const (
 	ErrZoneNameTooLong = "zone name '%s' too long, max length 32" // Returned when a zone name is too long
 	ErrZoneExist       = "zone '%s' already exists"               //
 	ErrNoAuth          = "user '%s['%s']' has not authorization for box '%s'"
-	ErrNotAdmin        = "user '%s' has not admin rights for safe '%s'"
+	ErrUnauthorized    = "unauthorized: user '%s' has not rights to change permission for user '%s' from %d to %d for safe '%s'"
 )
 
 type SetUsersOptions struct {
-	AlignDelay time.Duration `json:"alignDelay"`
-	SyncAlign  bool          `json:"syncAlign"`
+	SyncAlign bool `json:"syncAlign"` // SyncAlign is true if the keys are refreshed before ending the function
 }
 
 // SetUsers sets some users with corresponding permissions for a zone.
@@ -35,22 +33,25 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
 		return err
 	}
-	if s.users[currentUserId]&Admin == 0 {
-		// error if the current user is not admin
-		return fmt.Errorf(ErrNotAdmin, currentUserId, s.Name)
-	}
 
 	delta := map[string]Permission{} // delta is the difference between the current users and the new users
 	var includesRevoke bool          // includesRevoke is true if the new users include a revoke of a permission
 
 	for userId, permission := range users {
 		if p, ok := s.users[userId]; !ok || p != permission {
-			delta[userId] = permission
-			includesRevoke = includesRevoke || permission <= Blocked
-			err = setUserInDB(s.Name, userId, permission)
-			if core.IsErr(err, nil, "cannot set user in %s: %v", s.Name) {
-				return err
+			if s.Permission < p || s.Permission < permission {
+				return fmt.Errorf(ErrUnauthorized, currentUserId, userId, p, permission, s.Name)
 			}
+
+			delta[userId] = permission
+			includesRevoke = includesRevoke || permission <= Suspended
+		}
+	}
+
+	for userId, permission := range delta {
+		err = setUserInDB(s.Name, userId, permission)
+		if core.IsErr(err, nil, "cannot set user in %s: %v", s.Name) {
+			return err
 		}
 	}
 
@@ -76,15 +77,9 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 			return err
 		}
 
-		var align = func() {
-			time.Sleep(options.AlignDelay)
-			err = alignKeysInSafe(s)
-			core.IsErr(err, nil, "cannot align keys in directory: %v", err)
-		}
-		if options.SyncAlign {
-			go align()
-		} else {
-			align()
+		err = compactHeaders(s, options.SyncAlign)
+		if core.IsErr(err, nil, "cannot compact headers in %s: %v", s.Name) {
+			return err
 		}
 
 	} else {
@@ -138,7 +133,7 @@ func SyncUsers(s *Safe) (int, error) {
 	}
 	core.Info("synchronized %d users in %s", count, s.Name)
 
-	keystore, _, err := syncKeystore(store, s.Name, s.CurrentUser, s.users)
+	keystore, _, err := syncKeystore(store, s.Name, s.CurrentUser, users)
 	if core.IsErr(err, nil, "cannot sync keystore in %s: %v", s.Name) {
 		return 0, err
 	}
@@ -221,20 +216,6 @@ func syncUsers(safeName string, store storage.Store, currentUser security.Identi
 
 	core.Info("synchronized %d users in %s", count, safeName)
 	return users, count, nil
-}
-
-func syncUserJob(s *Safe) {
-	s.wg.Add(1)
-	for {
-		select {
-		case <-s.quit:
-			core.Info("quit sync user job for %s", s.Name)
-			s.wg.Done()
-			return
-		case <-s.syncUsers.C:
-			SyncUsers(s)
-		}
-	}
 }
 
 func syncIdentities(store storage.Store, name string, currentUser security.Identity) (new []security.Identity, err error) {

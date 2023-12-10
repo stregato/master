@@ -28,6 +28,7 @@ const (
 	InitiateFolder = "initiate"
 	HeaderFolder   = "h"
 	BodyFolder     = "b"
+	BucketFile     = ".bucket"
 )
 
 const KeySize = 32
@@ -47,15 +48,17 @@ type Safe struct {
 	QuotaGroup  string              `json:"quotaGroup"`  // QuotaGroup is the common prefix for the safes that share the quota
 	Size        int64               `json:"size"`        // Size of the safe in bytes
 
-	keystore  Keystore        // Keystore of the safe
-	stores    []storage.Store // Stores of the safe
-	users     Users           // Users and their permissions
-	usersLock sync.Mutex      // Lock for users
-	syncUsers *time.Ticker    // Ticker for synchronizing users
-	uploads   *time.Ticker    // Channel for uploading headers
-	upload    chan bool       // Channel for uploading headers
-	quit      chan bool       // Channel for quitting background tasks
-	wg        sync.WaitGroup  // Wait group for background tasks
+	keystore         Keystore           // Keystore of the safe
+	store            []storage.Store    // Stores of the safe
+	users            Users              // Users and their permissions
+	usersLock        sync.Mutex         // Lock for users
+	background       *time.Ticker       // Ticker for background tasks
+	syncUsers        chan bool          // Channel for syncing users
+	compactHeaders   chan CompactHeader // Channel for compacting the headers
+	compactHeadersWg sync.WaitGroup     // Wait group for compacting the headers
+	uploadFile       chan bool          // Channel for uploading headers
+	quit             chan bool          // Channel for quitting background tasks
+	wg               sync.WaitGroup     // Wait group for background tasks
 
 	//identities []security.Identity
 	//	newestChangeFile     string

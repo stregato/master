@@ -30,17 +30,13 @@ type Key struct {
 }
 
 type Identity struct {
-	Id      string    `json:"i"`
-	Nick    string    `json:"n,omitempty"`
-	Email   string    `json:"e,omitempty"`
-	ModTime time.Time `json:"m"`
+	Id      string    `json:"i"`           // public key
+	Nick    string    `json:"n,omitempty"` // nickname
+	Email   string    `json:"e,omitempty"` // email
+	ModTime time.Time `json:"m"`           // last modification time
 
-	Private string `json:"p,omitempty"`
-
-	// SignatureKey  Key `json:"s"`
-	// EncryptionKey Key `json:"e"`
-
-	Avatar []byte `json:"a,omitempty"`
+	Private string `json:"p,omitempty"` // private key
+	Avatar  []byte `json:"a,omitempty"` // avatar
 }
 
 func NewIdentity(nick string) (Identity, error) {

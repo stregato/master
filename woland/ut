@@ -1,0 +1,4 @@
+echo TestCreateAndOpen `/usr/local/go/bin/go test -timeout 30s -run ^TestCreateAndOpen$ github.com/stregato/master/woland/safe`
+echo TestList `/usr/local/go/bin/go test -timeout 30s -run ^TestList$ github.com/stregato/master/woland/safe`
+echo TestPut `/usr/local/go/bin/go test -timeout 30s -run ^TestPut$ github.com/stregato/master/woland/safe`
+echo TestAddSecondUser `/usr/local/go/bin/go test -timeout 30s -run ^TestAddSecondUser$ github.com/stregato/master/woland/safe`

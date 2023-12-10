@@ -28,6 +28,7 @@ class Coven {
   Identity identity;
   String name;
   String access;
+  String secret = "";
   Set<String> rooms;
   Safe? _safe;
   static Map<String, Coven> opened = {};
@@ -37,10 +38,14 @@ class Coven {
     var p = Profile.current;
     var d = decodeAccess(p.identity, access);
     var name = d.safeName;
-    var coven =
-        p.covens.putIfAbsent(name, () => Coven(p.identity, name, access, {}));
+    var coven = p.covens
+        .putIfAbsent(name, () => Coven(p.identity, name, access, secret, {}));
     p.save();
-    Safe.open(p.identity, access, OpenOptions(initiateSecret: secret)).ignore();
+    try {
+      await Safe.open(p.identity, access, OpenOptions(initiateSecret: secret));
+    } catch (e) {
+      // ignore
+    }
     return coven;
   }
 
@@ -53,11 +58,11 @@ class Coven {
     await safe.putBytes("rooms/.list", "lounge", Uint8List(0), PutOptions());
     safe.close();
 
-    var coven = Coven(p.identity, name, token, {"lounge"});
+    var coven = Coven(p.identity, name, token, "0000", {"lounge"});
     p.update(coven);
   }
 
-  Coven(this.identity, this.name, this.access, this.rooms);
+  Coven(this.identity, this.name, this.access, this.secret, this.rooms);
   Coven.fromJson(this.identity, Map<String, dynamic> json)
       : name = json['name'],
         access = json['access'],
@@ -73,7 +78,8 @@ class Coven {
     if (_safe != null) {
       return _safe!;
     }
-    _safe = await Safe.open(identity, access, OpenOptions());
+    _safe =
+        await Safe.open(identity, access, OpenOptions(initiateSecret: secret));
     opened[name] = this;
     safesAccessed[name] = DateTime.now();
     return _safe!;

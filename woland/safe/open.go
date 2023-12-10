@@ -13,7 +13,7 @@ import (
 
 var ErrNoStoreAvailable = fmt.Errorf("no store available")
 
-var IdentitiesFolder = "identities"
+var IdentitiesFolder = ".identities"
 var MaxACLFilesInZone = 4
 var DefaultSyncUsersRefreshRate = 10 * time.Minute
 
@@ -82,11 +82,13 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		users:     users,
 		keystore:  readKeystoreFromDB(name),
 		usersLock: sync.Mutex{},
-		syncUsers: time.NewTicker(10 * time.Minute),
-		uploads:   time.NewTicker(time.Minute),
-		upload:    make(chan bool),
-		quit:      make(chan bool),
-		wg:        sync.WaitGroup{},
+
+		background:     time.NewTicker(time.Minute),
+		syncUsers:      make(chan bool),
+		uploadFile:     make(chan bool),
+		compactHeaders: make(chan CompactHeader),
+		quit:           make(chan bool),
+		wg:             sync.WaitGroup{},
 	}
 
 	_, err = SyncUsers(&s)
@@ -115,7 +117,7 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		return nil, fmt.Errorf("access pending")
 	}
 
-	if s.Permission == Blocked {
+	if s.Permission == Suspended {
 		return nil, fmt.Errorf("access denied")
 	}
 
@@ -123,8 +125,7 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	safesCounter++
 	safesCounterLock.Unlock()
 
-	go syncUserJob(&s)
-	go uploadJob(&s)
+	go backgroundJob(&s)
 
 	core.Info("safe opened: name %s, creator %s, description %s, quota %d, #users %d, keystore %d", name,
 		currentUser.Id, manifest.Description, manifest.Quota, len(s.users), s.keystore.LastKeyId)

@@ -29,7 +29,7 @@ Future<T?> progressDialog<T>(
                   Future.delayed(Duration.zero, () {
                     showPlatformSnackbar(context, errorMessage,
                         backgroundColor: Colors.red);
-                    Navigator.pop(context, snapshot.error);
+                    Navigator.pop(context);
                   });
                 }
               }

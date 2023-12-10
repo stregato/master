@@ -37,14 +37,18 @@ type Change struct {
 type Permission int
 
 const (
-	Blocked  Permission = 1
-	Reader   Permission = 2
-	Standard Permission = 4
-	Admin    Permission = 16
-	Creator  Permission = 32
+	Suspended Permission = 1
+	Reader    Permission = 2
+	Standard  Permission = 4
+	Admin     Permission = 16
+	Creator   Permission = 32
 )
 
 type Users map[string]Permission
+
+func (users Users) Is(userId string, permission Permission) bool {
+	return users[userId]&permission > 0
+}
 
 type PermissionChange struct {
 	UserId     string     `json:"userId"`

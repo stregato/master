@@ -116,7 +116,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		core.Info("Guessed content type for %s: %s", name, options.ContentType)
 	}
 
-	headerId := snowflake.ID()
+	headerFile := snowflake.ID()
 	attributes := Attributes{
 		ContentType: options.ContentType,
 		Hash:        hash,
@@ -132,39 +132,43 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		FileId:     bodyId,
 		IV:         core.GenerateRandomBytes(aes.BlockSize),
 		PrivateId:  options.Private,
+		Attributes: attributes,
 		ModTime:    now,
 		Uploading:  true,
 		SourceFile: sourceFile,
 		ReplaceId:  options.ReplaceID,
 		Replace:    options.Replace,
 	}
-	if options.Private == "" {
-		header.BodyKey = core.GenerateRandomBytes(KeySize)
-		header.Attributes = attributes
-	} else {
-		diffieHellmanKey, err := security.DiffieHellmanKey(s.CurrentUser, header.PrivateId)
+	if header.PrivateId != "" {
+		bodyKey, err := security.DiffieHellmanKey(s.CurrentUser, header.PrivateId)
 		if core.IsErr(err, nil, "cannot create diffie hellman key: %v", err) {
 			return Header{}, err
 		}
-		encryptedAttributes, err := encryptHeaderAttributes(diffieHellmanKey, header.IV, attributes)
-		if core.IsErr(err, nil, "cannot encrypt attributes: %v", err) {
-			return Header{}, err
-		}
-		header.EncryptedAttributes = encryptedAttributes
+		header.BodyKey = bodyKey
+		core.Info("Using diffie hellman key for %s", header.Name)
+	} else {
+		header.BodyKey = core.GenerateRandomBytes(KeySize)
+		core.Info("Using random key for %s", header.Name)
 	}
-	s.Size += header.Size
-	applyQuota(0.95, s.QuotaGroup, s.stores, s.Size, s.Quota, false)
 
-	err = insertHeaderOrIgnoreToDB(s.Name, bucket, headerId, header)
-	core.IsErr(err, nil, "cannot insert header: %v", err)
+	err = insertHeaderOrIgnoreToDB(s.Name, bucket, headerFile, header)
+	if core.IsErr(err, nil, "cannot insert header: %v", err) {
+		return Header{}, err
+	}
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
 
-	if options.Async && sourceFile != "" {
-		core.Info("Async put for %s[%d]", header.Name, header.FileId)
-		s.upload <- true
-		return header, nil
+	s.Size += header.Size
+	applyQuota(0.95, s.QuotaGroup, s.stores, s.Size, s.Quota, false)
+	if options.Async {
+		if sourceFile != "" {
+			core.Info("Async put for %s[%d]", header.Name, header.FileId)
+			s.uploadFile <- true
+			return header, nil
+		} else {
+			return header, fmt.Errorf("cannot put async without source file")
+		}
 	} else {
-		return writeToStore(s, bucket, r, headerId, header, onComplete)
+		return writeToStore(s, bucket, r, headerFile, header, onComplete)
 	}
 }
 
@@ -191,64 +195,51 @@ func getReaderHashAndSize(r io.ReadSeeker) (hash []byte, size int64, err error) 
 	return hasher.Sum(nil), size, nil
 }
 
-func uploadJob(s *Safe) {
-	s.wg.Add(1)
-	for {
-		select {
-		case <-s.uploads.C:
-		case <-s.upload:
-		case <-s.quit:
-			core.Info("Upload job for %s stopped", s.Name)
-			s.wg.Done()
-			return
-		}
+func uploadFilesInBackground(s *Safe) {
+	rows, err := sql.Query("GET_UPLOADS", sql.Args{"safe": s.Name})
+	if core.IsErr(err, nil, "cannot get uploads: %v", err) {
+		return
+	}
 
-		rows, err := sql.Query("GET_UPLOADS", sql.Args{"safe": s.Name})
-		if core.IsErr(err, nil, "cannot get uploads: %v", err) {
+	var headers []Header
+	var headerFiles []uint64
+	var buckets []string
+	for rows.Next() {
+		var headerFile uint64
+		var bucket string
+		var data []byte
+		if core.IsErr(rows.Scan(&headerFile, &bucket, &data), nil, "cannot scan file: %v", err) {
 			continue
 		}
-
-		var headers []Header
-		var headerIds []uint64
-		var buckets []string
-		for rows.Next() {
-			var headerId uint64
-			var bucket string
-			var data []byte
-			if core.IsErr(rows.Scan(&headerId, &bucket, &data), nil, "cannot scan file: %v", err) {
-				continue
-			}
-			var header Header
-			err = json.Unmarshal(data, &header)
-			if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
-				continue
-			}
-			if uploading[headerId] {
-				core.Info("File %s[%d] is already uploading", header.Name, header.FileId)
-				continue
-			}
-			headers = append(headers, header)
-			headerIds = append(headerIds, headerId)
-			buckets = append(buckets, bucket)
+		var header Header
+		err = json.Unmarshal(data, &header)
+		if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
+			continue
 		}
-		rows.Close()
+		if uploading[headerFile] {
+			core.Info("File %s[%d] is already uploading", header.Name, header.FileId)
+			continue
+		}
+		headers = append(headers, header)
+		headerFiles = append(headerFiles, headerFile)
+		buckets = append(buckets, bucket)
+	}
+	rows.Close()
 
-		for i, header := range headers {
-			f, err := os.Open(header.SourceFile)
-			if !core.IsErr(err, nil, "cannot open source file: %v", err) {
-				core.Info("Uploading %s[%d]", header.Name, header.FileId)
-				_, err = writeToStore(s, buckets[i], f, headerIds[i], header, nil)
-				f.Close()
-			}
-
-			if err != nil && core.Since(header.ModTime) > time.Hour*24*7 {
-				_, err = sql.Exec("DELETE_UPLOAD", sql.Args{"safe": s.Name, "headerId": headerIds[i], "bucket": buckets[i]})
-				if !core.IsErr(err, nil, "cannot delete upload: %v", err) {
-					core.Info("Deleted upload %s[%d] after 7 days tries", header.Name, header.FileId)
-				}
-			}
+	for i, header := range headers {
+		f, err := os.Open(header.SourceFile)
+		if !core.IsErr(err, nil, "cannot open source file: %v", err) {
+			core.Info("Uploading %s[%d]", header.Name, header.FileId)
+			_, err = writeToStore(s, buckets[i], f, headerFiles[i], header, nil)
+			f.Close()
 		}
 
+		if err != nil && core.Since(header.ModTime) > time.Hour*24*7 {
+			_, err = sql.Exec("DELETE_UPLOAD", sql.Args{"safe": s.Name, "headerFile": headerFiles[i], "bucket": buckets[i]})
+			if !core.IsErr(err, nil, "cannot delete upload: %v", err) {
+				core.Info("Deleted upload %s[%d] after 7 days tries", header.Name, header.FileId)
+			}
+		}
 	}
 
 }
@@ -257,9 +248,9 @@ var uploading = make(map[uint64]bool)
 
 //var uploadingLock sync.Mutex
 
-func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerId uint64, header Header, onComplete func(Header, error)) (Header, error) {
-	uploading[headerId] = true
-	defer delete(uploading, headerId)
+func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, header Header, onComplete func(Header, error)) (Header, error) {
+	uploading[headerFile] = true
+	defer delete(uploading, headerFile)
 
 	header.Uploading = false
 	store := s.stores[0]
@@ -267,16 +258,8 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerId uint64, head
 	bodyFile := path.Join(s.Name, DataFolder, hashedBucket, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
 	var err error
-	bodyKey := header.BodyKey
-	if header.PrivateId != "" {
-		bodyKey, err = security.DiffieHellmanKey(s.CurrentUser, header.PrivateId)
-		if core.IsErr(err, nil, "cannot create diffie hellman key: %v", err) {
-			return Header{}, err
-		}
-		core.Info("Using diffie hellman key for %s", header.Name)
-	}
 
-	r, err = encryptReader(r, bodyKey, header.IV)
+	r, err = encryptReader(r, header.BodyKey, header.IV)
 	if core.IsErr(err, nil, "cannot create encrypting reader: %v", err) {
 		return Header{}, err
 	}
@@ -323,21 +306,38 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerId uint64, head
 		header.Downloads = map[string]time.Time{header.SourceFile: core.Now()}
 	}
 
-	filePath := path.Join(s.Name, DataFolder, hashedBucket, HeaderFolder, fmt.Sprintf("%d", headerId))
+	var header2 = header
+	if header2.PrivateId != "" {
+		// Encrypt attributes before writing to store
+		encryptedAttributes, err := encryptHeaderAttributes(header2.BodyKey, header2.IV, header2.Attributes)
+		if core.IsErr(err, nil, "cannot encrypt attributes: %v", err) {
+			return Header{}, err
+		}
+		header2.EncryptedAttributes = encryptedAttributes
+		header2.Attributes = Attributes{}
+		header2.BodyKey = nil
+	}
+
+	filePath := path.Join(s.Name, DataFolder, hashedBucket, HeaderFolder, fmt.Sprintf("%d", headerFile))
 	keyId := s.keystore.LastKeyId
 	keyValue := s.keystore.Keys[keyId]
-	err = writeHeaders(store, s.Name, filePath, keyId, keyValue, []Header{header})
+	headersFile := HeadersFile{
+		KeyId:   keyId,
+		Bucket:  bucket,
+		Headers: []Header{header2},
+	}
+	err = writeHeadersFile(store, s.Name, filePath, keyValue, headersFile)
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
 		store.Delete(bodyFile)
 		return Header{}, err
 	}
-	core.Info("Wrote header for %s[%d]", header.Name, header.FileId)
+	core.Info("Wrote header for %s[%d]", header2.Name, header2.FileId)
 	err = SetCached(s.Name, store, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, s.CurrentUser.Id)
 	if core.IsErr(err, nil, "cannot set touch file: %v", err) {
 		return Header{}, err
 	}
 
-	err = updateHeaderInDB(s.Name, bucket, header.FileId, func(h Header) Header {
+	err = updateHeaderInDB(s.Name, bucket, header2.FileId, func(h Header) Header {
 		h.Uploading = false
 		h.Downloads = header.Downloads
 		return h

@@ -7,7 +7,6 @@ import 'package:behemoth/settings/update_private_key.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/one_to_one.dart';
-import 'package:behemoth/coven/add_person.dart';
 import 'package:behemoth/coven/invite.dart';
 import 'package:behemoth/coven/settings.dart';
 import 'package:behemoth/coven/unilink.dart';
@@ -145,7 +144,6 @@ class _BehemothAppState extends State<BehemothApp> {
 
             //       "/coven": (context) => const CovenWidget(),
             "/coven/room": (context) => const Room(),
-            "/coven/room/invite": (context) => const InvitoToRoom(),
             "/coven/create": (context) => const CreateRoom(),
             "/coven/onetoone": (context) => const Privates(),
             "/coven/settings": (context) => const CovenSettings(),

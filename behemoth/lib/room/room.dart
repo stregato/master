@@ -2,13 +2,11 @@ import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/coven/navigation.dart';
 import 'package:behemoth/woland/safe.dart';
-import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/chat.dart';
 import 'package:behemoth/common/news_icon.dart';
 
 import 'package:behemoth/content/content.dart';
-import 'package:behemoth/coven/people.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 var currentPanelIdx = <String, int>{};
@@ -25,7 +23,6 @@ class _RoomState extends State<Room> {
   String _title = "";
   Chat? _chat;
   Content? _content;
-  People? _people;
   Navigation? _navigation;
   late Coven _coven;
   late String _room;
@@ -43,19 +40,11 @@ class _RoomState extends State<Room> {
       _currentItem = currentPanelIdx[_title] ?? 0;
     }
 
-    var addPerson = PlatformIconButton(
-        onPressed: () async {
-          await Navigator.pushNamed(context, "/coven/room/invite", arguments: {
-            "coven": _coven,
-            "room": _room,
-          });
-        },
-        icon: const Icon(Icons.person_add_alt));
-
     var invite = PlatformIconButton(
         onPressed: () async {
           await Navigator.pushNamed(context, "/invite", arguments: {
             "coven": _coven,
+            "room": _room,
           });
         },
         icon: const Icon(Icons.person_add));
@@ -81,8 +70,6 @@ class _RoomState extends State<Room> {
         title: Text(_title, style: const TextStyle(fontSize: 18)),
         trailingActions: [
           // const NewsIcon(),
-          if (_room != "lounge") addPerson,
-          const SizedBox(width: 20),
           invite,
         ],
       ),

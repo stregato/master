@@ -9,7 +9,8 @@ import (
 func CheckForUpdates(s *Safe, dir string, after time.Time, depth int) ([]string, error) {
 	dirs := []string{dir}
 
-	synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), s.keystore.Keys)
+	synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), s.keystore.Keys,
+		s.compactHeaders, &s.compactHeadersWg)
 
 	if depth != 0 {
 		nested, err := ListDirs(s, dir, ListDirsOptions{

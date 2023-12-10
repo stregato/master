@@ -1,10 +1,11 @@
 package safe
 
 func Close(s *Safe) {
-	s.uploads.Stop()
-	s.syncUsers.Stop()
+	s.background.Stop()
 	close(s.quit)
-	close(s.upload)
+	close(s.uploadFile)
+	close(s.syncUsers)
+	close(s.compactHeaders)
 
 	s.wg.Wait()
 	for _, store := range s.stores {

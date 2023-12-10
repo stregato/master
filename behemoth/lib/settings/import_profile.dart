@@ -29,28 +29,28 @@ class _ImportProfileState extends State<ImportProfile> {
     });
   }
 
-  void _updateIdentity() {
-    if (_counter > 0) {
-      setState(() {
-        _counter--;
-      });
-      showPlatformSnackbar(context,
-          'Warning, by changing your identity you lose access to your covens. Click again to proceed',
-          backgroundColor: Colors.orange);
-    } else {
-      var profile = Profile();
-      profile.identity = _identity!;
-      profile.identity.avatar = _current.avatar;
-      profile.identity.email = _current.email;
-      profile.save();
-      Navigator.pushReplacementNamed(context, "/");
+  // void _updateIdentity() {
+  //   if (_counter > 0) {
+  //     setState(() {
+  //       _counter--;
+  //     });
+  //     showPlatformSnackbar(context,
+  //         'Warning, by changing your identity you lose access to your covens. Click again to proceed',
+  //         backgroundColor: Colors.orange);
+  //   } else {
+  //     var profile = Profile();
+  //     profile.identity = _identity!;
+  //     profile.identity.avatar = _current.avatar;
+  //     profile.identity.email = _current.email;
+  //     profile.save();
+  //     Navigator.pushReplacementNamed(context, "/");
 
-      showPlatformSnackbar(context, 'Identity updated',
-          backgroundColor: Colors.green);
-      // Assuming this widget is part of a navigation stack, pop the current screen
-      Navigator.of(context).pop();
-    }
-  }
+  //     showPlatformSnackbar(context, 'Identity updated',
+  //         backgroundColor: Colors.green);
+  //     // Assuming this widget is part of a navigation stack, pop the current screen
+  //     Navigator.of(context).pop();
+  //   }
+  // }
 
   Identity? _parsePrivateIdUrl(String text) {
     try {

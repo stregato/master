@@ -26,13 +26,14 @@ func TestEncryptAndDecryptHeader(t *testing.T) {
 
 	keyId := uint64(1234567890)
 	keyValue := core.GenerateRandomBytes(KeySize)
-	ciphertext, err := marshalHeaders([]Header{originalHeader}, keyId, keyValue)
+	headersFile := HeadersFile{keyId, "bucket", []Header{originalHeader}}
+	ciphertext, err := marshalHeadersFile(headersFile, keyValue)
 	assert.NoError(t, err, "encryptHeader failed")
 
-	decryptedHeaders, keyId, err := unmarshalHeaders(ciphertext, map[uint64][]byte{keyId: keyValue})
+	headersFile, err = unmarshalHeadersFile(ciphertext, map[uint64][]byte{keyId: keyValue})
 	core.TestErr(t, err, "decryptHeader failed")
 	core.Assert(t, keyId > 0, "keyId is zero")
-	decryptedHeader := decryptedHeaders[0]
+	decryptedHeader := headersFile.Headers[0]
 
 	assert.Equal(t, originalHeader.Name, decryptedHeader.Name, "Name does not match original")
 	assert.Equal(t, originalHeader.Size, decryptedHeader.Size, "Size does not match original")

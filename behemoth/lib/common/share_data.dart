@@ -22,29 +22,24 @@ class ShareData extends StatelessWidget {
             const BoxConstraints(minWidth: 200.0), // Set the minimum width here
         child: ElevatedButton.icon(
             icon: const Icon(Icons.share),
-            label: const Text("Share the Link"),
+            label: const Text("Share"),
             onPressed: () {
               final box = context.findRenderObject() as RenderBox?;
               Share.share(_value,
                   sharePositionOrigin:
                       box!.localToGlobal(Offset.zero) & box.size);
-//              Navigator.pop(context);
             }),
       );
     } else {
-      shareButton = Container(
-        constraints:
-            const BoxConstraints(minWidth: 200.0), // Set the minimum width here
-        child: ElevatedButton.icon(
-            icon: const Icon(Icons.copy),
-            label: const Text("Copy to clipboard"),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: _value)).then((_) {
-                showPlatformSnackbar(context, "Link copied to clipboard",
-                    backgroundColor: Colors.green);
-              });
-//              Navigator.pop(context);
-            }),
+      shareButton = ElevatedButton.icon(
+        icon: const Icon(Icons.copy),
+        label: const Text("Copy"),
+        onPressed: () {
+          Clipboard.setData(ClipboardData(text: _value)).then((_) {
+            showPlatformSnackbar(context, "Link copied to clipboard",
+                backgroundColor: Colors.green);
+          });
+        },
       );
     }
 
@@ -57,37 +52,35 @@ class ShareData extends StatelessWidget {
           readOnly: true,
         ),
         const SizedBox(height: 20),
-        shareButton,
-        const SizedBox(height: 20),
-        Container(
-          constraints: const BoxConstraints(
-              minWidth: 200.0), // Set the minimum width here
-          child: PlatformElevatedButton(
-            onPressed: () {
-              launchUrl(Uri.parse(
-                  'https://mail.google.com/mail/?view=cm&fs=1&to=&su=$_label&body=$_value'));
-            },
-            child: const Text("Send via gmail"),
+        Row(children: [
+          Expanded(child: shareButton),
+          const SizedBox(width: 10),
+          Expanded(
+            child: PlatformElevatedButton(
+              onPressed: () {
+                launchUrl(Uri.parse(
+                    'https://mail.google.com/mail/?view=cm&fs=1&to=&su=$_label&body=$_value'));
+              },
+              child: const Text("Gmail"),
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          constraints: const BoxConstraints(
-              minWidth: 200.0), // Set the minimum width here
-          child: PlatformElevatedButton(
-            onPressed: () {
-              launchUrl(Uri.parse('mailto:?subject=$_label&body=_value'));
-            },
-            child: const Text("Send via mail client"),
+          const SizedBox(width: 10),
+          Expanded(
+            child: PlatformElevatedButton(
+              onPressed: () {
+                launchUrl(Uri.parse('mailto:?subject=$_label&body=_value'));
+              },
+              child: const Text("Mail"),
+            ),
           ),
-        ),
+        ]),
         const SizedBox(height: 20),
         Container(
           color: Colors.white,
           child: QrImageView(
             data: _value,
             version: QrVersions.auto,
-            size: 320,
+            size: 240,
             gapless: false,
           ),
         ),

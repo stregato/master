@@ -37,7 +37,11 @@ class _AddStorageState extends State<AddStorage> {
   String getUrl() {
     switch (storageType) {
       case "S3":
-        return "s3://${a.host}/${a.bucket}?accessKey=${a.accessKey}&secret=${a.secret}&verbose=${a.verbose}";
+        if (a.verbose == 0) {
+          return "s3://${a.host}/${a.bucket}?a=${a.accessKey}&s=${a.secret}";
+        } else {
+          return "s3://${a.host}/${a.bucket}?a=${a.accessKey}&s=${a.secret}&v=${a.verbose}";
+        }
       case "SFTP":
         var u = "sftp://";
         if (a.username.isNotEmpty && a.password.isNotEmpty) {
@@ -47,7 +51,7 @@ class _AddStorageState extends State<AddStorage> {
         }
         u += "${a.host}/${a.path}";
         if (a.key.isNotEmpty) {
-          u += "?key=${a.key}";
+          u += "?k=${a.key}";
         }
         return u;
       case "WebDAV":

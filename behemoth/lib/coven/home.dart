@@ -1,9 +1,13 @@
 import 'dart:async';
 
 import 'package:behemoth/common/common.dart';
+import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/snackbar.dart';
+import 'package:behemoth/settings/reset.dart';
+import 'package:behemoth/settings/setup.dart';
+import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:uni_links/uni_links.dart';
@@ -16,16 +20,33 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
+var started = false;
+
 class _HomeState extends State<Home> {
   static StreamSubscription<Uri?>? linkSub;
   Uri? _unilink;
   bool _connecting = false;
+  bool _hasProfile = false;
 
   // ignore: unused_field
 
   @override
   void initState() {
     super.initState();
+
+    if (!started) {
+      try {
+        start("$applicationFolder/woland.db", applicationFolder);
+        started = true;
+      } catch (e) {
+        return;
+      }
+    }
+
+    if (!Profile.hasProfile()) {
+      return;
+    }
+    _hasProfile = true;
 
     if (!isDesktop && linkSub == null) {
       try {
@@ -125,20 +146,66 @@ class _HomeState extends State<Home> {
     });
   }
 
+  Widget getNewbiePage() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          const Text(
+            "Welcome to Behemoth",
+            style: TextStyle(
+                fontSize: 28.0,
+                fontWeight: FontWeight.bold,
+                color: Colors.yellow),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Image.asset("assets/images/cat.png"),
+          ),
+          const SizedBox(
+            height: 16,
+          ),
+          const Text(
+            "Behemoth is a secure, decentralized, collaborative application. "
+            "It is based on storages where data is encrypted and shared between "
+            "users.",
+            style: TextStyle(fontSize: 16.0, color: Colors.grey),
+            maxLines: 5,
+            textAlign:
+                TextAlign.justify, // Set the maximum number of lines to 3
+          ),
+          const Spacer(),
+          const Text(
+            "Create a  coven or join an existing one",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16.0, color: Colors.green),
+          ),
+          const SizedBox(
+            height: 18,
+          ),
+          const Icon(Icons.arrow_downward, color: Colors.green, size: 60),
+        ],
+      ),
+    );
+  }
+
+  _notifications(Notifications? notifications) {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    _processUnilink(context);
-    NewsIcon.onChange = (_) {
-      if (mounted) {
-        setState(() {});
-      }
-    };
-
-    if (!Profile.hasProfile()) {
-      return PlatformScaffold(
-        appBar: PlatformAppBar(title: const Text("Loading")),
-      );
+    if (!started) {
+      return const Reset();
     }
+    if (!_hasProfile) {
+      return const Setup();
+    }
+
+    _processUnilink(context);
+    NewsIcon.onChange = _notifications;
 
     var profile = Profile.current;
     var widgets = getNotificationsWidgets();
@@ -171,6 +238,8 @@ class _HomeState extends State<Home> {
       },
     ).toList());
 
+    var noCovens = profile.covens.values.isEmpty;
+
     return PlatformScaffold(
       appBar: PlatformAppBar(
         title: // Your content here
@@ -195,25 +264,28 @@ class _HomeState extends State<Home> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Column(
-            children: [
-              ListView(
-                shrinkWrap: true,
-                children: widgets,
-              ),
-              SizedBox(
-                width: double
-                    .infinity, // This will make the container fill the width of the Column
-                child: Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: PlatformElevatedButton(
-                    onPressed: () => connectAll(context),
-                    child: const Text("Connect all"),
-                  ),
+          child: noCovens
+              ? getNewbiePage()
+              : Column(
+                  children: [
+                    ListView(
+                      shrinkWrap: true,
+                      children: widgets,
+                    ),
+                    if (profile.covens.values.isNotEmpty)
+                      SizedBox(
+                        width: double
+                            .infinity, // This will make the container fill the width of the Column
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: PlatformElevatedButton(
+                            onPressed: () => connectAll(context),
+                            child: const Text("Connect all"),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-            ],
-          ),
         ),
       ),
       bottomNavBar: PlatformNavBar(

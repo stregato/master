@@ -8,9 +8,8 @@ import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
-import 'package:path/path.dart';
 
-const welcomeSpace = 'lounge';
+const loungeRoom = 'lounge';
 
 class Navigation extends StatefulWidget {
   final Coven coven;
@@ -62,9 +61,10 @@ class _NavigationState extends State<Navigation> {
               ),
               const Spacer(),
               PlatformElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   _safe.setUsers({id: accessPermission}, SetUsersOptions());
-                  _safe.syncUsers().then((value) => setState(() {}));
+                  await _safe.syncUsers();
+                  setState(() {});
                 },
                 cupertino: (_, __) => CupertinoElevatedButtonData(
                   padding:
@@ -84,9 +84,10 @@ class _NavigationState extends State<Navigation> {
                 width: 10,
               ),
               PlatformElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   _safe.setUsers({id: 0}, SetUsersOptions());
-                  _safe.syncUsers().then((value) => setState(() {}));
+                  await _safe.syncUsers();
+                  setState(() {});
                 },
                 cupertino: (_, __) => CupertinoElevatedButtonData(
                   padding:
@@ -152,7 +153,7 @@ class _NavigationState extends State<Navigation> {
       }
 
       Widget? trailing;
-      if (room != welcomeSpace) {
+      if (room != loungeRoom) {
         trailing = PlatformIconButton(
           icon: const Icon(Icons.delete),
           onPressed: () async {

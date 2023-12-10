@@ -5,11 +5,11 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
-	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
 
@@ -26,14 +26,16 @@ func SyncBucket(s *Safe, bucket string, SyncOptions SyncOptions, async func(int,
 		return 0, nil
 	}
 
-	changes, err = synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, bucket, s.keystore.Keys)
+	changes, err = synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, bucket, s.keystore.Keys,
+		s.compactHeaders, &s.compactHeadersWg)
 	if core.IsErr(err, nil, "cannot synchronize files: %v", err) {
 		return 0, err
 	}
 	return changes, nil
 }
 
-func synchorizeFiles(currentUser security.Identity, store storage.Store, safeName, bucket string, keys map[uint64][]byte) (newFiles int, err error) {
+func synchorizeFiles(currentUser security.Identity, store storage.Store, safeName, bucket string,
+	keys map[uint64][]byte, compactHeader chan CompactHeader, compactHeadersWg *sync.WaitGroup) (newFiles int, err error) {
 	var touch time.Time
 
 	hashedBucket := hashPath(bucket)
@@ -51,53 +53,43 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 		return 0, err
 	}
 
-	headerIds, err := getHeadersIds(store, safeName, bucket)
+	headerFiles, err := getHeadersIdsWithCount(store, safeName, bucket)
 	if core.IsErr(err, nil, "cannot get headers ids: %v", err) {
 		return 0, err
 	}
 
+	count := 0
 	for _, l := range ls {
 		name := l.Name()
-		headerId, err := strconv.ParseUint(path.Base(name), 10, 64)
+		headerFile, err := strconv.ParseUint(path.Base(name), 10, 64)
 		if core.IsErr(err, nil, "cannot parse header id: %v", err) {
 			continue
 		}
 
-		var knownHeaderId bool
-		for _, id := range headerIds {
-			if id == headerId {
-				knownHeaderId = true
-				break
-			}
+		if l.Size() < int64(MaxHeaderFileSize) {
+			count++
 		}
-		if knownHeaderId {
+
+		if _, found := headerFiles[headerFile]; found {
+			// header already in DB
 			continue
 		}
 
 		filepath := path.Join(safeName, DataFolder, hashedBucket, HeaderFolder, name)
-		headers, _, err := readHeaders(store, safeName, filepath, keys)
+		headersFile, err := readHeadersFile(store, safeName, filepath, keys)
 		if core.IsErr(err, nil, "cannot read headers: %v", err) {
 			continue
 		}
 
-		for _, header := range headers {
-			if header.PrivateId != "" {
-				key, err := getDiffHillmanKey(currentUser, header)
-				if core.IsErr(err, nil, "cannot get hillman key: %v", err) {
-					continue
-				}
-				attributes, err := decryptHeaderAttributes(key, header.IV, header.EncryptedAttributes)
-				if core.IsErr(err, nil, "cannot decrypt attributes: %v", err) {
-					continue
-				}
-				header.Attributes = attributes
-				header.EncryptedAttributes = nil
-				header.BodyKey = key
+		for _, header := range headersFile.Headers {
+			header, err = decryptPrivateHeader(currentUser, header)
+			if core.IsErr(err, nil, "cannot decrypt header: %v", err) {
+				continue
 			}
 
 			core.Info("saving header %s", header.Name)
 			newFiles++
-			err = insertHeaderOrIgnoreToDB(safeName, bucket, headerId, header)
+			err = insertHeaderOrIgnoreToDB(safeName, bucket, headerFile, header)
 			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}
@@ -107,25 +99,12 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 	}
 	core.Info("saved touch information: %v", touch)
 
-	return newFiles, nil
-}
-
-func getHeadersIds(store storage.Store, safeName, bucket string) (ids []uint64, err error) {
-	rows, err := sql.Query("GET_HEADERS_IDS", sql.Args{
-		"safe":   safeName,
-		"bucket": bucket,
-	})
-	if err != sql.ErrNoRows && core.IsErr(err, nil, "cannot get headers ids: %v", err) {
-		return nil, err
-	}
-
-	for rows.Next() {
-		var id uint64
-		if core.IsErr(rows.Scan(&id), nil, "cannot scan id: %v", err) {
-			continue
+	if count > MaxHeadersFiles {
+		compactHeadersWg.Add(1)
+		compactHeader <- CompactHeader{
+			BucketDir: hashedBucket,
 		}
-		ids = append(ids, id)
 	}
-	rows.Close()
-	return ids, nil
+
+	return newFiles, nil
 }

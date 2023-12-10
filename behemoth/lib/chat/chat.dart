@@ -454,7 +454,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
   void _addFile(String filePath) async {
     var contentType = lookupMimeType(filePath) ?? '';
-    var options = PutOptions(contentType: contentType, async: true);
+    var options = PutOptions(
+        contentType: contentType, async: true, private: widget.privateId);
 
     var size = File(filePath).lengthSync();
     var name = ph.basename(filePath);
@@ -483,25 +484,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
     for (var file in result!.files) {
       _addFile(file.path!);
-      // var name = ph.basename(localPath);
-      // sp.librarySend(_poolName, localPath, "uploads/$name", true, []);
-      // final mimeType = lookupMimeType(localPath);
-
-      // var uri = "library:/uploads/$name";
-      // var id = sp.chatSend(_poolName, mimeType!, uri, Uint8List(0), _private);
-
-      // final message = types.FileMessage(
-      //   author: _currentUser,
-      //   createdAt: DateTime.now().millisecondsSinceEpoch,
-      //   id: "$id",
-      //   mimeType: mimeType,
-      //   name: name,
-      //   size: result.files.single.size,
-      //   uri: uri,
-      // );
-      // _loaded.add("$id");
-
-      // _addMessage(message);
     }
   }
 
@@ -510,7 +492,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     final image = await decodeImageFromList(bytes);
 
     var name = ph.basename(xfile.path);
-    var options = PutOptions(async: true);
+    var options = PutOptions(async: true, private: widget.privateId);
     options.autoThumbnail = true;
     options.contentType = lookupMimeType(xfile.path) ?? '';
 

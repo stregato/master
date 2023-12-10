@@ -147,8 +147,7 @@ class _JoinState extends State<Join> {
                       _decodedToken!.urls);
                   var task = Coven.join(access, _secretController.text);
                   await progressDialog(context, "Joining $name", task,
-                      successMessage: "Joined $name",
-                      errorMessage: "Failed to join $name");
+                      successMessage: "Added $name");
                   if (!mounted) return;
                   Navigator.pop(context);
                 }

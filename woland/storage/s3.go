@@ -47,11 +47,11 @@ func OpenS3(connectionUrl string) (Store, error) {
 	})
 
 	q := u.Query()
-	verbose := q.Get("verbose")
-	accessKey := q.Get("accessKey")
-	secret := q.Get("secret")
+	verbose := q.Get("v")
+	accessKey := q.Get("a")
+	secret := q.Get("s")
 	bucket := strings.Trim(u.Path, "/")
-	repr := fmt.Sprintf("s3://%s/%s?accessKey=%s", u.Host, bucket, accessKey)
+	repr := fmt.Sprintf("s3://%s/%s?a=%s", u.Host, bucket, accessKey)
 
 	options := []func(*config.LoadOptions) error{
 		config.WithEndpointResolverWithOptions(r2Resolver),

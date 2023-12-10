@@ -50,7 +50,6 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
     }
 
     return PlatformScaffold(
-      // resizeToAvoidBottomInset: false, //TODO: get back
       appBar: PlatformAppBar(
         title: Text(title),
       ),

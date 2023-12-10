@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stregato/master/woland/core"
-	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 )
 
@@ -55,9 +54,9 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 	var key string
 	switch listOptions.OrderBy {
 	case "name", "":
-		key = "GET_FILES_NAME"
+		key = "GET_HEADER_BY_FILE_NAME"
 	case "modTime":
-		key = "GET_FILES_MODTIME"
+		key = "GET_HEADER_BY_MODTIME"
 	default:
 		return nil, fmt.Errorf("invalid order by: %s", listOptions.OrderBy)
 	}
@@ -110,15 +109,6 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 		err = json.Unmarshal(data, &header)
 		if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
 			continue
-		}
-
-		if header.PrivateId != "" {
-			bodyKey, err := security.DiffieHellmanKey(s.CurrentUser, header.PrivateId)
-			if core.IsErr(err, nil, "cannot create diffie hellman key: %v", err) {
-				continue
-			}
-			header.BodyKey = bodyKey
-
 		}
 
 		headers = append(headers, header)

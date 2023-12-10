@@ -1,22 +1,66 @@
 package safe
 
 import (
+	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
-var TestIdentity = security.Identity{
-	Id:      "AoG3alCW3P1JQEnYFw+Z_24vqPNcC8_YVWarZKsodCIFQ+j_VmNa9gkWMJnpZe58zO1Rpx8U31q7n2XzAIn8jaQ@",
-	Nick:    "test",
-	Private: "4J9vYRT5EYeeNH_S9C0jY9eaxDGtheEk31tXwqCh22akyZIDXA9a_mbtqQ+5Qi3u_mJqpkndUmudPC4g6RCfNUPo_1ZjWvYJFjCZ6WXufMztUacfFN9au59l8wCJ_I2k",
-	Email:   "test@woland.ch",
-	ModTime: core.Now(),
+var storeUrl string
+var dbPath string
+var Identity1, Identity2 security.Identity
+var access1, access2 string
+var testSafeName = "test-safe"
+var testData = []byte("Hello, World!")
+var testSetup bool
+
+func InitTest() {
+	if testSetup {
+		return
+	}
+
+	var err error
+	store := *flag.String("store", "local", "store url")
+	urls := storage.LoadTestURLs("../../../credentials/urls.yaml")
+
+	storeUrl = urls[store]
+	if storeUrl == "" {
+		panic("invalid store " + store)
+	}
+
+	db := *flag.String("db", "mem", "db type")
+	switch db {
+	case "mem":
+		dbPath = ":memory:"
+	case "file":
+		dbPath = filepath.Join(os.TempDir(), "woland-test.db")
+	default:
+		panic("invalid db type " + db)
+	}
+
+	Identity1, _ = security.NewIdentity("identity1")
+	Identity2, _ = security.NewIdentity("identity2")
+
+	access1, err = EncodeAccess("", testSafeName, Identity1.Id, nil, storeUrl)
+	if err != nil {
+		panic(err)
+	}
+
+	access2, err = EncodeAccess(Identity2.Id, testSafeName, Identity1.Id, nil, storeUrl)
+	if err != nil {
+		panic(err)
+	}
+
+	os.RemoveAll("/tmp/.identities")
+	testSetup = true
 }
-var TestID = TestIdentity.Id
 
 func StartTestDB(t *testing.T, dbPath string) {
 	sql.DeleteDB(dbPath)
@@ -25,8 +69,6 @@ func StartTestDB(t *testing.T, dbPath string) {
 	err := sql.OpenDB(dbPath)
 	core.TestErr(t, err, "cannot open db: %v", err)
 	fmt.Printf("Test DB: %s", dbPath)
-	err = security.SetIdentity(TestIdentity)
-	core.TestErr(t, err, "cannot set identity: %v", err)
 }
 
 const (
@@ -35,19 +77,3 @@ const (
 )
 
 const TestSafeName = "test-safe"
-
-func GetTestSafe(t *testing.T, storeUrl string, createFirst bool) *Safe {
-	access, err := EncodeAccess(TestID, TestSafeName, TestID, nil, storeUrl)
-	core.TestErr(t, err, "cannot encode token: %v")
-
-	if createFirst {
-		s, err := Create(TestIdentity, access, Users{}, CreateOptions{Wipe: true})
-		core.TestErr(t, err, "cannot wipe safe: %v")
-		Close(s)
-	}
-
-	s, err := Open(TestIdentity, access, OpenOptions{})
-	core.TestErr(t, err, "cannot open safe: %v")
-
-	return s
-}
