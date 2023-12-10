@@ -19,18 +19,18 @@ func getSafeSize(quotaGroup string) (int64, error) {
 	return total, nil
 }
 
-func applyQuota(limit float32, quotaGroup string, stores []storage.Store, size int64, quota int64, sync bool) {
+func applyQuota(limit float32, quotaGroup string, store storage.Store, size int64, quota int64, sync bool) {
 	if quotaGroup != "" && quota > 0 && size > int64(float32(quota)*limit) {
 		core.Info("Quota exceeded: %d/%d", size, quota)
 		if sync {
-			cleanupFilesOnQuotaExceedance(quotaGroup, stores, size, quota)
+			cleanupFilesOnQuotaExceedance(quotaGroup, store, size, quota)
 		} else {
-			go cleanupFilesOnQuotaExceedance(quotaGroup, stores, size, quota)
+			go cleanupFilesOnQuotaExceedance(quotaGroup, store, size, quota)
 		}
 	}
 }
 
-func cleanupFilesOnQuotaExceedance(quotaGroup string, stores []storage.Store, size int64, quota int64) error {
+func cleanupFilesOnQuotaExceedance(quotaGroup string, store storage.Store, size int64, quota int64) error {
 	for quotaGroup != "" && quota > 0 && size > quota*9/10 {
 		var safeName string
 		var fileId uint64
@@ -42,7 +42,7 @@ func cleanupFilesOnQuotaExceedance(quotaGroup string, stores []storage.Store, si
 		}
 
 		hashedDir := hashPath(dir)
-		err = deleteFile(stores, safeName, hashedDir, fileId)
+		err = deleteFile(store, safeName, hashedDir, fileId)
 		if err == nil {
 			size -= sz
 		}

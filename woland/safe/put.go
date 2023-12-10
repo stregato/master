@@ -77,7 +77,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		return Header{}, err
 	}
 
-	applyQuota(0.97, s.QuotaGroup, s.stores, s.Size, s.Quota, true)
+	applyQuota(0.97, s.QuotaGroup, s.store, s.Size, s.Quota, true)
 
 	now := core.Now()
 	var bodyId uint64
@@ -88,7 +88,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		bodyId = snowflake.ID()
 	}
 
-	// store := s.stores[0]
+	// store := s.store
 	// if options.UpdateMeta == 0 {
 	// 	err = store.Write(bodyFile, r, nil)
 	// 	if core.IsErr(err, nil, "cannot write body: %v", err) {
@@ -158,7 +158,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
 
 	s.Size += header.Size
-	applyQuota(0.95, s.QuotaGroup, s.stores, s.Size, s.Quota, false)
+	applyQuota(0.95, s.QuotaGroup, s.store, s.Size, s.Quota, false)
 	if options.Async {
 		if sourceFile != "" {
 			core.Info("Async put for %s[%d]", header.Name, header.FileId)
@@ -253,7 +253,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	defer delete(uploading, headerFile)
 
 	header.Uploading = false
-	store := s.stores[0]
+	store := s.store
 	hashedBucket := hashPath(bucket)
 	bodyFile := path.Join(s.Name, DataFolder, hashedBucket, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
@@ -298,7 +298,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	}
 
 	for _, file := range deletables {
-		deleteFile(s.stores, s.Name, hashedBucket, file.FileId)
+		deleteFile(s.store, s.Name, hashedBucket, file.FileId)
 		core.Info("Deleted %s[%d]", file.Name, file.FileId)
 	}
 
@@ -396,14 +396,11 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 	}
 }
 
-func deleteFile(stores []storage.Store, safeName string, hashedDir string, fileId uint64) error {
+func deleteFile(store storage.Store, safeName string, hashedDir string, fileId uint64) error {
 	fullName := path.Join(safeName, DataFolder, hashedDir, fmt.Sprintf("%d.b", fileId))
-	for _, store := range stores {
-		err := store.Delete(fullName)
-		if !core.IsErr(err, nil, "cannot delete file: %v", err) {
-			core.Info("Deleted %s[%d] during Put in %s", fullName, fileId, safeName)
-		}
-
+	err := store.Delete(fullName)
+	if !core.IsErr(err, nil, "cannot delete file: %v", err) {
+		core.Info("Deleted %s[%d] during Put in %s", fullName, fileId, safeName)
 	}
 
 	r, err := sql.Exec("SET_DELETED_FILE", sql.Args{

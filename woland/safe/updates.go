@@ -9,7 +9,7 @@ import (
 func CheckForUpdates(s *Safe, dir string, after time.Time, depth int) ([]string, error) {
 	dirs := []string{dir}
 
-	synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, hashPath(dir), s.keystore.Keys,
+	synchorizeFiles(s.CurrentUser, s.store, s.Name, hashPath(dir), s.keystore.Keys,
 		s.compactHeaders, &s.compactHeadersWg)
 
 	if depth != 0 {
@@ -31,7 +31,7 @@ func CheckForUpdates(s *Safe, dir string, after time.Time, depth int) ([]string,
 			// 	core.Info("dir %s has been added", d)
 			// 	ch <- d
 			// } else {
-			// 	touch, err := SyncTouch(s.stores[0], DataFolder, hashedDir, ".touch")
+			// 	touch, err := SyncTouch(s.store, DataFolder, hashedDir, ".touch")
 			// 	core.IsErr(err, nil, "cannot check touch file: %v", err)
 
 			// 	if touch.After(after) && time.Unix(i, 0) != touch {

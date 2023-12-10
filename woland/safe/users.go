@@ -55,7 +55,7 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		}
 	}
 
-	err = writePermissionChange(s.stores[0], s.Name, s.CurrentUser, delta)
+	err = writePermissionChange(s.store, s.Name, s.CurrentUser, delta)
 	if core.IsErr(err, nil, "cannot write permission change in %s: %v", s.Name) {
 		return err
 	}
@@ -66,7 +66,7 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 			Keys:      make(map[uint64][]byte),
 		}
 		keystore.Keys[keystore.LastKeyId] = core.GenerateRandomBytes(KeySize)
-		err = writeKeyStoreFile(s.stores[0], s.Name, s.CurrentUser, keystore, users)
+		err = writeKeyStoreFile(s.store, s.Name, s.CurrentUser, keystore, users)
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
 		}
@@ -83,20 +83,20 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		}
 
 	} else {
-		err = writeKeyStoreFile(s.stores[0], s.Name, s.CurrentUser, s.keystore, delta)
+		err = writeKeyStoreFile(s.store, s.Name, s.CurrentUser, s.keystore, delta)
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
 		}
 	}
 
-	err = SetCached(s.Name, s.stores[0], "config/.access.touch", nil, s.CurrentUser.Id)
+	err = SetCached(s.Name, s.store, "config/.access.touch", nil, s.CurrentUser.Id)
 	if core.IsErr(err, nil, "cannot create touch file in %s: %v", s.Name) {
 		return err
 	}
 
 	for userId, permission := range delta {
 		s.users[userId] = permission
-		deleteInitiateFile(s.Name, s.stores[0], userId)
+		deleteInitiateFile(s.Name, s.store, userId)
 	}
 
 	return nil
@@ -111,7 +111,7 @@ func SyncUsers(s *Safe) (int, error) {
 	s.usersLock.Lock()
 	defer s.usersLock.Unlock()
 
-	synced, err := GetCached(s.Name, s.stores[0], "config/.access.touch", nil, "")
+	synced, err := GetCached(s.Name, s.store, "config/.access.touch", nil, "")
 	if core.IsErr(err, nil, "cannot sync touch file in %s: %v", s.Name) {
 		return 0, err
 	}
@@ -120,7 +120,7 @@ func SyncUsers(s *Safe) (int, error) {
 		return 0, nil
 	}
 
-	var store = s.stores[0]
+	var store = s.store
 	identities, err := syncIdentities(store, s.Name, s.CurrentUser)
 	if core.IsErr(err, nil, "cannot read identities in %s: %v", s.Name) {
 		return 0, err

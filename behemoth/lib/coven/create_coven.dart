@@ -25,13 +25,13 @@ class _CreateCovenState extends State<CreateCoven> {
 
   String _name = "";
   String _description = "";
-  List<String> _urls = [];
+  String _url = "";
   String? _sameStorageAs;
   double _sliderValue = 1;
   bool _wipe = false;
 
   bool _validConfig() {
-    return _name.isNotEmpty && _urls.isNotEmpty;
+    return _name.isNotEmpty && _url.isNotEmpty;
   }
 
   int _mapSliderToValue(double sliderValue) {
@@ -65,7 +65,7 @@ class _CreateCovenState extends State<CreateCoven> {
         "opening portal, please wait",
         Coven.create(
             _name,
-            _urls,
+            _url,
             CreateOptions(
                 wipe: _wipe,
                 description: _description,
@@ -160,7 +160,7 @@ class _CreateCovenState extends State<CreateCoven> {
                               .then((value) {
                             if (value is Storage) {
                               setState(() {
-                                _urls.add(value.url);
+                                _url = value.url;
                               });
                             }
                           });
@@ -169,22 +169,7 @@ class _CreateCovenState extends State<CreateCoven> {
                       )
                     ],
                   ),
-                  ListView.builder(
-                    scrollDirection: Axis.vertical,
-                    shrinkWrap: true,
-                    itemCount: _urls.length,
-                    itemBuilder: (context, index) => ListTile(
-                      leading: const Icon(Icons.share),
-                      trailing: PlatformIconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            setState(() {
-                              _urls.removeAt(index);
-                            });
-                          }),
-                      title: Text(_urls[index]),
-                    ),
-                  ),
+                  Text(_url),
                   const SizedBox(
                     height: 20,
                   ),
@@ -210,7 +195,7 @@ class _CreateCovenState extends State<CreateCoven> {
                             var d = decodeAccess(profile.identity, access!);
 
                             setState(() {
-                              _urls = d.urls;
+                              _url = d.url;
                               _sameStorageAs = name;
                             });
                           },

@@ -112,12 +112,12 @@ func Get(s *Safe, bucket, name string, w io.Writer, options GetOptions) (Header,
 
 	if options.Async != nil {
 		go func() {
-			header, err := writeFile(s.stores[0], s.Name, bucket, options, header, w, cacheFile)
+			header, err := writeFile(s.store, s.Name, bucket, options, header, w, cacheFile)
 			options.Async(header, err)
 		}()
 		return header, nil
 	} else {
-		return writeFile(s.stores[0], s.Name, bucket, options, header, w, cacheFile)
+		return writeFile(s.store, s.Name, bucket, options, header, w, cacheFile)
 	}
 }
 

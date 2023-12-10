@@ -2,7 +2,6 @@ package safe
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
+	"github.com/stregato/master/woland/storage"
 )
 
 type CreateOptions struct {
@@ -28,7 +28,7 @@ const (
 )
 
 func Create(currentUser security.Identity, access string, users Users, options CreateOptions) (*Safe, error) {
-	name, creatorId, aesKey, urls, err := DecodeAccess(currentUser, access)
+	name, id, creatorId, url, err := DecodeAccess(currentUser, access)
 	if core.IsErr(err, nil, "invalid access token 'account'") {
 		return nil, err
 	}
@@ -37,13 +37,9 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		return nil, fmt.Errorf("invalid access token 'account'")
 	}
 
-	stores, failedUrls, err := connect(urls, name, aesKey)
+	store, err := storage.Open(url)
 	if core.IsErr(err, nil, "cannot connect to %s: %v", name) {
 		return nil, err
-	}
-	if len(failedUrls) > 0 {
-		return nil, fmt.Errorf("cannot connect to all stores, which is mandatory for create; "+
-			"missing stores: %v", strings.Join(failedUrls, ","))
 	}
 
 	if options.Wipe {
@@ -61,17 +57,11 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		}
 		core.Info("wiped DB content for safe %s", name)
 	}
-
-	for _, store := range stores {
-		_, err = store.Stat(name)
-		if err == nil {
-			if options.Wipe {
-				core.Info("wiping safe: name %s", name)
-				store.Delete(name)
-			} else {
-				return nil, fmt.Errorf("safe already exist: name %s", name)
-			}
-		}
+	if options.Wipe {
+		core.Info("wiping safe: name %s", name)
+		store.Delete(name)
+	} else {
+		return nil, fmt.Errorf("safe already exist: name %s", name)
 	}
 
 	keystore := Keystore{
@@ -91,7 +81,7 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		options.ReplicaWatch = DefaultReplicaWatch
 	}
 
-	err = writeManifestFile(name, stores[0], currentUser, manifestFile{
+	err = writeManifestFile(name, store, currentUser, manifestFile{
 		CreatorId:      creatorId,
 		Description:    options.Description,
 		ChangeLogWatch: options.ChangeLogWatch,
@@ -103,7 +93,7 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		return nil, err
 	}
 
-	err = writePermissionChange(stores[0], name, currentUser, users)
+	err = writePermissionChange(store, name, currentUser, users)
 	if core.IsErr(err, nil, "cannot write permission change in %s: %v", name) {
 		return nil, err
 	}
@@ -113,17 +103,17 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	if core.IsErr(err, nil, "cannot write keystore in DB for %s: %v", name) {
 		return nil, err
 	}
-	err = writeKeyStoreFile(stores[0], name, currentUser, keystore, users)
+	err = writeKeyStoreFile(store, name, currentUser, keystore, users)
 	if core.IsErr(err, nil, "cannot write keystore in %s: %v", name) {
 		return nil, err
 	}
 
-	_, err = syncIdentities(stores[0], name, currentUser)
+	_, err = syncIdentities(store, name, currentUser)
 	if core.IsErr(err, nil, "cannot sync identities in %s: %v", name) {
 		return nil, err
 	}
 
-	err = SetCached(name, stores[0], "config/.access.touch", nil, currentUser.Id)
+	err = SetCached(name, store, "config/.access.touch", nil, currentUser.Id)
 	if core.IsErr(err, nil, "cannot create touch file in %s: %v", name) {
 		return nil, err
 	}
@@ -142,13 +132,14 @@ func Create(currentUser security.Identity, access string, users Users, options C
 		Access:      access,
 		Permission:  users[currentUser.Id],
 		Name:        name,
+		Id:          id,
 		Description: options.Description,
-		Storage:     stores[0].Describe(),
+		Storage:     store.Describe(),
 		Quota:       options.Quota,
 		QuotaGroup:  options.QuotaGroup,
 		Size:        0,
 		keystore:    keystore,
-		stores:      stores,
+		store:       store,
 		users:       users,
 		usersLock:   sync.Mutex{},
 

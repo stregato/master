@@ -181,24 +181,17 @@ List<Identity> getIdentities(String safeName) {
   return l.map((e) => Identity.fromJson(e)).toList();
 }
 
-String encodeAccess(
-    String userId, String safeName, String creatorId, List<String> urls,
-    {String aesKey = ""}) {
-  var fun = lib.lookupFunction<Args5SSSSS, Args5SSSSS>("wlnd_encodeAccess");
-  return fun(
-          userId.toNativeUtf8(),
-          safeName.toNativeUtf8(),
-          creatorId.toNativeUtf8(),
-          jsonEncode(urls).toNativeUtf8(),
-          aesKey.toNativeUtf8())
+String encodeAccess(String userId, Access token) {
+  var fun = lib.lookupFunction<Args2SS, Args2SS>("wlnd_encodeAccess");
+  return fun(userId.toNativeUtf8(), jsonEncode(token).toNativeUtf8())
       .unwrapString();
 }
 
-DecodedToken decodeAccess(Identity user, String access) {
+Access decodeAccess(Identity user, String access) {
   var fun = lib.lookupFunction<Args2SS, Args2SS>("wlnd_decodeAccess");
   var m =
       fun(jsonEncode(user).toNativeUtf8(), access.toNativeUtf8()).unwrapMap();
-  return DecodedToken.fromJson(m);
+  return Access.fromJson(m);
 }
 
 List<Identity> getAllIdentities() {

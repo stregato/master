@@ -20,8 +20,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
   String _access = "";
 
   reencodeAccess(String access, Identity identity, String id) {
-    var d = decodeAccess(identity, access);
-    return encodeAccess(id, d.safeName, d.creatorId, d.urls, aesKey: d.aesKey);
+    return encodeAccess(id, decodeAccess(identity, access));
   }
 
   @override

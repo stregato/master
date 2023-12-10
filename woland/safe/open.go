@@ -2,7 +2,6 @@ package safe
 
 import (
 	"fmt"
-	"sort"
 	"sync"
 	"time"
 
@@ -35,20 +34,19 @@ type OpenOptions struct {
 }
 
 func Open(currentUser security.Identity, access string, options OpenOptions) (*Safe, error) {
-	name, creatorId, aesKey, urls, err := DecodeAccess(currentUser, access)
+	name, id, creatorId, url, err := DecodeAccess(currentUser, access)
 	if core.IsErr(err, nil, "invalid access token 'account'") {
 		return nil, err
 	}
 
 	now := core.Now()
-	stores, _, err := connect(urls, name, aesKey)
+	store, err := storage.Open(url)
 	if core.IsErr(err, nil, "cannot connect to %s: %v", name) {
 		return nil, err
 	}
 	core.Info("connected to %s in %v", name, core.Since(now))
 
 	now = core.Now()
-	store := stores[0]
 	manifest, err := readManifestFile(name, store, creatorId)
 	if core.IsErr(err, nil, "cannot read manifest file in %s: %v", name) {
 		return nil, err
@@ -70,15 +68,16 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 		CurrentUser: currentUser,
 		Access:      access,
 		Name:        name,
+		Id:          id,
 		Description: manifest.Description,
 		CreatorId:   creatorId,
-		Storage:     stores[0].Describe(),
+		Storage:     store.Describe(),
 		Quota:       manifest.Quota,
 		QuotaGroup:  manifest.QuotaGroup,
 		Size:        size,
 		Permission:  users[currentUser.Id],
 
-		stores:    stores,
+		store:     store,
 		users:     users,
 		keystore:  readKeystoreFromDB(name),
 		usersLock: sync.Mutex{},
@@ -133,54 +132,54 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	return &s, nil
 }
 
-func connect(urls []string, name string, aesKey []byte) (stores []storage.Store, failedUrls []string, err error) {
-	var wg sync.WaitGroup
-	var lock sync.Mutex
-	var elapsed = make([]time.Duration, len(urls))
-	stores = make([]storage.Store, len(urls))
+// func connect(urls []string, name string, aesKey []byte) (stores []storage.Store, failedUrls []string, err error) {
+// 	var wg sync.WaitGroup
+// 	var lock sync.Mutex
+// 	var elapsed = make([]time.Duration, len(urls))
+// 	stores = make([]storage.Store, len(urls))
 
-	if len(urls) == 0 {
-		return nil, nil, fmt.Errorf("no url provided")
-	}
+// 	if len(urls) == 0 {
+// 		return nil, nil, fmt.Errorf("no url provided")
+// 	}
 
-	for idx, u := range urls {
-		wg.Add(1)
-		go func(idx int, u string) {
-			defer wg.Done()
-			start := core.Now()
-			s, err := storage.Open(u)
-			if core.IsErr(err, nil, "cannot connect to store %s: %v", u, err) {
-				lock.Lock()
-				failedUrls = append(failedUrls, u)
-				lock.Unlock()
-				return
-			}
-			if aesKey != nil {
-				s = storage.EncryptNames(s, aesKey, aesKey, true)
-			}
-			stores[idx] = s
-			elapsed[idx] = core.Since(start)
-		}(idx, u)
-	}
-	wg.Wait()
+// 	for idx, u := range urls {
+// 		wg.Add(1)
+// 		go func(idx int, u string) {
+// 			defer wg.Done()
+// 			start := core.Now()
+// 			s, err := storage.Open(u)
+// 			if core.IsErr(err, nil, "cannot connect to store %s: %v", u, err) {
+// 				lock.Lock()
+// 				failedUrls = append(failedUrls, u)
+// 				lock.Unlock()
+// 				return
+// 			}
+// 			if aesKey != nil {
+// 				s = storage.EncryptNames(s, aesKey, aesKey, true)
+// 			}
+// 			stores[idx] = s
+// 			elapsed[idx] = core.Since(start)
+// 		}(idx, u)
+// 	}
+// 	wg.Wait()
 
-	sort.Slice(stores, func(i, j int) bool {
-		if stores[i] == nil {
-			return false
-		}
-		if stores[j] == nil {
-			return true
-		}
-		return elapsed[i] < elapsed[j]
-	})
+// 	sort.Slice(stores, func(i, j int) bool {
+// 		if stores[i] == nil {
+// 			return false
+// 		}
+// 		if stores[j] == nil {
+// 			return true
+// 		}
+// 		return elapsed[i] < elapsed[j]
+// 	})
 
-	if stores[0] == nil {
-		return nil, failedUrls, ErrNoStoreAvailable
-	}
-	for idx, s := range stores {
-		if s == nil {
-			return stores[:idx], failedUrls, nil
-		}
-	}
-	return stores, failedUrls, nil
-}
+// 	if store == nil {
+// 		return nil, failedUrls, ErrNoStoreAvailable
+// 	}
+// 	for idx, s := range stores {
+// 		if s == nil {
+// 			return stores[:idx], failedUrls, nil
+// 		}
+// 	}
+// 	return stores, failedUrls, nil
+// }

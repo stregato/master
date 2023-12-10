@@ -7,21 +7,19 @@ import (
 )
 
 func Wipe(currentUser security.Identity, token string) error {
-	name, _, _, urls, err := DecodeAccess(currentUser, token)
+	name, _, _, url, err := DecodeAccess(currentUser, token)
 	if core.IsErr(err, nil, "invalid access token 'account'") {
 		return err
 	}
 
-	for _, url := range urls {
-		s, err := storage.Open(url)
-		if core.IsErr(err, nil, "cannot open store: %v", err) {
-			return err
-		}
+	s, err := storage.Open(url)
+	if core.IsErr(err, nil, "cannot open store: %v", err) {
+		return err
+	}
 
-		err = s.Delete(name)
-		if core.IsErr(err, nil, "cannot delete portal '%s': %v", name, err) {
-			return err
-		}
+	err = s.Delete(name)
+	if core.IsErr(err, nil, "cannot delete portal '%s': %v", name, err) {
+		return err
 	}
 
 	return nil

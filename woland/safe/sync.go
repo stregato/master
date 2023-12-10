@@ -26,7 +26,7 @@ func SyncBucket(s *Safe, bucket string, SyncOptions SyncOptions, async func(int,
 		return 0, nil
 	}
 
-	changes, err = synchorizeFiles(s.CurrentUser, s.stores[0], s.Name, bucket, s.keystore.Keys,
+	changes, err = synchorizeFiles(s.CurrentUser, s.store, s.Name, bucket, s.keystore.Keys,
 		s.compactHeaders, &s.compactHeadersWg)
 	if core.IsErr(err, nil, "cannot synchronize files: %v", err) {
 		return 0, err

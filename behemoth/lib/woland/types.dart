@@ -55,23 +55,25 @@ class Identity {
       };
 }
 
-class DecodedToken {
-  String safeName = "";
-  String creatorId = "";
-  String aesKey = "";
-  List<String> urls = [];
+class Access {
+  String name;
+  int id;
+  String creatorId;
+  String url;
 
-  DecodedToken.fromJson(Map<String, dynamic> json)
-      : safeName = json['safeName'],
-        aesKey = json['aesKey'] ?? "",
-        urls = dynamicToList(json['urls']),
-        creatorId = json['creatorId'];
+  Access(this.name, this.id, this.creatorId, this.url);
+
+  Access.fromJson(Map<String, dynamic> json)
+      : name = json['name'],
+        id = json['id'],
+        creatorId = json['creatorId'],
+        url = json['url'];
 
   Map<String, dynamic> toJson() => {
-        'safeName': safeName,
-        'aesKey': aesKey,
-        'urls': urls,
+        'name': name,
+        'id': id,
         'creatorId': creatorId,
+        'url': url,
       };
 }
 

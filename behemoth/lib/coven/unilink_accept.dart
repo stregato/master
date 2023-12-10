@@ -23,7 +23,7 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
 
     try {
       var d = decodeAccess(p.identity, access);
-      var names = covenAndRoom(d.safeName);
+      var names = covenAndRoom(d.name);
 
       title = "Join ${names[0]}";
       body = Column(

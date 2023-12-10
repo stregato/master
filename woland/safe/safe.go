@@ -42,6 +42,7 @@ type Safe struct {
 	Access      string              `json:"access"`      // Access token
 	CreatorId   string              `json:"creatorId"`   // Creator of the safe
 	Name        string              `json:"name"`        // Name of the safe including the path
+	Id          uint64              `json:"id"`          // Id of the safe
 	Description string              `json:"description"` // Description of the safe
 	Storage     storage.Description `json:"storage"`     // Information about the store
 	Quota       int64               `json:"quota"`       // Quota of the safe in bytes
@@ -49,7 +50,7 @@ type Safe struct {
 	Size        int64               `json:"size"`        // Size of the safe in bytes
 
 	keystore         Keystore           // Keystore of the safe
-	store            []storage.Store    // Stores of the safe
+	store            storage.Store      // Stores of the safe
 	users            Users              // Users and their permissions
 	usersLock        sync.Mutex         // Lock for users
 	background       *time.Ticker       // Ticker for background tasks

@@ -12,21 +12,17 @@ import (
 )
 
 type _token struct {
-	Name      string   `json:"n"`
-	CreatorId string   `json:"c"`
-	Key       []byte   `json:"k,omitempty"`
-	Urls      []string `json:"u"`
+	Name      string `json:"n"`
+	Id        uint64 `json:"i"`
+	CreatorId string `json:"c"`
+	Url       string `json:"u"`
 }
 
 const dateEncryptLayout = "Jan 2 15 UTC 2006                                 "
 
-func EncodeAccess(userID string, name string, creatorId string, aesKey []byte, urls ...string) (string, error) {
-	if len(aesKey) == 0 {
-		aesKey = nil
-	}
-
+func EncodeAccess(userID string, name string, id uint64, creatorId string, url string) (string, error) {
 	data, err := json.Marshal(_token{
-		name, creatorId, aesKey, urls,
+		name, id, creatorId, url,
 	})
 	if core.IsErr(err, nil, "cannot marshal access information: %v") {
 		return "", err
@@ -66,39 +62,39 @@ func decryptData(identity security.Identity, data []byte) ([]byte, error) {
 	return security.DecryptAES(data, key)
 }
 
-func DecodeAccess(identity security.Identity, access string) (name string, creatorId string, aesKey []byte, urls []string, err error) {
+func DecodeAccess(identity security.Identity, access string) (name string, id uint64, creatorId string, url string, err error) {
 	if identity.Private == "" {
-		return "", "", nil, nil,
+		return "", 0, "", "",
 			fmt.Errorf("cannot decode access token: no private key available for %s", identity.Id)
 	}
 
 	data, err := core.DecodeBinary(access)
 	if core.IsErr(err, nil, "cannot decode access token: %v") {
-		return "", "", nil, nil, err
+		return "", 0, "", "", err
 	}
 
 	data, err = decryptData(identity, data)
 	if core.IsErr(err, nil, "cannot decrypt access token '%s': %v", access) {
-		return "", "", nil, nil, err
+		return "", 0, "", "", err
 	}
 
 	r, err := gzip.NewReader(bytes.NewReader(data))
 	if core.IsErr(err, nil, "cannot unzip access token '%s': %v", access) {
-		return "", "", nil, nil, err
+		return "", 0, "", "", err
 	}
 
 	var buf bytes.Buffer
 	_, err = io.Copy(&buf, r)
 	r.Close()
 	if core.IsErr(err, nil, "cannot unzip access token '%s': %v", access) {
-		return "", "", nil, nil, err
+		return "", 0, "", "", err
 	}
 
 	var t _token
 	err = json.Unmarshal(buf.Bytes(), &t)
 	if core.IsErr(err, nil, "cannot unmarshal access token '%s': %v", access) {
-		return "", "", nil, nil, err
+		return "", 0, "", "", err
 	}
 
-	return t.Name, t.CreatorId, t.Key, t.Urls, err
+	return t.Name, t.Id, t.CreatorId, t.Url, err
 }

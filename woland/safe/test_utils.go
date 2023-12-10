@@ -48,12 +48,12 @@ func InitTest() {
 	Identity1, _ = security.NewIdentity("identity1")
 	Identity2, _ = security.NewIdentity("identity2")
 
-	access1, err = EncodeAccess("", testSafeName, Identity1.Id, nil, storeUrl)
+	access1, err = EncodeAccess("", testSafeName, 123, Identity1.Id, storeUrl)
 	if err != nil {
 		panic(err)
 	}
 
-	access2, err = EncodeAccess(Identity2.Id, testSafeName, Identity1.Id, nil, storeUrl)
+	access2, err = EncodeAccess(Identity2.Id, testSafeName, 123, Identity1.Id, storeUrl)
 	if err != nil {
 		panic(err)
 	}

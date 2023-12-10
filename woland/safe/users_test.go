@@ -25,7 +25,7 @@ func TestAddSecondUser(t *testing.T) {
 	core.TestErr(t, err, "cannot put file: %v")
 
 	lastKeyId := s.keystore.LastKeyId
-	headersIds1, err := getHeadersIdsWithCount(s.stores[0], s.Name, "bucket")
+	headersIds1, err := getHeadersIdsWithCount(s.store, s.Name, "bucket")
 	core.TestErr(t, err, "cannot get headers ids: %v")
 
 	err = SetUsers(s, map[string]Permission{Identity2.Id: Reader}, SetUsersOptions{})
@@ -87,7 +87,7 @@ func TestAddSecondUser(t *testing.T) {
 	core.TestErr(t, err, "cannot set users: %v")
 	core.Assert(t, s.keystore.LastKeyId != lastKeyId, "Expected last key id to be different, got %d", s.keystore.LastKeyId)
 
-	headersIds2, err := getHeadersIdsWithCount(s.stores[0], s.Name, "bucket")
+	headersIds2, err := getHeadersIdsWithCount(s.store, s.Name, "bucket")
 	core.TestErr(t, err, "cannot get headers ids: %v")
 	core.Assert(t, len(headersIds2) == 1, "Expected 1 headers id, got %d", len(headersIds2))
 	for id := range headersIds1 {

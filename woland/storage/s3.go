@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -50,6 +51,7 @@ func OpenS3(connectionUrl string) (Store, error) {
 	verbose := q.Get("v")
 	accessKey := q.Get("a")
 	secret := q.Get("s")
+	proxy := q.Get("p")
 	bucket := strings.Trim(u.Path, "/")
 	repr := fmt.Sprintf("s3://%s/%s?a=%s", u.Host, bucket, accessKey)
 
@@ -68,6 +70,16 @@ func OpenS3(connectionUrl string) (Store, error) {
 			config.WithLogger(s3logger{}),
 			config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponseWithBody),
 		)
+	}
+
+	if proxy != "" {
+		proxyConfig := http.ProxyURL(&url.URL{Host: proxy})
+		httpClient := &http.Client{
+			Transport: &http.Transport{
+				Proxy: proxyConfig,
+			},
+		}
+		options = append(options, config.WithHTTPClient(httpClient))
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), options...)

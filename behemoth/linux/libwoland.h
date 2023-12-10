@@ -89,7 +89,7 @@ extern Result wlnd_newIdentity(char* nick);
 extern Result wlnd_newIdentityFromId(char* nick, char* privateId);
 extern Result wlnd_setIdentity(char* identity);
 extern Result wlnd_getIdentity(char* id);
-extern Result wlnd_encodeAccess(char* userId, char* safeName, char* creatorId, char* urls, char* aesKey);
+extern Result wlnd_encodeAccess(char* userId, char* access);
 extern Result wlnd_decodeAccess(char* identity, char* access);
 extern Result wlnd_createSafe(char* creator, char* token, char* users, char* createOptions);
 extern Result wlnd_openSafe(char* identity, char* token, char* openOptions);

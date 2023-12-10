@@ -320,8 +320,8 @@ type CompactHeader struct {
 }
 
 func compactHeaders(s *Safe, newKey bool) error {
-	ls, err := s.stores[0].ReadDir(path.Join(s.Name, DataFolder), storage.Filter{})
-	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", s.stores[0], s.Name, err) {
+	ls, err := s.store.ReadDir(path.Join(s.Name, DataFolder), storage.Filter{})
+	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", s.store, s.Name, err) {
 		return err
 	}
 
@@ -343,7 +343,7 @@ func compactHeadersInBucket(s *Safe, buckerDir string, newKey bool) {
 	defer s.compactHeadersWg.Done()
 
 	folder := path.Join(s.Name, DataFolder, buckerDir, HeaderFolder)
-	store := s.stores[0]
+	store := s.store
 	ls, err := store.ReadDir(folder, storage.Filter{})
 	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, folder, err) {
 		return
@@ -391,7 +391,7 @@ func compactHeadersInBucket(s *Safe, buckerDir string, newKey bool) {
 
 func mergeHeadersFiles(s *Safe, folder string, files []string, wg *sync.WaitGroup) {
 	headersMap := map[uint64]Header{}
-	store := s.stores[0]
+	store := s.store
 	safeName := s.Name
 
 	var bucket string

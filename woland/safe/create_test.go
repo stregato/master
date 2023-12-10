@@ -13,12 +13,13 @@ func TestNewAccess(t *testing.T) {
 
 	StartTestDB(t, dbPath)
 
-	access, err := EncodeAccess(Identity1.Id, "test", Identity1.Id, nil, "sftp://blabla")
+	access, err := EncodeAccess(Identity1.Id, "test", 123, Identity1.Id, "sftp://blabla")
 	assert.Nil(t, err)
 
-	path, creatorId, _, _, err := DecodeAccess(Identity1, access)
+	name, id, creatorId, _, err := DecodeAccess(Identity1, access)
 	assert.Nil(t, err)
-	assert.Equal(t, "test", path)
+	core.Assert(t, name == "test", "Expected name to be test, got %s", name)
+	core.Assert(t, id == 123, "Expected id to be 123, got %d", id)
 	core.Assert(t, creatorId == Identity1.Id, "Expected creatorId to be %s, got %s", Identity1, creatorId)
 
 }

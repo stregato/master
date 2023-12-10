@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
+import 'package:snowflake_dart/snowflake_dart.dart';
 
 var identities = <String, Identity>{};
 void clearIdentities() {
@@ -37,7 +38,7 @@ class Coven {
   static Future<Coven> join(String access, String secret) async {
     var p = Profile.current;
     var d = decodeAccess(p.identity, access);
-    var name = d.safeName;
+    var name = d.name;
     var coven = p.covens
         .putIfAbsent(name, () => Coven(p.identity, name, access, secret, {}));
     p.save();
@@ -49,10 +50,11 @@ class Coven {
     return coven;
   }
 
-  static Future create(
-      String name, List<String> urls, CreateOptions options) async {
+  static Future create(String name, String url, CreateOptions options) async {
     var p = Profile.current;
-    var token = encodeAccess(p.identity.id, name, p.identity.id, urls);
+    var access =
+        Access(name, Snowflake(nodeId: 0).generate(), p.identity.id, url);
+    var token = encodeAccess(p.identity.id, access);
 
     var safe = await Safe.create(p.identity, token, {}, options);
     await safe.putBytes("rooms/.list", "lounge", Uint8List(0), PutOptions());

@@ -142,26 +142,26 @@ func wlnd_getIdentity(id *C.char) C.Result {
 	return cResult(identity, nil)
 }
 
+type Access struct {
+	Name      string `json:"name"`
+	Id        uint64 `json:"id"`
+	CreatorId string `json:"creatorId"`
+	Url       string `json:"url"`
+}
+
 //export wlnd_encodeAccess
-func wlnd_encodeAccess(userId *C.char, safeName *C.char, creatorId *C.char, urls *C.char, aesKey *C.char) C.Result {
-	var urls_ []string
-	err := cUnmarshal(urls, &urls_)
-	if core.IsErr(err, nil, "cannot unmarshal urls: %v") {
+func wlnd_encodeAccess(userId *C.char, access *C.char) C.Result {
+	var a Access
+	err := cUnmarshal(access, &a)
+	if core.IsErr(err, nil, "cannot unmarshal token: %v") {
 		return cResult(nil, err)
 	}
-	token, err := safe.EncodeAccess(C.GoString(userId), C.GoString(safeName), C.GoString(creatorId),
-		[]byte(C.GoString(aesKey)), urls_...)
+
+	token, err := safe.EncodeAccess(C.GoString(userId), a.Name, a.Id, a.CreatorId, a.Url)
 	if core.IsErr(err, nil, "cannot create token: %v") {
 		return cResult(nil, err)
 	}
 	return cResult(token, nil)
-}
-
-type decodedToken struct {
-	SafeName  string   `json:"safeName"`
-	CreatorId string   `json:"creatorId"`
-	AesKey    []byte   `json:"aesKey"`
-	Urls      []string `json:"urls"`
 }
 
 //export wlnd_decodeAccess
@@ -172,15 +172,15 @@ func wlnd_decodeAccess(identity *C.char, access *C.char) C.Result {
 		return cResult(nil, err)
 	}
 
-	safeName, creatorId, aesKey, urls, err := safe.DecodeAccess(i, C.GoString(access))
+	safeName, id, creatorId, url, err := safe.DecodeAccess(i, C.GoString(access))
 	if core.IsErr(err, nil, "cannot transfer token: %v") {
 		return cResult(nil, err)
 	}
-	return cResult(decodedToken{
-		SafeName:  safeName,
+	return cResult(Access{
+		Name:      safeName,
+		Id:        id,
 		CreatorId: creatorId,
-		AesKey:    aesKey,
-		Urls:      urls,
+		Url:       url,
 	}, nil)
 }
 

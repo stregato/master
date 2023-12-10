@@ -127,10 +127,9 @@ class _InviteToCovenState extends State<InviteToCoven> {
     }
 
     var identity = _coven!.identity;
-    var d = decodeAccess(identity, _safe!.access);
-    var access =
-        encodeAccess(_id, _safe!.name, d.creatorId, d.urls, aesKey: d.aesKey);
-    return "https://behemoth.rocks/a/$access";
+    var access = decodeAccess(identity, _safe!.access);
+    var token = encodeAccess(_id, access);
+    return "https://behemoth.rocks/a/$token";
   }
 
   @override

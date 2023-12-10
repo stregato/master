@@ -19,7 +19,7 @@ class Join extends StatefulWidget {
 
 class _JoinState extends State<Join> {
   String? _errorText;
-  DecodedToken? _decodedToken;
+  Access? _decodedToken;
   String _access = "";
   List<String> accessPrefixes = ['https://behemoth.rocks/a/', 'mg://a/'];
   final TextEditingController _secretController = TextEditingController();
@@ -139,20 +139,16 @@ class _JoinState extends State<Join> {
         PlatformElevatedButton(
           onPressed: (_decodedToken != null && _errorText == null)
               ? () async {
-                  var name = _decodedToken!.safeName;
-                  var access = encodeAccess(
-                      currentUserId,
-                      _decodedToken!.safeName,
-                      _decodedToken!.creatorId,
-                      _decodedToken!.urls);
-                  var task = Coven.join(access, _secretController.text);
+                  var name = _decodedToken!.name;
+                  var token = encodeAccess(currentUserId, _decodedToken!);
+                  var task = Coven.join(token, _secretController.text);
                   await progressDialog(context, "Joining $name", task,
                       successMessage: "Added $name");
                   if (!mounted) return;
                   Navigator.pop(context);
                 }
               : null,
-          child: Text("Join ${_decodedToken!.safeName}"),
+          child: Text("Join ${_decodedToken!.name}"),
         )
     ];
 

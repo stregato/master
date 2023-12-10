@@ -102,7 +102,7 @@ func Put(s *Safe, bucket, name string, r io.ReadSeeker, options PutOptions) (Hea
 		return Header{}, err
 	}
 
-	store := s.stores[0]
+	store := s.store
 	if options.UpdateMeta == 0 {
 		err = store.Write(bodyFile, r2, nil)
 		if core.IsErr(err, nil, "cannot write body: %v", err) {

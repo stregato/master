@@ -13,7 +13,7 @@ import (
 type Initiates map[string]string
 
 func GetInitiates(s *Safe) (Initiates, error) {
-	ls, err := s.stores[0].ReadDir(path.Join(s.Name, InitiateFolder), storage.Filter{})
+	ls, err := s.store.ReadDir(path.Join(s.Name, InitiateFolder), storage.Filter{})
 	if core.IsErr(err, nil, "cannot read initiates in %s: %v", s.Name) {
 		return nil, err
 	}
@@ -21,11 +21,11 @@ func GetInitiates(s *Safe) (Initiates, error) {
 	initiates := Initiates{}
 	for _, l := range ls {
 		if l.ModTime().Before(core.Now().Add(-time.Hour * 24)) {
-			s.stores[0].Delete(path.Join(s.Name, InitiateFolder, l.Name()))
+			s.store.Delete(path.Join(s.Name, InitiateFolder, l.Name()))
 			continue
 		}
 
-		data, err := storage.ReadFile(s.stores[0], path.Join(s.Name, InitiateFolder, l.Name()))
+		data, err := storage.ReadFile(s.store, path.Join(s.Name, InitiateFolder, l.Name()))
 		if core.IsErr(err, nil, "cannot read initiate %s in %s: %v", l.Name(), s.Name) {
 			continue
 		}
