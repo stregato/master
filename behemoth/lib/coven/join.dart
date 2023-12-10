@@ -11,7 +11,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class Join extends StatefulWidget {
-  const Join({super.key});
+  final void Function()? onComplete;
+  const Join({this.onComplete, super.key});
 
   @override
   State<Join> createState() => _JoinState();
@@ -73,13 +74,15 @@ class _JoinState extends State<Join> {
     }
 
     var currentUserId = profile.identity.id;
-    // var mobileLink =
-    //     'https://behemoth.rocks/i/$currentUserId/${profile.identity.nick}';
 
     var shareIdSection = <Widget>[
       if (link == null)
         Column(
           children: [
+            PlatformText(
+                "In order to join an existing coven, an admin must provide you with a link. "
+                "Contact the admin to get a link."),
+            const SizedBox(height: 20),
             PlatformTextField(
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -104,13 +107,6 @@ class _JoinState extends State<Join> {
               ),
               controller: _secretController,
             ),
-            // const Text("Below is your id if link. "
-            //     " Share with your peer to get an invite. "),
-            // const SizedBox(height: 20),
-            // CopyField("Identity link", mobileLink),
-            // const SizedBox(height: 40),
-            const Text(
-                "Once you get a link, paste it below and click on 'Join' to join the community"),
             const SizedBox(height: 20),
           ],
         ),
@@ -144,25 +140,18 @@ class _JoinState extends State<Join> {
                   var task = Coven.join(token, _secretController.text);
                   await progressDialog(context, "Joining $name", task,
                       successMessage: "Added $name");
-                  if (!mounted) return;
-                  Navigator.pop(context);
+                  widget.onComplete?.call();
                 }
               : null,
           child: Text("Join ${_decodedToken!.name}"),
         )
     ];
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: const Text("Join"),
-      ),
-      body: SingleChildScrollView(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-          child: Column(
-            children: shareIdSection,
-          ),
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+        child: Column(
+          children: shareIdSection,
         ),
       ),
     );

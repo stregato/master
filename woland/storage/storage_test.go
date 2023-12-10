@@ -12,8 +12,6 @@ import (
 	"github.com/stregato/master/woland/core"
 )
 
-const testUrl = "sftp://sftp_user:11H^m63W5vAL@localhost/sftp_user"
-
 func TestS3(t *testing.T) {
 	credentials := LoadTestURLs("../../../credentials/urls.yaml")
 	testStore(t, credentials["s3"])

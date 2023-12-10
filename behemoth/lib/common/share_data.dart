@@ -33,7 +33,7 @@ class ShareData extends StatelessWidget {
     } else {
       shareButton = ElevatedButton.icon(
         icon: const Icon(Icons.copy),
-        label: const Text("Copy"),
+        label: const Text(overflow: TextOverflow.clip, "Copy"),
         onPressed: () {
           Clipboard.setData(ClipboardData(text: _value)).then((_) {
             showPlatformSnackbar(context, "Link copied to clipboard",
@@ -61,7 +61,7 @@ class ShareData extends StatelessWidget {
                 launchUrl(Uri.parse(
                     'https://mail.google.com/mail/?view=cm&fs=1&to=&su=$_label&body=$_value'));
               },
-              child: const Text("Gmail"),
+              child: const Text(overflow: TextOverflow.clip, "Gmail"),
             ),
           ),
           const SizedBox(width: 10),
@@ -70,7 +70,7 @@ class ShareData extends StatelessWidget {
               onPressed: () {
                 launchUrl(Uri.parse('mailto:?subject=$_label&body=_value'));
               },
-              child: const Text("Mail"),
+              child: const Text(overflow: TextOverflow.clip, "Mail"),
             ),
           ),
         ]),

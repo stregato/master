@@ -29,6 +29,7 @@ class Safe {
   String access = "";
   Identity currentUser;
   int hnd = 0;
+  Permission permission = 0;
   String creatorId = "";
   String name = "";
   String description = "";
@@ -75,6 +76,7 @@ class Safe {
     access = json['access'];
     currentUser = Identity.fromJson(json['currentUser']);
     creatorId = json['creatorId'];
+    permission = json['permission'];
     description = json['description'];
     storage = StorageDesc.fromJson(json['storage']);
     quota = json['quota'] ?? 0;

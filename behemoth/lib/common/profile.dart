@@ -31,6 +31,7 @@ class Coven {
   String access;
   String secret = "";
   Set<String> rooms;
+  Set<String> federated = {};
   Safe? _safe;
   static Map<String, Coven> opened = {};
   static Map<String, DateTime> safesAccessed = {};

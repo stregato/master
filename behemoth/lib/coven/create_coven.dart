@@ -11,7 +11,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class CreateCoven extends StatefulWidget {
-  const CreateCoven({super.key});
+  final void Function()? onComplete;
+  const CreateCoven({this.onComplete, super.key});
 
   @override
   State<CreateCoven> createState() => _CreateCovenState();
@@ -73,195 +74,186 @@ class _CreateCovenState extends State<CreateCoven> {
                 quotaGroup: "$_name/")),
         successMessage: "Congrats! You successfully created $_name",
         errorMessage: "Creation failed");
-    if (!mounted) return;
-    Navigator.pop(context);
+    widget.onComplete?.call();
   }
 
   @override
   Widget build(BuildContext context) {
     var profile = Profile.current;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Create Coven"),
-      ),
-      body: SingleChildScrollView(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-          child: Builder(
-            builder: (context) => Form(
-              key: _formKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                      "Enter a name and at least a storage, i.e. sftp or s3"),
-                  PlatformTextFormField(
-                    material: (_, __) => MaterialTextFormFieldData(
-                      decoration: const InputDecoration(labelText: 'Name'),
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                    ),
-                    cupertino: (_, __) => CupertinoTextFormFieldData(
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            width: 0,
-                            color: Colors.grey,
-                          ),
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+        child: Builder(
+          builder: (context) => Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                    "Enter a name and at least a storage, i.e. sftp or s3"),
+                PlatformTextFormField(
+                  material: (_, __) => MaterialTextFormFieldData(
+                    decoration: const InputDecoration(labelText: 'Name'),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                  cupertino: (_, __) => CupertinoTextFormFieldData(
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          width: 0,
+                          color: Colors.grey,
                         ),
                       ),
-                      placeholder: 'Name',
                     ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r"[a-z 0-9]"))
-                    ],
-                    validator: (value) {
-                      return null;
-                    },
-                    onChanged: (val) => setState(() => _name = val),
+                    placeholder: 'Name',
                   ),
-                  PlatformTextFormField(
-                    material: (_, __) => MaterialTextFormFieldData(
-                      decoration:
-                          const InputDecoration(labelText: 'Description'),
-                      autovalidateMode: AutovalidateMode.onUserInteraction,
-                    ),
-                    cupertino: (_, __) => CupertinoTextFormFieldData(
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            width: 0,
-                            color: Colors.grey,
-                          ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r"[a-z 0-9]"))
+                  ],
+                  validator: (value) {
+                    return null;
+                  },
+                  onChanged: (val) => setState(() => _name = val),
+                ),
+                PlatformTextFormField(
+                  material: (_, __) => MaterialTextFormFieldData(
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                  cupertino: (_, __) => CupertinoTextFormFieldData(
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          width: 0,
+                          color: Colors.grey,
                         ),
                       ),
-                      placeholder: 'Description',
                     ),
-                    validator: (value) {
-                      return null;
-                    },
-                    onChanged: (val) => setState(() => _description = val),
+                    placeholder: 'Description',
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      PlatformText(
-                        "Storages",
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 14),
-                      ),
-                      const Spacer(),
-                      PlatformIconButton(
-                        onPressed: () {
-                          Navigator.of(context)
-                              .push(MaterialPageRoute(
-                                  builder: (context) => const AddStorage()))
-                              .then((value) {
-                            if (value is Storage) {
-                              setState(() {
-                                _url = value.url;
-                              });
-                            }
-                          });
-                        },
-                        icon: const Icon(Icons.add),
-                      )
-                    ],
-                  ),
-                  Text(_url),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  Row(
-                    children: [
-                      PlatformText(
-                        "Same storage as",
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 14),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: // Replace with your label
-                            DropdownButton<String>(
-                          value: _sameStorageAs,
-                          items: profile.covens.keys
-                              .map((e) =>
-                                  DropdownMenuItem(value: e, child: Text(e)))
-                              .toList(),
-                          onChanged: (name) {
-                            var c = profile.covens[name];
-                            var access = c?.access;
-                            var d = decodeAccess(profile.identity, access!);
-
+                  validator: (value) {
+                    return null;
+                  },
+                  onChanged: (val) => setState(() => _description = val),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    PlatformText(
+                      "Storage",
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                    const Spacer(),
+                    PlatformIconButton(
+                      onPressed: () {
+                        Navigator.of(context)
+                            .push(MaterialPageRoute(
+                                builder: (context) => const AddStorage()))
+                            .then((value) {
+                          if (value is Storage) {
                             setState(() {
-                              _url = d.url;
-                              _sameStorageAs = name;
+                              _url = value.url;
                             });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  PlatformText(
-                    "Limit storage",
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(_getDisplayValue(_mapSliderToValue(_sliderValue))),
-                      Slider(
-                        min: 0.0,
-                        max: 1.0,
-                        value: _sliderValue,
-                        onChanged: (value) {
-                          setState(() {
-                            _sliderValue = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  Row(
-                    children: [
-                      PlatformText(
-                        "Wipe (danger)",
-                        style: const TextStyle(color: Colors.red, fontSize: 14),
-                      ),
-                      const Spacer(),
-                      Switch(
-                        value: _wipe,
-                        onChanged: (value) {
-                          setState(() {
-                            _wipe = value;
-                          });
-                          if (value) {
-                            showPlatformSnackbar(context,
-                                'Danger: wipe will delete all data in the community',
-                                backgroundColor: Colors.red);
                           }
+                        });
+                      },
+                      icon: const Icon(Icons.add),
+                    )
+                  ],
+                ),
+                Text(_url),
+                const SizedBox(
+                  height: 20,
+                ),
+                Row(
+                  children: [
+                    PlatformText(
+                      "Same storage as",
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: // Replace with your label
+                          DropdownButton<String>(
+                        value: _sameStorageAs,
+                        items: profile.covens.keys
+                            .map((e) =>
+                                DropdownMenuItem(value: e, child: Text(e)))
+                            .toList(),
+                        onChanged: (name) {
+                          var c = profile.covens[name];
+                          var access = c?.access;
+                          var d = decodeAccess(profile.identity, access!);
+
+                          setState(() {
+                            _url = d.url;
+                            _sameStorageAs = name;
+                          });
                         },
                       ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 16.0, horizontal: 16.0),
-                    child: PlatformElevatedButton(
-                      onPressed:
-                          _validConfig() ? () => _createCoven(context) : null,
-                      child: PlatformText('Create'),
                     ),
+                  ],
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                PlatformText(
+                  "Limit storage",
+                  style: const TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Text(_getDisplayValue(_mapSliderToValue(_sliderValue))),
+                    Slider(
+                      min: 0.0,
+                      max: 1.0,
+                      value: _sliderValue,
+                      onChanged: (value) {
+                        setState(() {
+                          _sliderValue = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                Row(
+                  children: [
+                    PlatformText(
+                      "Wipe (danger)",
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                    ),
+                    const Spacer(),
+                    Switch(
+                      value: _wipe,
+                      onChanged: (value) {
+                        setState(() {
+                          _wipe = value;
+                        });
+                        if (value) {
+                          showPlatformSnackbar(context,
+                              'Danger: wipe will delete all data in the community',
+                              backgroundColor: Colors.red);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 16.0, horizontal: 16.0),
+                  child: PlatformElevatedButton(
+                    onPressed:
+                        _validConfig() ? () => _createCoven(context) : null,
+                    child: PlatformText('Create'),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

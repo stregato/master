@@ -5,6 +5,8 @@ import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/snackbar.dart';
+import 'package:behemoth/coven/create_coven.dart';
+import 'package:behemoth/coven/join.dart';
 import 'package:behemoth/settings/reset.dart';
 import 'package:behemoth/settings/setup.dart';
 import 'package:behemoth/woland/woland.dart';
@@ -27,6 +29,7 @@ class _HomeState extends State<Home> {
   Uri? _unilink;
   bool _connecting = false;
   bool _hasProfile = false;
+  int _selectedIndex = 0;
 
   // ignore: unused_field
 
@@ -99,6 +102,12 @@ class _HomeState extends State<Home> {
 
     setState(() {
       _unilink = null;
+    });
+  }
+
+  void _backToList() {
+    setState(() {
+      _selectedIndex = 0;
     });
   }
 
@@ -195,18 +204,7 @@ class _HomeState extends State<Home> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (!started) {
-      return const Reset();
-    }
-    if (!_hasProfile) {
-      return const Setup();
-    }
-
-    _processUnilink(context);
-    NewsIcon.onChange = _notifications;
-
+  Widget getMyCovens() {
     var profile = Profile.current;
     var widgets = getNotificationsWidgets();
     widgets.addAll(profile.covens.values.map(
@@ -239,6 +237,57 @@ class _HomeState extends State<Home> {
     ).toList());
 
     var noCovens = profile.covens.values.isEmpty;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: noCovens
+            ? getNewbiePage()
+            : Column(
+                children: [
+                  ListView(
+                    shrinkWrap: true,
+                    children: widgets,
+                  ),
+                  if (profile.covens.values.isNotEmpty)
+                    SizedBox(
+                      width: double
+                          .infinity, // This will make the container fill the width of the Column
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: PlatformElevatedButton(
+                          onPressed: () => connectAll(context),
+                          child: const Text("Connect all"),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!started) {
+      return const Reset();
+    }
+    if (!_hasProfile) {
+      return const Setup();
+    }
+    var profile = Profile.current;
+    Widget? body;
+    NewsIcon.onChange = _notifications;
+
+    switch (_selectedIndex) {
+      case 0:
+        body = getMyCovens();
+      case 1:
+        body = Join(onComplete: _backToList);
+      case 2:
+        body = CreateCoven(onComplete: _backToList);
+    }
+
+    _processUnilink(context);
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
@@ -261,52 +310,29 @@ class _HomeState extends State<Home> {
               icon: const Icon(Icons.settings)),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: noCovens
-              ? getNewbiePage()
-              : Column(
-                  children: [
-                    ListView(
-                      shrinkWrap: true,
-                      children: widgets,
-                    ),
-                    if (profile.covens.values.isNotEmpty)
-                      SizedBox(
-                        width: double
-                            .infinity, // This will make the container fill the width of the Column
-                        child: Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: PlatformElevatedButton(
-                            onPressed: () => connectAll(context),
-                            child: const Text("Connect all"),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-        ),
-      ),
+      body: body,
       bottomNavBar: PlatformNavBar(
+        currentIndex: _selectedIndex,
         itemChanged: (idx) async {
-          setState(() {});
-          switch (idx) {
-            case 1:
-              NewsIcon.onChange = null;
-              Navigator.of(context).popUntil((route) => route.isFirst);
-              await Navigator.pushNamed(context, "/join");
-              if (!mounted) return;
-              setState(() {});
-              break;
-            case 2:
-              NewsIcon.onChange = null;
-              Navigator.of(context).popUntil((route) => route.isFirst);
-              await Navigator.pushNamed(context, "/create");
-              if (!mounted) return;
-              setState(() {});
-              break;
-          }
+          setState(() {
+            _selectedIndex = idx;
+          });
+          // switch (idx) {
+          //   case 1:
+          //     NewsIcon.onChange = null;
+          //     Navigator.of(context).popUntil((route) => route.isFirst);
+          //     await Navigator.pushNamed(context, "/join");
+          //     if (!mounted) return;
+          //     setState(() {});
+          //     break;
+          //   case 2:
+          //     NewsIcon.onChange = null;
+          //     Navigator.of(context).popUntil((route) => route.isFirst);
+          //     await Navigator.pushNamed(context, "/create");
+          //     if (!mounted) return;
+          //     setState(() {});
+          //     break;
+          // }
         },
         items: const [
           BottomNavigationBarItem(
