@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/download.dart';
 
 import './document.dart';
@@ -20,7 +21,11 @@ Future<void> initFolders() async {
   applicationFolder = dir.path;
 
   dir = await getApplicationDocumentsDirectory();
-  documentsFolder = path.join(dir.path, "🐱 behemoth");
+  if (isDesktop) {
+    documentsFolder = path.join(dir.path, "🐱 behemoth");
+  } else {
+    documentsFolder = path.join(dir.path, "behemoth");
+  }
   if (!Directory(documentsFolder).existsSync()) {
     Directory(documentsFolder).createSync(recursive: true);
   }
