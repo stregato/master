@@ -31,9 +31,9 @@ class _InviteToCovenState extends State<InviteToCoven> {
   final TextEditingController _idController = TextEditingController();
   Safe? _safe;
   Coven? _coven;
-  Timer? _timer;
+  late Timer _timer;
   final Set<String> _ignores = {};
-  Set<String> _initiates = {};
+  List<Initiate> _initiates = [];
 
   _InviteToCovenState() {
     _idController.addListener(() {
@@ -47,22 +47,28 @@ class _InviteToCovenState extends State<InviteToCoven> {
     });
   }
 
-  _checkInitiates() {
+  void _checkInitiates() {
     if (_safe == null) {
       return;
     }
 
     var initiates = _safe!
         .getInitiatesSync()
-        .keys
-        .where((i) => !_ignores.contains(i))
-        .toSet();
+        .where((i) => !_ignores.contains(i.identity.id))
+        .toList();
 
-    if (initiates != _initiates) {
-      setState(() {
-        _initiates = initiates;
-      });
+    var now = DateTime.now();
+    var changeTime = now.minute == 0 && now.second < 6;
+    var a = initiates.map((i) => i.identity.id).toSet();
+    var b = _initiates.map((i) => i.identity.id).toSet();
+    if (!changeTime && a.length == b.length && a.difference(b).isEmpty) {
+      // Sets contain the same elements
+      return;
     }
+
+    setState(() {
+      _initiates = initiates;
+    });
   }
 
   @override
@@ -70,13 +76,13 @@ class _InviteToCovenState extends State<InviteToCoven> {
     super.initState();
     _coven ??= widget.coven;
     _safe ??= widget.coven?.safe;
-    _checkInitiates();
+    _timer =
+        Timer.periodic(const Duration(seconds: 3), (_) => _checkInitiates());
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _timer = null;
+    _timer.cancel();
     super.dispose();
   }
 
@@ -145,14 +151,13 @@ class _InviteToCovenState extends State<InviteToCoven> {
       _processUrl(_url!);
     }
     var accessLink = _getAccessLink();
-    if (accessLink.isNotEmpty) {
-      _timer ??= Timer(const Duration(seconds: 2), _checkInitiates);
-    }
+    if (accessLink.isNotEmpty) {}
 
     var accepts = <Widget>[];
     for (var initiate in _initiates) {
-      var identity = getCachedIdentity(initiate);
+      var identity = initiate.identity;
       var nick = identity.nick;
+      var id = identity.id;
 
       accepts.add(
         Card(
@@ -184,14 +189,15 @@ class _InviteToCovenState extends State<InviteToCoven> {
                     Expanded(
                       child: PlatformElevatedButton(
                         onPressed: () async {
+                          var permission = reader + standard + admin;
                           var task = _safe!
-                              .setUsers({initiate: reader}, SetUsersOptions());
+                              .setUsers({id: permission}, SetUsersOptions());
                           await progressDialog(context, "Accepting $nick", task,
                               successMessage:
                                   "Accepted $nick to ${_safe!.name}",
                               errorMessage:
                                   "Failed to accept $nick to ${_safe!.name}");
-                          _ignores.add(initiate);
+                          _ignores.add(initiate.identity.id);
                           _checkInitiates();
                         },
                         child: const Text("Accept"),
@@ -201,7 +207,7 @@ class _InviteToCovenState extends State<InviteToCoven> {
                     Expanded(
                       child: PlatformElevatedButton(
                         onPressed: () async {
-                          _ignores.add(initiate);
+                          _ignores.add(initiate.identity.id);
                           _checkInitiates();
                         },
                         child: const Text("Ignore"),
@@ -357,33 +363,28 @@ class _InviteToCovenState extends State<InviteToCoven> {
       ],
     );
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        child: Container(
-            padding:
-                const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-            child: accepts.isEmpty
-                ? Column(
-                    children: [
-                      if (_selection.isNotEmpty) chooseCoven,
-                      choosePersonal,
-                      const SizedBox(height: 20),
-                      if (_personal) choosePeer,
-                      if (_id.isNotEmpty && _safe != null) addButton,
-                      if (accessLink.isNotEmpty) link
-                    ],
-                  )
-                : Column(
-                    children: [
-                      const Text("Requests to join"),
-                      const SizedBox(height: 20),
-                      ListView(
-                        shrinkWrap: true,
-                        children: accepts,
-                      ),
-                    ],
-                  )),
-      ),
+    return SingleChildScrollView(
+      child: accepts.isEmpty
+          ? Column(
+              children: [
+                if (_selection.isNotEmpty) chooseCoven,
+                choosePersonal,
+                const SizedBox(height: 20),
+                if (_personal) choosePeer,
+                if (_id.isNotEmpty && _safe != null) addButton,
+                if (accessLink.isNotEmpty) link
+              ],
+            )
+          : Column(
+              children: [
+                const Text("Requests to join"),
+                const SizedBox(height: 20),
+                ListView(
+                  shrinkWrap: true,
+                  children: accepts,
+                ),
+              ],
+            ),
     );
   }
 }

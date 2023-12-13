@@ -132,19 +132,25 @@ class _JoinState extends State<Join> {
       ]),
       const SizedBox(height: 20),
       if (_decodedToken != null)
-        PlatformElevatedButton(
-          onPressed: (_decodedToken != null && _errorText == null)
-              ? () async {
-                  var name = _decodedToken!.name;
-                  var token = encodeAccess(currentUserId, _decodedToken!);
-                  var task = Coven.join(token, _secretController.text);
-                  await progressDialog(context, "Joining $name", task,
-                      successMessage: "Added $name");
-                  widget.onComplete?.call();
-                }
-              : null,
-          child: Text("Join ${_decodedToken!.name}"),
-        )
+        Row(
+          children: [
+            Expanded(
+              child: PlatformElevatedButton(
+                onPressed: (_decodedToken != null && _errorText == null)
+                    ? () async {
+                        var name = _decodedToken!.name;
+                        var token = encodeAccess(currentUserId, _decodedToken!);
+                        var task = Coven.join(token, _secretController.text);
+                        await progressDialog(context, "Joining $name", task,
+                            successMessage: "Added $name");
+                        widget.onComplete?.call();
+                      }
+                    : null,
+                child: Text("Join ${_decodedToken!.name}"),
+              ),
+            ),
+          ],
+        ),
     ];
 
     return SingleChildScrollView(

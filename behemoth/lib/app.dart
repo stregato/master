@@ -7,7 +7,7 @@ import 'package:behemoth/settings/update_private_key.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/one_to_one.dart';
-import 'package:behemoth/coven/invite.dart';
+import 'package:behemoth/coven/add.dart';
 import 'package:behemoth/coven/settings.dart';
 import 'package:behemoth/coven/unilink.dart';
 import 'package:behemoth/common/io.dart';
@@ -15,7 +15,6 @@ import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/coven/join.dart';
 import 'package:behemoth/coven/create_coven.dart';
-import 'package:behemoth/room/create_room.dart';
 import 'package:behemoth/coven/home.dart';
 import 'package:behemoth/content/content_actions.dart';
 import 'package:behemoth/content/content_upload.dart';
@@ -131,7 +130,7 @@ class _BehemothAppState extends State<BehemothApp> {
             "/nolib": (context) => NoLib(err),
             "/setup": (context) => const Setup(),
             "/reset": (context) => const Reset(),
-            "/invite": (context) => const Invite(),
+            "/invite": (context) => const Add(),
             "/unilink": (context) => const Unilink(),
             "/unilink/invite": (context) => const UnilinkInvite(),
             "/unilink/accept": (context) => const UnilinkAccept(),
@@ -144,7 +143,6 @@ class _BehemothAppState extends State<BehemothApp> {
 
             //       "/coven": (context) => const CovenWidget(),
             "/coven/room": (context) => const Room(),
-            "/coven/create": (context) => const CreateRoom(),
             "/coven/onetoone": (context) => const Privates(),
             "/coven/settings": (context) => const CovenSettings(),
             "/content/add": (context) => const ContentAdd(),

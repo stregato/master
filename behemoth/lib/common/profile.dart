@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'dart:typed_data';
 
+import 'package:behemoth/coven/cockpit.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
@@ -85,6 +86,7 @@ class Coven {
         await Safe.open(identity, access, OpenOptions(initiateSecret: secret));
     opened[name] = this;
     safesAccessed[name] = DateTime.now();
+    Cockpit.openCoven(this);
     return _safe!;
   }
 
@@ -100,17 +102,25 @@ class Coven {
   void close() {
     opened.remove(name);
     safe.close();
+    Cockpit.closeCoven(this);
   }
 
-  void createRoom(String name, Map<String, Permission> users) async {
+  Future<void> createRoom(String name, List<String> users) async {
     await safe.putBytes("rooms/.list", name, Uint8List(0), PutOptions());
+
+    for (var user in users) {
+      safe.putBytes("rooms/.invites/$user", name, Uint8List(0), PutOptions());
+    }
+
     rooms.add(name);
     Profile.current.update(this);
+    Cockpit.updateRoom(this, name, true);
   }
 
   void addRoom(String name) async {
     rooms.add(name);
     Profile.current.update(this);
+    Cockpit.updateRoom(this, name, true);
   }
 }
 
@@ -161,6 +171,7 @@ class Profile {
   }
 
   save() {
+    _current = this;
     setConfig("behemoth", "profile",
         SIB.fromBytes(Uint8List.fromList(utf8.encode(jsonEncode(this)))));
   }

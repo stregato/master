@@ -1,6 +1,6 @@
 import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/profile.dart';
-import 'package:behemoth/coven/navigation.dart';
+import 'package:behemoth/coven/cockpit.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/chat.dart';
@@ -23,9 +23,18 @@ class _RoomState extends State<Room> {
   String _title = "";
   Chat? _chat;
   Content? _content;
-  Navigation? _navigation;
+  late Cockpit _cockpit;
   late Coven _coven;
   late String _room;
+  int _unread = 0;
+
+  void updateUnread(int unread) {
+    if (unread != _unread) {
+      setState(() {
+        _unread = unread;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +47,13 @@ class _RoomState extends State<Room> {
     if (_title.isEmpty) {
       _title = "$_room@${_coven.name}";
       _currentItem = currentPanelIdx[_title] ?? 0;
+      _cockpit = Cockpit(_coven, _room, updateUnread: (unread) {
+        if (unread != _unread) {
+          setState(() {
+            _unread = unread;
+          });
+        }
+      });
     }
 
     var invite = PlatformIconButton(
@@ -49,24 +65,29 @@ class _RoomState extends State<Room> {
         },
         icon: const Icon(Icons.person_add));
 
-    var items = const [
-      BottomNavigationBarItem(
+    var items = [
+      const BottomNavigationBarItem(
         icon: Icon(Icons.chat),
         label: 'Chat',
       ),
-      BottomNavigationBarItem(
+      const BottomNavigationBarItem(
         icon: Icon(Icons.dataset),
         label: 'Content',
       ),
       BottomNavigationBarItem(
-        icon: Icon(Icons.compass_calibration),
-        label: 'Navigation',
+        icon: _unread > 0
+            ? const Icon(
+                Icons.explore,
+                color: Colors.yellowAccent,
+              )
+            : const Icon(Icons.explore),
+        label: _unread == 0 ? 'Cockpit' : 'Cockpit ($_unread)',
       ),
     ];
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
-        leading: const NewsIcon(),
+//        leading: const NewsIcon(),
         title: Text(_title, style: const TextStyle(fontSize: 18)),
         trailingActions: [
           // const NewsIcon(),
@@ -133,8 +154,7 @@ class _RoomState extends State<Room> {
                   _content ??= Content(_coven, _room);
                   return _content!;
                 case 2:
-                  _navigation ??= Navigation(_coven, _room);
-                  return _navigation!;
+                  return _cockpit;
                 // _people ??= People(_safe!, _coven.getLoungeSync()!);
                 // return _people!;
                 default:

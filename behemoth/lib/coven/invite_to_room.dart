@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/snackbar.dart';
-import 'package:behemoth/coven/navigation.dart';
+import 'package:behemoth/coven/cockpit.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/woland/types.dart';
@@ -85,16 +85,11 @@ class _InviteToRoomState extends State<InviteToRoom> {
       ],
     );
 
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            if (_room == null) roomsList else idsList,
-          ],
-        ),
-      ),
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        if (_room == null) roomsList else idsList,
+      ],
     );
   }
 }

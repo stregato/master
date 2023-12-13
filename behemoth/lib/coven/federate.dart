@@ -38,14 +38,9 @@ class _FederateState extends State<Federate> {
       ));
     }
 
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-        child: ListView(
-          shrinkWrap: true,
-          children: covens,
-        ),
-      ),
+    return ListView(
+      shrinkWrap: true,
+      children: covens,
     );
   }
 }

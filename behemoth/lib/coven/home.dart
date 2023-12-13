@@ -198,12 +198,6 @@ class _HomeState extends State<Home> {
     );
   }
 
-  _notifications(Notifications? notifications) {
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
   Widget getMyCovens() {
     var profile = Profile.current;
     var widgets = getNotificationsWidgets();
@@ -237,32 +231,30 @@ class _HomeState extends State<Home> {
     ).toList());
 
     var noCovens = profile.covens.values.isEmpty;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: noCovens
-            ? getNewbiePage()
-            : Column(
-                children: [
-                  ListView(
-                    shrinkWrap: true,
-                    children: widgets,
-                  ),
-                  if (profile.covens.values.isNotEmpty)
-                    SizedBox(
-                      width: double
-                          .infinity, // This will make the container fill the width of the Column
-                      child: Padding(
-                        padding: const EdgeInsets.all(4.0),
-                        child: PlatformElevatedButton(
-                          onPressed: () => connectAll(context),
-                          child: const Text("Connect all"),
-                        ),
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: noCovens
+          ? getNewbiePage()
+          : Column(
+              children: [
+                ListView(
+                  shrinkWrap: true,
+                  children: widgets,
+                ),
+                if (profile.covens.values.isNotEmpty)
+                  SizedBox(
+                    width: double
+                        .infinity, // This will make the container fill the width of the Column
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: PlatformElevatedButton(
+                        onPressed: () => connectAll(context),
+                        child: const Text("Connect all"),
                       ),
                     ),
-                ],
-              ),
-      ),
+                  ),
+              ],
+            ),
     );
   }
 
@@ -275,8 +267,8 @@ class _HomeState extends State<Home> {
       return const Setup();
     }
     var profile = Profile.current;
-    Widget? body;
-    NewsIcon.onChange = _notifications;
+    Widget body;
+//    NewsIcon.onChange = _notifications;
 
     switch (_selectedIndex) {
       case 0:
@@ -285,6 +277,8 @@ class _HomeState extends State<Home> {
         body = Join(onComplete: _backToList);
       case 2:
         body = CreateCoven(onComplete: _backToList);
+      default:
+        body = const Text("Unknown screen");
     }
 
     _processUnilink(context);
@@ -310,7 +304,9 @@ class _HomeState extends State<Home> {
               icon: const Icon(Icons.settings)),
         ],
       ),
-      body: body,
+      body: SafeArea(
+        child: body,
+      ),
       bottomNavBar: PlatformNavBar(
         currentIndex: _selectedIndex,
         itemChanged: (idx) async {

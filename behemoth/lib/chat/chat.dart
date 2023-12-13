@@ -4,6 +4,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:behemoth/common/common.dart';
+import 'package:behemoth/common/snackbar.dart';
+import 'package:behemoth/coven/cockpit.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:share_plus/share_plus.dart';
@@ -50,6 +52,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   bool _isLastPage = false;
   late Safe _safe;
   late String _room;
+  late String _bucket;
   final FocusNode _focusNode = FocusNode();
   late String _picsFolder;
   DateTime _lastAction = DateTime(0);
@@ -57,10 +60,11 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    var currentUser = widget.coven.identity;
     _safe = widget.coven.safe;
     _room = widget.room;
     _picsFolder = ph.join(documentsFolder, _safe.name, _room, ".gallery");
-    var currentUser = Profile.current.identity;
+    _bucket = "rooms/$_room/chat";
     _currentUser = types.User(
         id: currentUser.id,
         firstName: currentUser.nick,
@@ -93,14 +97,19 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     _lastAction = DateTime.now();
   }
 
+  Future<bool> _sync() async {
+    return await _safe.syncBucket(_bucket, SyncOptions()) > 0;
+  }
+
   void _refresh() async {
     if (!mounted) return;
 
     var now = DateTime.now();
     var diff = now.difference(_lastAction).inSeconds;
     var diff2 = now.difference(_lastSync).inSeconds;
-    if (diff < 60 || diff2 > 60) {
-      if (await _safe.syncBucket("rooms/$_room/chat", SyncOptions()) > 0) {
+    if (diff2 > 60 || (diff < 600 && (diff < 60 || diff % 10 == 0))) {
+      if (await _sync()) {
+        Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
         _loadMoreMessages();
       }
       _lastSync = now;
@@ -148,9 +157,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       if (h.attributes.thumbnail.isNotEmpty) {
         file.writeAsBytesSync(h.attributes.thumbnail);
       }
+
       _safe
-          .getFile("rooms/$_room/chat", h.name, file.path,
-              GetOptions(fileId: h.fileId))
+          .getFile(_bucket, h.name, file.path, GetOptions(fileId: h.fileId))
           .then((value) {});
     }
 
@@ -227,25 +236,14 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         before: before,
         limit: isDesktop ? 40 : 20,
         orderBy: "modTime",
+        privateId: widget.privateId,
         reverseOrder: true);
-
-    if (widget.privateId.isNotEmpty) {
-      options.privateId = widget.privateId;
-    } else {
-      options.noPrivate = true;
-    }
-    return _safe.listFiles("rooms/$_room/chat", options);
+    return _safe.listFiles(_bucket, options);
   }
 
-  _loadMoreMessages([bool showProgress = false]) async {
+  _loadMoreMessages() async {
     _to = DateTime.now();
-    var headers = showProgress
-        // ignore: use_build_context_synchronously
-        ? await progressDialog<List<Header>>(
-            context, "Getting messages", _listFiles(widget, _from, _to))
-        : await _listFiles(widget, _from, _to);
-
-    if (!mounted) return;
+    var headers = await _listFiles(widget, _from, _to);
     if (headers == null || headers.isEmpty) {
       return;
     }
@@ -340,12 +338,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   Future<void> _handleEndReached() async {
     var after = _from.add(-const Duration(days: -1));
     var before = _from;
-    await _safe.syncBucket("rooms/$_room/chat", SyncOptions());
+    await _safe.syncBucket(_bucket, SyncOptions());
     if (!mounted) return;
 
-    var headers = await progressDialog<List<Header>>(
-        context, "Getting messages", _listFiles(widget, after, before));
-
+    var headers = await _listFiles(widget, after, before);
     if (headers == null || headers.isEmpty) {
       _isLastPage = true;
       return;
@@ -371,8 +367,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       meta: {'text': message.text},
     );
 
-    var header = await _safe.putBytes(
-        "rooms/$_room/chat", name, Uint8List(0), putOptions);
+    var header = await _safe.putBytes(_bucket, name, Uint8List(0), putOptions);
 
     final textMessage = types.TextMessage(
       author: _currentUser,
@@ -384,6 +379,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     _loaded.add(name);
     _addMessage(textMessage);
     _touch();
+    Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
   }
 
   void _handleAttachmentPressed(BuildContext context) {
@@ -459,8 +455,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
     var size = File(filePath).lengthSync();
     var name = ph.basename(filePath);
-    var header =
-        await _safe.putFile("rooms/$_room/chat", name, filePath, options);
+    var header = await _safe.putFile(_bucket, name, filePath, options);
 
     final message = types.FileMessage(
       author: _currentUser,
@@ -472,8 +467,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       uri: "file://$name",
     );
     _loaded.add(name);
-
-    _addMessage(message);
+    _loaded.add(message.id);
+    _messages.insert(0, message);
   }
 
   void _handleFileSelection() async {
@@ -485,6 +480,11 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     for (var file in result!.files) {
       _addFile(file.path!);
     }
+    setState(() {
+      _messages = _messages;
+    });
+
+    Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
   }
 
   void _addImage(XFile xfile) async {
@@ -496,8 +496,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     options.autoThumbnail = true;
     options.contentType = lookupMimeType(xfile.path) ?? '';
 
-    var header =
-        await _safe.putFile("rooms/$_room/chat", name, xfile.path, options);
+    var header = await _safe.putFile(_bucket, name, xfile.path, options);
 
     final message = types.ImageMessage(
       author: _currentUser,
@@ -510,20 +509,28 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       width: image.width.toDouble(),
       updatedAt: header.modTime.millisecondsSinceEpoch,
     );
-
-    _addMessage(message);
+    _loaded.add(message.id);
+    _messages.insert(0, message);
   }
 
   void _handleCameraSelection(BuildContext context) async {
     for (var xfile in await pickImage(ImageSource.camera)) {
       _addImage(xfile);
     }
+    setState(() {
+      _messages = _messages;
+    });
+    Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
   }
 
   void _handleImageSelection(BuildContext context) async {
     for (var xfile in await pickImage(ImageSource.gallery, multiple: true)) {
       _addImage(xfile);
     }
+    setState(() {
+      _messages = _messages;
+    });
+    Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
   }
 
   void _handleMessageTap(BuildContext context, types.Message message) async {
@@ -541,15 +548,26 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     }
   }
 
-  void _handleMessageLongPress(
+  void _handleMessageDownload(
       BuildContext context, types.Message message) async {
     _touch();
 
     if (message is types.ImageMessage) {
-      var file = message.metadata?['file'] as File;
-      if (file.existsSync()) {
-        var xfiles = [XFile(file.path)];
-        Share.shareXFiles(xfiles);
+      var file = message.metadata?['file'] as File?;
+      if (file == null) {
+        showPlatformSnackbar(context, "Image not yet downloaded",
+            backgroundColor: Colors.red);
+      }
+
+      if (file != null && file.existsSync()) {
+        if (isDesktop) {
+          var filepath = ph.join(downloadFolder, ph.basename(file.path));
+          file.copySync(filepath);
+          showPlatformSnackbar(context, "Saved to $filepath");
+        } else {
+          var xfiles = [XFile(file.path)];
+          Share.shareXFiles(xfiles);
+        }
       }
     }
   }
@@ -643,7 +661,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
             _handleAttachmentPressed(context);
           },
           onMessageTap: _handleMessageTap,
-          onMessageLongPress: _handleMessageLongPress,
+          onMessageLongPress: _handleMessageDownload,
+          onMessageDoubleTap: _handleMessageDownload,
           onPreviewDataFetched: _handlePreviewDataFetched,
           onSendPressed: _handleSendPressed,
           onEndReached: _handleEndReached,

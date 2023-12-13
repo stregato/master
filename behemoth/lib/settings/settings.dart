@@ -27,7 +27,7 @@ class Settings extends StatefulWidget {
 class _SettingsState extends State<Settings> {
   static String _logLevel = "Error";
 
-  int _fullReset = 5;
+  int _fullReset = 2;
   Uint8List _avatar = Uint8List(0);
 
   _selectAvatar() async {

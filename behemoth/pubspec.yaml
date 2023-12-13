@@ -78,6 +78,7 @@ dependencies:
   media_kit_video: ^1.2.2 
   media_kit_libs_video: ^1.0.4
   open_file: ^3.3.2
+  workmanager: ^0.5.2
   
 
 dev_dependencies:

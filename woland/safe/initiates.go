@@ -10,15 +10,19 @@ import (
 )
 
 // Initiates is a map of user id to secret message.
-type Initiates map[string]string
+type Initiate struct {
+	Secret   string            `json:"secret"`
+	Identity security.Identity `json:"identity"`
+}
 
-func GetInitiates(s *Safe) (Initiates, error) {
+func GetInitiates(s *Safe) ([]Initiate, error) {
 	ls, err := s.store.ReadDir(path.Join(s.Name, InitiateFolder), storage.Filter{})
 	if core.IsErr(err, nil, "cannot read initiates in %s: %v", s.Name) {
 		return nil, err
 	}
 
-	initiates := Initiates{}
+	var initiates []Initiate
+
 	for _, l := range ls {
 		if l.ModTime().Before(core.Now().Add(-time.Hour * 24)) {
 			s.store.Delete(path.Join(s.Name, InitiateFolder, l.Name()))
@@ -30,7 +34,28 @@ func GetInitiates(s *Safe) (Initiates, error) {
 			continue
 		}
 
-		initiates[l.Name()] = string(data)
+		identity, err := security.GetIdentity(l.Name())
+		if err == nil {
+			initiates = append(initiates, Initiate{
+				Secret:   string(data),
+				Identity: identity,
+			})
+			continue
+		}
+
+		new, err := syncIdentities(s.store, s.Name, s.CurrentUser)
+		if core.IsErr(err, nil, "cannot sync identities in %s: %v", s.Name) {
+			continue
+		}
+
+		for _, n := range new {
+			if n.Id == l.Name() {
+				initiates = append(initiates, Initiate{
+					Secret:   string(data),
+					Identity: n,
+				})
+			}
+		}
 	}
 
 	return initiates, nil

@@ -115,6 +115,12 @@ FROM Header
 WHERE safe = :safe AND bucket = :bucket
 GROUP BY headerFile;
 
+-- GET_HEADERS_LAST_SYNC
+SELECT header, bucket
+FROM Header
+WHERE safe = :safe AND bucket = :bucket
+ORDER BY syncTime DESC LIMIT 1;
+
 -- GET_HEADER_BY_FILE_NAME
 SELECT header FROM Header
 WHERE safe = :safe

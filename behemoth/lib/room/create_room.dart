@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/complete_identity.dart';
 import 'package:behemoth/common/profile.dart';
@@ -10,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class CreateRoom extends StatefulWidget {
-  const CreateRoom({super.key});
+  final Coven coven;
+  const CreateRoom(this.coven, {super.key});
 
   @override
   State<CreateRoom> createState() => _CreateRoomState();
@@ -34,7 +33,9 @@ class _CreateRoomState extends State<CreateRoom> {
   }
 
   String? _validateName(String? name) {
-    return _rooms.contains(name) ? "room already exists" : null;
+    if (name == 'privates') return 'reserved name';
+    if (_rooms.contains(name)) return "room already exists";
+    return null;
   }
 
   Future<List<String>> _getRooms() async {
@@ -46,24 +47,9 @@ class _CreateRoomState extends State<CreateRoom> {
     return rooms;
   }
 
-  _createRoom(Coven coven, String name, List<String> users) async {
-    await _safe.putBytes("rooms/.list", name, Uint8List(0), PutOptions());
-    coven.rooms.add(name);
-
-    var p = Profile.current;
-    p.covens[coven.name] = coven;
-    p.save();
-
-    for (var user in users) {
-      _safe.putBytes("rooms/.invites/$user", name, Uint8List(0), PutOptions());
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    var args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    var coven = args["coven"] as Coven;
+    var coven = widget.coven;
     _safe = coven.safe;
     var identities = _safe
         .getUsersSync()
@@ -133,11 +119,11 @@ class _CreateRoomState extends State<CreateRoom> {
             child: PlatformElevatedButton(
               onPressed: _validConfig()
                   ? () async {
+                      var task = coven.createRoom(
+                          name, _users.map((i) => i.id).toList());
+
                       await progressDialog(
-                          context,
-                          "opening portal, please wait",
-                          _createRoom(
-                              coven, name, _users.map((i) => i.id).toList()),
+                          context, "opening portal, please wait", task,
                           successMessage:
                               "Congrats! You successfully created $name",
                           errorMessage: "Creation failed");
@@ -152,25 +138,15 @@ class _CreateRoomState extends State<CreateRoom> {
       ),
     );
 
-    return PlatformScaffold(
-      appBar: PlatformAppBar(
-        title: Text("Create room in ${coven.name}"),
-      ),
-      body: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-          child: FutureBuilder<List<String>>(
-            future: _getRooms(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                _rooms = snapshot.data!;
-                return body;
-              }
-              return const CatProgressIndicator("loading rooms");
-            },
-          ),
-        ),
-      ),
+    return FutureBuilder<List<String>>(
+      future: _getRooms(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          _rooms = snapshot.data!;
+          return body;
+        }
+        return const CatProgressIndicator("loading rooms");
+      },
     );
   }
 }

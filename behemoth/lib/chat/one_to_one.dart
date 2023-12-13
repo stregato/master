@@ -9,6 +9,37 @@ class Privates extends StatefulWidget {
 
   @override
   State<Privates> createState() => _PrivatesState();
+
+  static openChat(BuildContext context, Coven coven, String id) {
+    var identity = getCachedIdentity(id);
+    var nick = identity.nick.isNotEmpty ? identity.nick : id;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlatformScaffold(
+          appBar: PlatformAppBar(
+            leading: const Icon(Icons.vpn_key),
+            title: Text(nick),
+          ),
+          body: Padding(
+              padding: const EdgeInsets.all(2.0),
+              child: Chat(coven, "privates", id)),
+          bottomNavBar: PlatformNavBar(
+              currentIndex: 0,
+              itemChanged: (index) {
+                Navigator.pop(context);
+              },
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.arrow_back),
+                  label: "Back",
+                ),
+              ]),
+        ),
+      ),
+    );
+  }
 }
 
 class _PrivatesState extends State<Privates> {
@@ -30,18 +61,7 @@ class _PrivatesState extends State<Privates> {
       return ListTile(
         title: Text(nick),
         onTap: () {
-          // Navigate to a new page when an item is tapped
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PlatformScaffold(
-                appBar: PlatformAppBar(title: Text("🕵 with $nick")),
-                body: Padding(
-                    padding: const EdgeInsets.all(2.0),
-                    child: Chat(coven, "lounge", id)),
-              ),
-            ),
-          );
+          Privates.openChat(context, coven, id);
         },
       );
     }).toList();

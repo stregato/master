@@ -187,9 +187,9 @@ class Safe {
     return m.map((key, value) => MapEntry(key, value as Permission));
   }
 
-  Initiates getInitiatesSync() {
+  List<Initiate> getInitiatesSync() {
     var fun = lib.lookupFunction<Args1T<Int>, Args1T<int>>("wlnd_getInitiates");
-    var m = fun(hnd).unwrapMap();
-    return m.map((key, value) => MapEntry(key, value as String));
+    var l = fun(hnd).unwrapList();
+    return l.map((v) => Initiate.fromJson(v)).toList();
   }
 }

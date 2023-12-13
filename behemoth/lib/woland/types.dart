@@ -153,6 +153,7 @@ class Attributes {
 class Header {
   String name = '';
   String creator = '';
+  String privateId = '';
   int size = 0;
   DateTime modTime = DateTime(0);
   int fileId = 0;
@@ -168,6 +169,7 @@ class Header {
   Header.fromJson(Map<String, dynamic> json)
       : name = json['na'],
         creator = json['cr'],
+        privateId = json['pr'] ?? "",
         size = json['si'],
         modTime = DateTime.parse(json['mo']),
         fileId = json['fi'],
@@ -184,6 +186,7 @@ class Header {
   Map<String, dynamic> toJson() => {
         'na': name,
         'cr': creator,
+        'pr': privateId,
         'si': size,
         'mo': modTime.toIso8601String(),
         'fi': fileId,
@@ -258,14 +261,14 @@ class SyncOptions {
 }
 
 class SyncResult {
-  int files;
-  int users;
+  int changes;
+  Header? last;
 
-  SyncResult({this.files = 0, this.users = 0});
+  SyncResult({this.changes = 0, this.last});
 
   SyncResult.fromJson(Map<String, dynamic> json)
-      : files = json['files'] ?? 0,
-        users = json['users'] ?? 0;
+      : changes = json['changes'],
+        last = json['last'] != null ? Header.fromJson(json['last']) : null;
 }
 
 class ListOptions {
@@ -429,6 +432,21 @@ class SetUsersOptions {
         'replaceUsers': replaceUsers,
         'alignDelay': alignDelay.inMicroseconds * 1000,
         'syncAlign': syncAlign,
+      };
+}
+
+class Initiate {
+  String secret;
+  Identity identity;
+
+  Initiate(this.secret, this.identity);
+  Initiate.fromJson(Map<String, dynamic> json)
+      : secret = json['secret'],
+        identity = Identity.fromJson(json['identity']);
+
+  Map<String, dynamic> toJson() => {
+        'secret': secret,
+        'identity': identity.toJson(),
       };
 }
 

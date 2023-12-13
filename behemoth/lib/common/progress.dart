@@ -5,12 +5,23 @@ import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
+var _sentences = [
+  "Manuscripts don't burn.",
+  "Everything will turn out right",
+  "Follow me, reader!",
+  "Cowardice is the most terrible of vices.",
+  "With the truth, one cannot live.",
+  "One can never predict a cat.",
+  "Happiness is the most insidious prison of all.",
+];
+
 Future<T?> progressDialog<T>(
     BuildContext context, String message, Future<T> task,
     {String? successMessage,
     String? errorMessage,
     Function()? getProgress,
     bool catchException = true}) async {
+  var sentence = _sentences[DateTime.now().microsecond % _sentences.length];
   return showPlatformDialog(
       context: context,
       builder: (_) => FutureBuilder<T>(
@@ -33,7 +44,12 @@ Future<T?> progressDialog<T>(
                   });
                 }
               }
-              return const CatProgressIndicator("Loading...");
+              return PlatformScaffold(
+                appBar: PlatformAppBar(
+                  title: Text(sentence),
+                ),
+                body: CatProgressIndicator(message),
+              );
             },
             future: task,
           ));
