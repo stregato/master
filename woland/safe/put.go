@@ -5,6 +5,7 @@ import (
 	"crypto/aes"
 	"encoding/json"
 	"fmt"
+	"image"
 	"image/jpeg"
 	"io"
 	"mime"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/godruoyi/go-snowflake"
+	"github.com/rwcarlsen/goexif/exif"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/stregato/master/woland/core"
@@ -365,11 +367,18 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
+	r.Seek(0, io.SeekStart)
+	x, _ := exif.Decode(r)
+	if x != nil {
+		orientation := getOrientation(x)
+		img = transformImageBasedOnEXIF(img, orientation)
+	}
+
 	// Reduce quality or dimensions until the thumbnail size is within the limit
 	quality := 100
 	for {
 		// Generate the thumbnail with the specified dimensions and quality
-		thumb := imaging.Thumbnail(img, maxWidth, maxHeight, imaging.Lanczos)
+		thumb := imaging.Thumbnail(img, maxWidth, 0, imaging.Lanczos)
 		buffer := new(bytes.Buffer)
 
 		// Encode the thumbnail with the current quality setting
@@ -393,6 +402,50 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 			maxHeight = maxHeight * 9 / 10
 			quality = 100
 		}
+	}
+
+}
+
+func getOrientation(x *exif.Exif) int {
+	orientTag, err := x.Get(exif.Orientation)
+	if err != nil {
+		return 1 // Default orientation
+	}
+	orientation, err := orientTag.Int(0)
+	if err != nil {
+		return 1 // Default orientation
+	}
+	return orientation
+}
+
+func transformImageBasedOnEXIF(img image.Image, orientation int) image.Image {
+	switch orientation {
+	case 1:
+		// normal
+		return img
+	case 2:
+		// horizontally flipped
+		return imaging.FlipH(img)
+	case 3:
+		// rotated 180
+		return imaging.Rotate180(img)
+	case 4:
+		// rotated 180 and flipped horizontally
+		return imaging.FlipH(imaging.Rotate180(img))
+	case 5:
+		// rotated 90 clockwise and flipped vertically
+		return imaging.FlipV(imaging.Rotate90(img))
+	case 6:
+		// rotated 90 clockwise
+		return imaging.Rotate270(img)
+	case 7:
+		// rotated 270 clockwise and flipped vertically
+		return imaging.FlipV(imaging.Rotate270(img))
+	case 8:
+		// rotated 270 clockwise
+		return imaging.Rotate90(img)
+	default:
+		return img
 	}
 }
 

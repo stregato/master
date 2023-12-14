@@ -17,7 +17,7 @@ require (
 	github.com/uhthomas/seekctr v0.0.0-20211121195710-e18b12545023
 	github.com/zenazn/pkcs7pad v0.0.0-20170308005700-253a5b1f0e03
 	golang.org/x/crypto v0.9.0
-	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
+	golang.org/x/image v0.14.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -42,6 +42,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	golang.org/x/net v0.10.0 // indirect
 )
 

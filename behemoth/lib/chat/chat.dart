@@ -56,6 +56,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   final FocusNode _focusNode = FocusNode();
   late String _picsFolder;
   DateTime _lastAction = DateTime(0);
+  int _refreshCount = 0;
 
   @override
   void initState() {
@@ -103,16 +104,21 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
   void _refresh() async {
     if (!mounted) return;
+    _refreshCount++;
 
     var now = DateTime.now();
     var diff = now.difference(_lastAction).inSeconds;
     var diff2 = now.difference(_lastSync).inSeconds;
-    if (diff2 > 60 || (diff < 600 && (diff < 60 || diff % 10 == 0))) {
+    var syncNeeded =
+        diff2 > 600 || diff < 60 || _refreshCount > (1 + diff / 60);
+
+    if (syncNeeded) {
       if (await _sync()) {
         Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
         _loadMoreMessages();
       }
       _lastSync = now;
+      _refreshCount = 0;
     }
   }
 
@@ -147,20 +153,22 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         size: 1);
   }
 
-  types.Message _convertEmbeddedImage(Header h, types.User user) {
+  types.Message _convertImage(Header h, types.User user) {
     var size =
         h.attributes.thumbnail.isEmpty ? h.size : h.attributes.thumbnail.length;
-    var file = File(ph.join(_picsFolder, "${h.fileId}"));
+
+    var name = h.attributes.extra['name'];
+    var file = File(ph.join(_picsFolder, name));
     file.parent.createSync(recursive: true);
     var stat = FileStat.statSync(file.path);
     if (h.size != stat.size) {
-      if (h.attributes.thumbnail.isNotEmpty) {
+      if (stat.type == FileSystemEntityType.notFound &&
+          h.attributes.thumbnail.isNotEmpty) {
         file.writeAsBytesSync(h.attributes.thumbnail);
       }
-
       _safe
           .getFile(_bucket, h.name, file.path, GetOptions(fileId: h.fileId))
-          .then((value) {});
+          .then((_) => setState(() {}));
     }
 
     return types.ImageMessage(
@@ -210,7 +218,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         return _convertText(h, user);
       }
       if (contentType.startsWith("image/")) {
-        return _convertEmbeddedImage(h, user);
+        return _convertImage(h, user);
       }
       if (contentType.startsWith("application/") ||
           contentType.startsWith('text/')) {
@@ -399,7 +407,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                     title: const Text('Camera'),
                     onTap: () {
                       Navigator.pop(context);
-                      _handleCameraSelection(context);
+                      _handleImageSelection(context, ImageSource.camera);
                     },
                   ),
                 ),
@@ -412,7 +420,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                   title: const Text('Photo'),
                   onTap: () {
                     Navigator.pop(context);
-                    _handleImageSelection(context);
+                    _handleImageSelection(context, ImageSource.gallery);
                   },
                 ),
               ),
@@ -487,49 +495,56 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
   }
 
-  void _addImage(XFile xfile) async {
-    final bytes = await xfile.readAsBytes();
-    final image = await decodeImageFromList(bytes);
+  Future<void> _addImage(XFile xfile) async {
+    //final bytes = await xfile.readAsBytes();
+    //final image = await decodeImageFromList(bytes);
 
     var name = ph.basename(xfile.path);
+    var dest = ph.join(_picsFolder, name);
+    xfile.saveTo(dest);
+
+    var stat = File(xfile.path).statSync();
+
     var options = PutOptions(async: true, private: widget.privateId);
     options.autoThumbnail = true;
     options.contentType = lookupMimeType(xfile.path) ?? '';
+    options.meta = {'name': name};
 
     var header = await _safe.putFile(_bucket, name, xfile.path, options);
 
-    final message = types.ImageMessage(
+    var message = types.ImageMessage(
       author: _currentUser,
       createdAt: DateTime.now().millisecondsSinceEpoch,
-      height: image.height.toDouble(),
-      id: name,
+      //height: image.height.toDouble(),
+      id: "${header.fileId}",
       name: xfile.name,
-      size: bytes.length,
+      size: stat.size,
+      //size: bytes.length,
       uri: xfile.path,
-      width: image.width.toDouble(),
+      //width: image.width.toDouble(),
       updatedAt: header.modTime.millisecondsSinceEpoch,
     );
-    _loaded.add(message.id);
-    _messages.insert(0, message);
+    setState(() {
+      _messages = [..._messages, message];
+    });
   }
 
-  void _handleCameraSelection(BuildContext context) async {
-    for (var xfile in await pickImage(ImageSource.camera)) {
-      _addImage(xfile);
-    }
-    setState(() {
-      _messages = _messages;
-    });
-    Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
-  }
+  // void _handleCameraSelection(BuildContext context) async {
+  //   List<types.Message> messages = [];
+  //   for (var xfile in await pickImage(ImageSource.camera)) {
+  //     messages.add(await _addImage(xfile));
+  //   }
+  //   setState(() {
+  //     _messages = [..._messages, ...messages];
+  //   });
+  //   Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
+  // }
 
-  void _handleImageSelection(BuildContext context) async {
-    for (var xfile in await pickImage(ImageSource.gallery, multiple: true)) {
-      _addImage(xfile);
+  void _handleImageSelection(
+      BuildContext context, ImageSource imageSource) async {
+    for (var xfile in await pickImage(imageSource, multiple: true)) {
+      await _addImage(xfile);
     }
-    setState(() {
-      _messages = _messages;
-    });
     Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
   }
 
