@@ -1,63 +1,96 @@
-import 'dart:isolate';
+import 'dart:async';
 
+import 'package:behemoth/common/cat_progress_indicator.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
-Future<Object?> progressDialog(BuildContext context, String message,
-    Function(Function(double) updateProgress) task,
-    {String? successMessage, String? errorMessage}) async {
-  var dialog = ProgressDialog(message);
-  Object? error;
+var _sentences = [
+  "Manuscripts don't burn.",
+  "Everything will turn out right",
+  "Follow me, reader!",
+  "Cowardice is the most terrible of vices.",
+  "With the truth, one cannot live.",
+  "One can never predict a cat.",
+  "Happiness is the most insidious prison of all.",
+];
 
-  var overlay = OverlayEntry(
-      opaque: false,
-      builder: (BuildContext context) {
-        return dialog;
-      });
-  Overlay.of(context).insert(overlay);
-  var updateProgress = dialog.state.updateProgress;
-  await Future.delayed(Duration.zero, () {
-    task(updateProgress);
-  });
-
-  //   if (successMessage != null && context.mounted) {
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //         backgroundColor: Colors.green, content: Text(successMessage)));
-  //   }
-  // } catch (e) {
-  //   error = e;
-  //   if (errorMessage != null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //         backgroundColor: Colors.red,
-  //         content: Text(
-  //           "$errorMessage: $e",
-  //         )));
-  //   }
-  // }
-  overlay.remove();
-  return error;
+Future<T?> progressDialog<T>(
+    BuildContext context, String message, Future<T> task,
+    {String? successMessage,
+    String? errorMessage,
+    Function()? getProgress,
+    bool catchException = true}) async {
+  var sentence = _sentences[DateTime.now().microsecond % _sentences.length];
+  return showPlatformDialog(
+      context: context,
+      builder: (_) => FutureBuilder<T>(
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done) {
+                Navigator.pop(context, snapshot.data);
+                if (successMessage != null) {
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    showPlatformSnackbar(context, successMessage,
+                        backgroundColor: Colors.green);
+                  });
+                }
+              }
+              if (snapshot.hasError) {
+                Navigator.pop(context);
+                if (errorMessage != null) {
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    showPlatformSnackbar(context, errorMessage,
+                        backgroundColor: Colors.red);
+                  });
+                }
+              }
+              return PlatformScaffold(
+                appBar: PlatformAppBar(
+                  title: Text(sentence),
+                ),
+                body: CatProgressIndicator(message),
+              );
+            },
+            future: task,
+          ));
 }
 
 class ProgressDialog extends StatefulWidget {
   final String message;
-  final ProgressState state = ProgressState();
-  ProgressDialog(this.message, {Key? key}) : super(key: key);
+  final Function? getProgress;
+  const ProgressDialog(this.message, this.getProgress, {Key? key})
+      : super(key: key);
 
   @override
   // ignore: no_logic_in_create_state
-  State<ProgressDialog> createState() => state;
+  State<ProgressDialog> createState() => ProgressState();
 }
 
 class ProgressState extends State<ProgressDialog> {
-  double? _progress;
+  //double? _progress;
+  Timer? timer;
 
-  void updateProgress(double progress) {
-    setState(() {
-      _progress = progress;
-    });
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.getProgress != null) {
+      timer = Timer.periodic(
+        const Duration(seconds: 1),
+        (Timer t) => setState(() {
+          // if (widget.getProgress != null) {
+          //   var getProgress = widget.getProgress!;
+          //   _progress = getProgress();
+          // }
+        }),
+      );
+    }
   }
 
-  void close(BuildContext context) {
-    Navigator.pop(context);
+  @override
+  void dispose() {
+    super.dispose();
+    timer?.cancel();
   }
 
   @override
@@ -67,18 +100,7 @@ class ProgressState extends State<ProgressDialog> {
       backgroundColor: Colors.white,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // The loading indicator
-            CircularProgressIndicator(value: _progress),
-            const SizedBox(
-              height: 15,
-            ),
-            // Some text
-            Text(widget.message)
-          ],
-        ),
+        child: CatProgressIndicator(widget.message),
       ),
     );
   }

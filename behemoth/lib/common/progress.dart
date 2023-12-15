@@ -22,38 +22,74 @@ Future<T?> progressDialog<T>(
     Function()? getProgress,
     bool catchException = true}) async {
   var sentence = _sentences[DateTime.now().microsecond % _sentences.length];
-  return showPlatformDialog(
-      context: context,
-      builder: (_) => FutureBuilder<T>(
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.done) {
-                Navigator.pop(context, snapshot.data);
-                if (successMessage != null) {
-                  Future.delayed(const Duration(milliseconds: 300), () {
-                    showPlatformSnackbar(context, successMessage,
-                        backgroundColor: Colors.green);
-                  });
-                }
-              }
-              if (snapshot.hasError) {
-                Navigator.pop(context);
-                if (errorMessage != null) {
-                  Future.delayed(const Duration(milliseconds: 300), () {
-                    showPlatformSnackbar(context, errorMessage,
-                        backgroundColor: Colors.red);
-                  });
-                }
-              }
-              return PlatformScaffold(
-                appBar: PlatformAppBar(
-                  title: Text(sentence),
-                ),
-                body: CatProgressIndicator(message),
-              );
-            },
-            future: task,
-          ));
+
+  Navigator.push(context, MaterialPageRoute(builder: (_) {
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
+        title: Text(sentence),
+      ),
+      body: CatProgressIndicator(message),
+    );
+  }));
+  return task.then<T?>((value) {
+    Navigator.pop(context, value);
+    if (successMessage != null) {
+      showPlatformSnackbar(context, successMessage,
+          backgroundColor: Colors.green);
+    }
+    return value;
+  }).onError((error, stackTrace) {
+    Navigator.pop(context);
+    if (errorMessage != null) {
+      showPlatformSnackbar(context, errorMessage, backgroundColor: Colors.red);
+    }
+    return null;
+  });
 }
+
+// return showPlatformDialog(
+//     context: context,
+//     builder: (context) {
+//       task.then((value) ,
+
+//       return PlatformScaffold(
+//         appBar: PlatformAppBar(
+//           title: Text(sentence),
+//         ),
+//         body: CatProgressIndicator(message),
+//       );
+//     });
+
+//        (_) => FutureBuilder<T>(
+//             builder: (context, snapshot) {
+//               if (snapshot.connectionState == ConnectionState.done) {
+//                 Navigator.pop(context, snapshot.data);
+//                 if (successMessage != null) {
+//                   Future.delayed(const Duration(milliseconds: 300), () {
+//                     showPlatformSnackbar(context, successMessage,
+//                         backgroundColor: Colors.green);
+//                   });
+//                 }
+//               }
+//               if (snapshot.hasError) {
+//                 Navigator.pop(context);
+//                 if (errorMessage != null) {
+//                   Future.delayed(const Duration(milliseconds: 300), () {
+//                     showPlatformSnackbar(context, errorMessage,
+//                         backgroundColor: Colors.red);
+//                   });
+//                 }
+//               }
+//               return PlatformScaffold(
+//                 appBar: PlatformAppBar(
+//                   title: Text(sentence),
+//                 ),
+//                 body: CatProgressIndicator(message),
+//               );
+//             },
+//             future: task,
+//           ));
+// }
 
 class ProgressDialog extends StatefulWidget {
   final String message;
