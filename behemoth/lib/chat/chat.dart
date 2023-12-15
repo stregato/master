@@ -65,6 +65,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     _safe = widget.coven.safe;
     _room = widget.room;
     _picsFolder = ph.join(documentsFolder, _safe.name, _room, ".gallery");
+    print(_picsFolder);
     _bucket = "rooms/$_room/chat";
     _currentUser = types.User(
         id: currentUser.id,

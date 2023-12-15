@@ -21,6 +21,7 @@ Future<void> initFolders() async {
   applicationFolder = dir.path;
 
   dir = await getApplicationDocumentsDirectory();
+  print(dir.absolute);
   if (isDesktop) {
     documentsFolder = path.join(dir.path, "🐱 behemoth");
   } else {
