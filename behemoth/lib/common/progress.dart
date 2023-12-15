@@ -27,20 +27,20 @@ Future<T?> progressDialog<T>(
       builder: (_) => FutureBuilder<T>(
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.done) {
+                Navigator.pop(context, snapshot.data);
                 if (successMessage != null) {
-                  Future.delayed(Duration.zero, () {
+                  Future.delayed(const Duration(milliseconds: 300), () {
                     showPlatformSnackbar(context, successMessage,
                         backgroundColor: Colors.green);
-                    Navigator.pop(context, snapshot.data);
                   });
                 }
               }
               if (snapshot.hasError) {
+                Navigator.pop(context);
                 if (errorMessage != null) {
-                  Future.delayed(Duration.zero, () {
+                  Future.delayed(const Duration(milliseconds: 300), () {
                     showPlatformSnackbar(context, errorMessage,
                         backgroundColor: Colors.red);
-                    Navigator.pop(context);
                   });
                 }
               }
