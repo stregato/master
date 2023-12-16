@@ -3,6 +3,7 @@ package safe
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path"
 	"testing"
 
@@ -67,4 +68,24 @@ func TestPut(t *testing.T) {
 	core.Assert(t, file.Uploading, "Expected file to be uploading")
 
 	Close(s)
+}
+
+func TestThumbnail(t *testing.T) {
+	var imageFile = "../doc/design/passport.jpg"
+	r, err := os.Open(imageFile)
+	core.TestErr(t, err, "cannot open file: %v")
+	defer r.Close()
+
+	data, err := generateThumbnail(r, 256)
+	core.TestErr(t, err, "cannot generate thumbnail: %v")
+	core.Assert(t, len(data) > 0, "Expected thumbnail data to be set")
+
+	w, err := os.Create(os.TempDir() + "/thumbnail.jpg")
+	core.TestErr(t, err, "cannot create file: %v")
+	defer w.Close()
+
+	_, err = w.Write(data)
+	core.TestErr(t, err, "cannot write file: %v")
+
+	exec.Command("xdg-open", w.Name()).Run()
 }

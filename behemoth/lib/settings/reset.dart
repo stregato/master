@@ -13,7 +13,7 @@ class Reset extends StatefulWidget {
 }
 
 class _Reset extends State<Reset> {
-  int _fullReset = 2;
+  int _fullReset = 3;
 
   @override
   Widget build(BuildContext context) {
@@ -41,12 +41,12 @@ class _Reset extends State<Reset> {
                 label: Text("Factory Reset (click $_fullReset times)"),
                 icon: const Icon(Icons.restore),
                 onPressed: () => setState(() {
-                      if (_fullReset == 0) {
+                      if (_fullReset == 1) {
                         clearIdentities();
                         factoryReset();
                         start(
                             "$applicationFolder/woland.db", applicationFolder);
-                        _fullReset = 5;
+                        _fullReset = 3;
                         showPlatformSnackbar(
                             context, "Full Reset completed! Good luck",
                             backgroundColor: Colors.green);

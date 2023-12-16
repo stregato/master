@@ -28,8 +28,7 @@ import (
 const (
 	MaxSizeForCompression = 1 << 26   // 64 MB
 	MaxThumbnailSize      = 64 * 1024 // 64 KB
-	MaxThumbnailWidth     = 256       // 256 pixels
-	MaxThumbnailHeight    = 256       // 256 pixels
+	MaxThumbnailWidth     = 512       // 512 px
 	qualityStep           = 10        // Quality reduction step size
 
 	ErrInvalidName = "invalid name: %s should not start with /"
@@ -38,17 +37,18 @@ const (
 type PutOptions struct {
 	Progress chan int64 // Progress channel
 
-	Async         bool           `json:"async"`         // Do not wait for the file to be uploaded
-	Replace       bool           `json:"replace"`       // Replace all other files with the same name
-	ReplaceID     uint64         `json:"replaceId"`     // Replace the file with the specified ID
-	UpdateMeta    uint64         `json:"updateMeta"`    // Update the metadata of the file with the specified ID. It does not change the file content
-	Tags          []string       `json:"tags"`          // Tags associated with the file
-	Thumbnail     []byte         `json:"thumbnail"`     // Thumbnail associated with the file
-	AutoThumbnail bool           `json:"autoThumbnail"` // Generate a thumbnail from the file
-	ContentType   string         `json:"contentType"`   // Content type of the file
-	Zip           bool           `json:"zip"`           // Zip the file if it is smaller than 64MB
-	Meta          map[string]any `json:"meta"`          // Metadata associated with the file
-	Private       string         `json:"private"`       // Id of the target user in case of private message
+	Async          bool           `json:"async"`          // Do not wait for the file to be uploaded
+	Replace        bool           `json:"replace"`        // Replace all other files with the same name
+	ReplaceID      uint64         `json:"replaceId"`      // Replace the file with the specified ID
+	UpdateMeta     uint64         `json:"updateMeta"`     // Update the metadata of the file with the specified ID. It does not change the file content
+	Tags           []string       `json:"tags"`           // Tags associated with the file
+	Thumbnail      []byte         `json:"thumbnail"`      // Thumbnail associated with the file
+	ThumbnailWidth int            `json:"thumbnailWidth"` // Thumbnail width
+	AutoThumbnail  bool           `json:"autoThumbnail"`  // Generate a thumbnail from the file
+	ContentType    string         `json:"contentType"`    // Content type of the file
+	Zip            bool           `json:"zip"`            // Zip the file if it is smaller than 64MB
+	Meta           map[string]any `json:"meta"`           // Metadata associated with the file
+	Private        string         `json:"private"`        // Id of the target user in case of private message
 }
 
 //func (s *Portal) Put(name string, r io.ReadSeeker, secId uint64, options PutOptions) (Header, error) {
@@ -106,7 +106,12 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 	}
 
 	if options.AutoThumbnail && len(options.Thumbnail) == 0 {
-		options.Thumbnail, err = generateThumbnail(r, MaxThumbnailWidth, MaxThumbnailHeight)
+		var width = options.ThumbnailWidth
+		if width == 0 {
+			width = MaxThumbnailWidth
+		}
+
+		options.Thumbnail, err = generateThumbnail(r, width)
 		if core.IsErr(err, nil, "cannot generate thumbnail: %v", err) {
 			return Header{}, err
 		}
@@ -162,13 +167,23 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 	s.Size += header.Size
 	applyQuota(0.95, s.QuotaGroup, s.store, s.Size, s.Quota, false)
 	if options.Async {
-		if sourceFile != "" {
-			core.Info("Async put for %s[%d]", header.Name, header.FileId)
-			s.uploadFile <- true
-			return header, nil
-		} else {
-			return header, fmt.Errorf("cannot put async without source file")
+		if sourceFile == "" {
+			sourceFile := path.Join(os.TempDir(), fmt.Sprintf("%d.delete", header.FileId))
+			f, err := os.Create(sourceFile)
+			if core.IsErr(err, nil, "cannot create temp file: %v", err) {
+				return Header{}, err
+			}
+			_, err = io.Copy(f, r)
+			if core.IsErr(err, nil, "cannot copy to temp file: %v", err) {
+				return Header{}, err
+			}
+			f.Close()
+			header.SourceFile = sourceFile
 		}
+
+		core.Info("Async put for %s[%d]", header.Name, header.FileId)
+		s.uploadFile <- UploadTask{Bucket: bucket, Header: header, HeaderFile: headerFile}
+		return header, nil
 	} else {
 		return writeToStore(s, bucket, r, headerFile, header, onComplete)
 	}
@@ -195,6 +210,12 @@ func getReaderHashAndSize(r io.ReadSeeker) (hash []byte, size int64, err error) 
 	}
 
 	return hasher.Sum(nil), size, nil
+}
+
+type UploadTask struct {
+	Bucket     string
+	Header     Header
+	HeaderFile uint64
 }
 
 func uploadFilesInBackground(s *Safe) {
@@ -229,13 +250,7 @@ func uploadFilesInBackground(s *Safe) {
 	rows.Close()
 
 	for i, header := range headers {
-		f, err := os.Open(header.SourceFile)
-		if !core.IsErr(err, nil, "cannot open source file: %v", err) {
-			core.Info("Uploading %s[%d]", header.Name, header.FileId)
-			_, err = writeToStore(s, buckets[i], f, headerFiles[i], header, nil)
-			f.Close()
-		}
-
+		err = uploadFileInBackground(s, UploadTask{Bucket: buckets[i], Header: header, HeaderFile: headerFiles[i]})
 		if err != nil && core.Since(header.ModTime) > time.Hour*24*7 {
 			_, err = sql.Exec("DELETE_UPLOAD", sql.Args{"safe": s.Name, "headerFile": headerFiles[i], "bucket": buckets[i]})
 			if !core.IsErr(err, nil, "cannot delete upload: %v", err) {
@@ -244,6 +259,26 @@ func uploadFilesInBackground(s *Safe) {
 		}
 	}
 
+}
+
+func uploadFileInBackground(s *Safe, uploadTask UploadTask) error {
+	header := uploadTask.Header
+	f, err := os.Open(header.SourceFile)
+	if core.IsErr(err, nil, "cannot open source file: %v", err) {
+		return err
+	}
+	core.Info("Uploading %s[%d] in %s/%s", header.Name, header.FileId, s.Name, uploadTask.Bucket)
+
+	_, err = writeToStore(s, uploadTask.Bucket, f, uploadTask.HeaderFile, header, nil)
+	f.Close()
+	core.Info("Uploaded %s[%d]", header.Name, header.FileId)
+
+	if path.Dir(header.SourceFile) == os.TempDir() && strings.HasSuffix(header.SourceFile, ".delete") {
+		os.Remove(header.SourceFile)
+		core.Info("Deleted %s", header.SourceFile)
+	}
+
+	return err
 }
 
 var uploading = make(map[uint64]bool)
@@ -355,7 +390,9 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	return header, nil
 }
 
-func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error) {
+func generateThumbnail(r io.ReadSeeker, maxWidth int) ([]byte, error) {
+	r.Seek(0, io.SeekStart)
+	x, _ := exif.Decode(r)
 	_, err := r.Seek(0, io.SeekStart)
 	if core.IsErr(err, nil, "cannot seek to start of file: %v", err) {
 		return nil, err
@@ -367,8 +404,11 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	r.Seek(0, io.SeekStart)
-	x, _ := exif.Decode(r)
+	var maxHeight int
+	w := img.Bounds().Dx()
+	h := img.Bounds().Dy()
+	maxHeight = h * maxWidth / w
+
 	if x != nil {
 		orientation := getOrientation(x)
 		img = transformImageBasedOnEXIF(img, orientation)
@@ -378,7 +418,7 @@ func generateThumbnail(r io.ReadSeeker, maxWidth, maxHeight int) ([]byte, error)
 	quality := 100
 	for {
 		// Generate the thumbnail with the specified dimensions and quality
-		thumb := imaging.Thumbnail(img, maxWidth, 0, imaging.Lanczos)
+		thumb := imaging.Thumbnail(img, maxWidth, maxHeight, imaging.Lanczos)
 		buffer := new(bytes.Buffer)
 
 		// Encode the thumbnail with the current quality setting

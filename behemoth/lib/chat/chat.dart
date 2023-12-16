@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'dart:typed_data';
 
+import 'package:behemoth/chat/unique_file_image.dart';
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/coven/cockpit.dart';
@@ -47,7 +48,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   DateTime _lastMessage = DateTime(0);
   late types.User _currentUser;
   final Map<String, types.User> _users = {};
-  final Set<String> _loaded = {};
+  final Set<int> _loaded = {};
   final double _pageThresold = isDesktop ? 40 : 20;
   bool _isLastPage = false;
   late Safe _safe;
@@ -65,7 +66,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     _safe = widget.coven.safe;
     _room = widget.room;
     _picsFolder = ph.join(documentsFolder, _safe.name, _room, ".gallery");
-    print(_picsFolder);
     _bucket = "rooms/$_room/chat";
     _currentUser = types.User(
         id: currentUser.id,
@@ -158,18 +158,17 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     var size =
         h.attributes.thumbnail.isEmpty ? h.size : h.attributes.thumbnail.length;
 
-    var name = h.attributes.extra['name'];
-    var file = File(ph.join(_picsFolder, name));
+    var file = File(ph.join(_picsFolder, "${h.fileId}"));
     file.parent.createSync(recursive: true);
     var stat = FileStat.statSync(file.path);
-    if (h.size != stat.size) {
-      if (stat.type == FileSystemEntityType.notFound &&
-          h.attributes.thumbnail.isNotEmpty) {
+    if (stat.type == FileSystemEntityType.notFound) {
+      if (h.attributes.thumbnail.isNotEmpty) {
         file.writeAsBytesSync(h.attributes.thumbnail);
       }
-      _safe
-          .getFile(_bucket, h.name, file.path, GetOptions(fileId: h.fileId))
-          .then((_) => setState(() {}));
+
+      // _safe
+      //     .getFile(_bucket, h.name, file.path, GetOptions(fileId: h.fileId))
+      //     .then((_) => setState(() {}));
     }
 
     return types.ImageMessage(
@@ -207,8 +206,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         return types.User(id: h.creator, firstName: i.nick, lastName: i.email);
       });
       var contentType = h.attributes.contentType;
-      _loaded.add(h.name);
-
       if (contentType == 'text/html') {
         return _convertHtml(h, user);
       }
@@ -251,23 +248,22 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   _loadMoreMessages() async {
-    _to = DateTime.now();
+    _to = DateTime.now().add(const Duration(seconds: 10));
     var headers = await _listFiles(widget, _from, _to);
     if (headers == null || headers.isEmpty) {
       return;
     }
 
     headers = headers.reversed.toList();
-    var anyNew = false;
+    var newMessages = <types.Message>[];
     for (var header in headers) {
-      if (!_loaded.contains(header.name)) {
+      if (!_loaded.contains(header.fileId)) {
         if (header.modTime.isAfter(_lastAction) &&
             header.creator != _safe.currentUser.id) {
           _lastAction = header.modTime;
         }
-        _messages.insert(0, _convert(header));
-        _loaded.add(header.name);
-        anyNew = true;
+        newMessages.insert(0, _convert(header));
+        _loaded.add(header.fileId);
       }
     }
 
@@ -277,9 +273,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     if (_from.isAfter(_lastMessage)) {
       _lastMessage = _from;
     }
-    if (anyNew) {
+    if (newMessages.isNotEmpty) {
       setState(() {
-        _messages = _messages;
+        _messages = [...newMessages, ..._messages];
       });
     }
   }
@@ -358,9 +354,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
     setState(() {
       for (var header in headers.reversed) {
-        if (!_loaded.contains(header.name)) {
+        if (!_loaded.contains(header.fileId)) {
           _messages.add(_convert(header));
-          _loaded.add(header.name);
+          _loaded.add(header.fileId);
         }
       }
       _isLastPage = headers.length < _pageThresold;
@@ -376,19 +372,20 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       meta: {'text': message.text},
     );
 
-    var header = await _safe.putBytes(_bucket, name, Uint8List(0), putOptions);
+    await _safe.putBytes(_bucket, name, Uint8List(0), putOptions);
 
-    final textMessage = types.TextMessage(
-      author: _currentUser,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      id: header.name,
-      text: message.text,
-    );
+    // final textMessage = types.TextMessage(
+    //   author: _currentUser,
+    //   createdAt: DateTime.now().millisecondsSinceEpoch,
+    //   id: header.name,
+    //   text: message.text,
+    // );
 
-    _loaded.add(name);
-    _addMessage(textMessage);
+//    _loaded.add(header.fileId);
+//    _addMessage(textMessage);
     _touch();
     Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
+    _loadMoreMessages();
   }
 
   void _handleAttachmentPressed(BuildContext context) {
@@ -475,8 +472,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       size: size,
       uri: "file://$name",
     );
-    _loaded.add(name);
-    _loaded.add(message.id);
+    // _loaded.add(name);
+    // _loaded.add(message.id);
     _messages.insert(0, message);
   }
 
@@ -501,33 +498,32 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     //final image = await decodeImageFromList(bytes);
 
     var name = ph.basename(xfile.path);
-    var dest = ph.join(_picsFolder, name);
-    xfile.saveTo(dest);
+//    var stat = File(xfile.path).statSync();
 
-    var stat = File(xfile.path).statSync();
-
-    var options = PutOptions(async: true, private: widget.privateId);
-    options.autoThumbnail = true;
-    options.contentType = lookupMimeType(xfile.path) ?? '';
-    options.meta = {'name': name};
-
-    var header = await _safe.putFile(_bucket, name, xfile.path, options);
-
-    var message = types.ImageMessage(
-      author: _currentUser,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      //height: image.height.toDouble(),
-      id: "${header.fileId}",
-      name: xfile.name,
-      size: stat.size,
-      //size: bytes.length,
-      uri: xfile.path,
-      //width: image.width.toDouble(),
-      updatedAt: header.modTime.millisecondsSinceEpoch,
+    var options = PutOptions(
+      async: true,
+      private: widget.privateId,
+      autoThumbnail: true,
+      thumbnailWidth: 512,
+      contentType: lookupMimeType(xfile.path) ?? '',
     );
-    setState(() {
-      _messages = [..._messages, message];
-    });
+    await _safe.putFile(_bucket, name, xfile.path, options);
+
+    // var message = types.ImageMessage(
+    //   author: _currentUser,
+    //   createdAt: DateTime.now().millisecondsSinceEpoch,
+    //   //height: image.height.toDouble(),
+    //   id: "${header.fileId}",
+    //   name: xfile.name,
+    //   size: stat.size,
+    //   //size: bytes.length,
+    //   uri: xfile.path,
+    //   //width: image.width.toDouble(),
+    //   updatedAt: header.modTime.millisecondsSinceEpoch,
+    // );
+    // setState(() {
+    //   _messages = [..._messages, message];
+    // });
   }
 
   // void _handleCameraSelection(BuildContext context) async {
@@ -543,10 +539,37 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
   void _handleImageSelection(
       BuildContext context, ImageSource imageSource) async {
-    for (var xfile in await pickImage(imageSource, multiple: true)) {
-      await _addImage(xfile);
+    var xfiles = await pickImage(imageSource, multiple: true);
+
+    Future<void> pushImages(context, xfiles) async {
+      if (xfiles.isEmpty) return;
+
+      var xfile = xfiles.removeLast();
+      Future.delayed(Duration.zero, () async {
+        await _addImage(xfile);
+        await _loadMoreMessages();
+        pushImages(context, xfiles);
+      });
     }
+
+    if (mounted) {
+      pushImages(context, xfiles);
+    }
+
     Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
+  }
+
+  Future<void> _downloadImage(
+      BuildContext context, types.Message message) async {
+    var h = message.metadata?['header'] as Header?;
+    var file = message.metadata?['file'] as File?;
+    var stat = file?.statSync();
+    if (file != null && stat?.size != h?.size) {
+      var task = _safe.getFile(
+          _bucket, h!.name, file.path, GetOptions(fileId: h.fileId));
+      await progressDialog(context, "downloading image", task,
+          errorMessage: "Cannot download image");
+    }
   }
 
   void _handleMessageTap(BuildContext context, types.Message message) async {
@@ -562,6 +585,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         //       arguments: LibraryArgs(_poolName, folder));
       }
     }
+    if (message is types.ImageMessage) {
+      await _downloadImage(context, message);
+    }
   }
 
   void _handleMessageDownload(
@@ -569,15 +595,17 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     _touch();
 
     if (message is types.ImageMessage) {
+      await _downloadImage(context, message);
       var file = message.metadata?['file'] as File?;
-      if (file == null) {
+      var name = message.name;
+      if (file == null && mounted) {
         showPlatformSnackbar(context, "Image not yet downloaded",
             backgroundColor: Colors.red);
       }
 
       if (file != null && file.existsSync()) {
-        if (isDesktop) {
-          var filepath = ph.join(downloadFolder, ph.basename(file.path));
+        if (isDesktop && mounted) {
+          var filepath = ph.join(downloadFolder, name);
           file.copySync(filepath);
           showPlatformSnackbar(context, "Saved to $filepath");
         } else {
@@ -655,12 +683,12 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     });
   }
 
-  void _addMessage(types.Message message) {
-    setState(() {
-      _loaded.add(message.id);
-      _messages.insert(0, message);
-    });
-  }
+  // void _addMessage(types.Message message) {
+  //   setState(() {
+  //     _loaded.add(message.id);
+  //     _messages.insert(0, message);
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -673,6 +701,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         },
         child: chat.Chat(
           messages: _messages,
+          imageProviderBuilder: (
+              {required conditional, required imageHeaders, required uri}) {
+            return UniqueFileImage(File(uri));
+          },
           onAttachmentPressed: () {
             _handleAttachmentPressed(context);
           },

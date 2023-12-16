@@ -145,7 +145,7 @@ func Create(currentUser security.Identity, access string, users Users, options C
 
 		background:     time.NewTicker(time.Minute),
 		syncUsers:      make(chan bool),
-		uploadFile:     make(chan bool),
+		uploadFile:     make(chan UploadTask),
 		compactHeaders: make(chan CompactHeader),
 		quit:           make(chan bool),
 		wg:             sync.WaitGroup{},

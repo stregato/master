@@ -57,7 +57,7 @@ type Safe struct {
 	syncUsers        chan bool          // Channel for syncing users
 	compactHeaders   chan CompactHeader // Channel for compacting the headers
 	compactHeadersWg sync.WaitGroup     // Wait group for compacting the headers
-	uploadFile       chan bool          // Channel for uploading headers
+	uploadFile       chan UploadTask    // Channel for uploading headers
 	quit             chan bool          // Channel for quitting background tasks
 	wg               sync.WaitGroup     // Wait group for background tasks
 

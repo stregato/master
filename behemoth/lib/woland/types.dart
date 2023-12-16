@@ -361,6 +361,7 @@ class PutOptions {
   int updateMeta;
   List<String> tags;
   List<int> thumbnail;
+  int thumbnailWidth;
   bool autoThumbnail;
   String contentType;
   bool zip;
@@ -375,6 +376,7 @@ class PutOptions {
       this.updateMeta = 0,
       this.tags = const [],
       this.thumbnail = const [],
+      this.thumbnailWidth = 0,
       this.autoThumbnail = false,
       this.contentType = '',
       this.zip = false,
@@ -389,6 +391,7 @@ class PutOptions {
         'updateMeta': updateMeta,
         'tags': tags,
         'thumbnail': thumbnail,
+        'thumbnailWidth': thumbnailWidth,
         'autoThumbnail': autoThumbnail,
         'contentType': contentType,
         'zip': zip,

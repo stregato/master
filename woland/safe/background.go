@@ -7,13 +7,15 @@ func backgroundJob(s *Safe) {
 	for {
 		select {
 		case _, ok := <-s.background.C:
-			if !ok { // channel closed
-				continue
+			if ok { // channel closed
+				SyncUsers(s)
+				uploadFilesInBackground(s)
 			}
-		case _, ok := <-s.uploadFile:
-			if !ok { // channel closed
-				continue
+		case task, ok := <-s.uploadFile:
+			if ok { // channel closed
+				uploadFileInBackground(s, task)
 			}
+			continue
 		case c, ok := <-s.compactHeaders:
 			if ok {
 				compactHeadersInBucket(s, c.BucketDir, c.NewKey)
@@ -24,8 +26,5 @@ func backgroundJob(s *Safe) {
 			s.wg.Done()
 			return
 		}
-
-		SyncUsers(s)
-		uploadFilesInBackground(s)
 	}
 }
