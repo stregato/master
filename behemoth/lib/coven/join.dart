@@ -1,10 +1,10 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/common/qrcode_scan_button.dart';
 import 'package:behemoth/woland/types.dart';
-import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,12 +16,33 @@ class Join extends StatefulWidget {
 
   @override
   State<Join> createState() => _JoinState();
+
+  static List<String>? parseInvite(String link) {
+    var url = Uri.tryParse(link);
+    if (url == null) {
+      return null;
+    }
+    var path = url.path;
+    var parts = path.split('/');
+    if (parts.length != 4 || parts[0] != "a") {
+      return null;
+    }
+
+    try {
+      var url = utf8.decode(base64Decode(parts[3]));
+      return [parts[1], parts[2], url];
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 class _JoinState extends State<Join> {
   String? _errorText;
   Access? _decodedToken;
-  String _access = "";
+  String _name = "";
+  String _creatorId = "";
+  String _url = "";
   List<String> accessPrefixes = ['https://behemoth.rocks/a/', 'mg://a/'];
   final TextEditingController _secretController = TextEditingController();
   final TextEditingController _linkController = TextEditingController();
@@ -36,44 +57,25 @@ class _JoinState extends State<Join> {
   }
 
   void parseLink(String link) {
-    _access = "";
-    if (link.isEmpty) {
-      return;
-    }
-    var f = accessPrefixes
-        .map((p) => link.startsWith(p) ? link.substring(p.length) : "")
-        .where((e) => e.isNotEmpty);
-    if (f.isEmpty) {
+    _url = "";
+    var parts = Join.parseInvite(link);
+    if (parts == null) {
       setState(() {
         _errorText = "invalid access link";
       });
       return;
     }
-
-    _access = f.first;
-
-    try {
-      _decodedToken = null;
-      _decodedToken = decodeAccess(Profile.current.identity, _access);
-      setState(() {
-        _errorText = null;
-      });
-    } catch (e) {
-      setState(() {
-        _errorText = "invalid or expired link: $e";
-      });
-    }
+    _name = parts[0];
+    _creatorId = parts[1];
+    _url = parts[2];
   }
 
   @override
   Widget build(BuildContext context) {
-    var profile = Profile.current;
     var link = ModalRoute.of(context)!.settings.arguments as String?;
     if (link != null) {
       parseLink(link);
     }
-
-    var currentUserId = profile.identity.id;
 
     var shareIdSection = <Widget>[
       if (link == null)
@@ -138,11 +140,10 @@ class _JoinState extends State<Join> {
               child: PlatformElevatedButton(
                 onPressed: (_decodedToken != null && _errorText == null)
                     ? () async {
-                        var name = _decodedToken!.name;
-                        var token = encodeAccess(currentUserId, _decodedToken!);
-                        var task = Coven.join(token, _secretController.text);
-                        await progressDialog(context, "Joining $name", task,
-                            successMessage: "Added $name");
+                        var task = Coven.join(
+                            _name, _creatorId, _url, _secretController.text);
+                        await progressDialog(context, "Joining $_name", task,
+                            successMessage: "Added $_name");
                         widget.onComplete?.call();
                       }
                     : null,

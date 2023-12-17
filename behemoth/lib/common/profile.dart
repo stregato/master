@@ -6,7 +6,6 @@ import 'package:behemoth/coven/cockpit.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
-import 'package:snowflake_dart/snowflake_dart.dart';
 
 var identities = <String, Identity>{};
 void clearIdentities() {
@@ -29,7 +28,8 @@ List<String> covenAndRoom(String safeName) {
 class Coven {
   Identity identity;
   String name;
-  String access;
+  String url = "";
+  String creatorId = "";
   String secret = "";
   Set<String> rooms;
   Set<String> federated = {};
@@ -37,15 +37,16 @@ class Coven {
   static Map<String, Coven> opened = {};
   static Map<String, DateTime> safesAccessed = {};
 
-  static Future<Coven> join(String access, String secret) async {
+  static Future<Coven> join(
+      String name, String creatorId, String url, String secret) async {
     var p = Profile.current;
-    var d = decodeAccess(p.identity, access);
-    var name = d.name;
-    var coven = p.covens
-        .putIfAbsent(name, () => Coven(p.identity, name, access, secret, {}));
+
+    Safe.add(name, creatorId, url);
+    var coven = p.covens.putIfAbsent(
+        name, () => Coven(p.identity, name, creatorId, url, secret, {}));
     p.save();
     try {
-      await Safe.open(p.identity, access, OpenOptions(initiateSecret: secret));
+      await Safe.open(p.identity, name, OpenOptions(initiateSecret: secret));
     } catch (e) {
       // ignore
     }
@@ -54,27 +55,27 @@ class Coven {
 
   static Future create(String name, String url, CreateOptions options) async {
     var p = Profile.current;
-    var access =
-        Access(name, Snowflake(nodeId: 0).generate(), p.identity.id, url);
-    var token = encodeAccess(p.identity.id, access);
 
-    var safe = await Safe.create(p.identity, token, {}, options);
+    var safe = await Safe.create(p.identity, name, url, {}, options);
     await safe.putBytes("rooms/.list", "lounge", Uint8List(0), PutOptions());
     safe.close();
 
-    var coven = Coven(p.identity, name, token, "0000", {"lounge"});
+    var coven = Coven(p.identity, name, p.identity.id, url, "0000", {"lounge"});
     p.update(coven);
   }
 
-  Coven(this.identity, this.name, this.access, this.secret, this.rooms);
+  Coven(this.identity, this.name, this.creatorId, this.url, this.secret,
+      this.rooms);
   Coven.fromJson(this.identity, Map<String, dynamic> json)
       : name = json['name'],
-        access = json['access'],
+        creatorId = json['creatorId'],
+        url = json['url'],
         rooms = json['rooms'].map<String>((v) => v as String).toList().toSet();
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'access': access,
+        'creatorId': creatorId,
+        'url': url,
         'rooms': rooms.toList(),
       };
 
@@ -83,7 +84,7 @@ class Coven {
       return _safe!;
     }
     _safe =
-        await Safe.open(identity, access, OpenOptions(initiateSecret: secret));
+        await Safe.open(identity, name, OpenOptions(initiateSecret: secret));
     opened[name] = this;
     safesAccessed[name] = DateTime.now();
     Cockpit.openCoven(this);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:behemoth/common/complete_identity.dart';
 import 'package:behemoth/common/profile.dart';
@@ -17,6 +18,11 @@ class InviteToCoven extends StatefulWidget {
 
   @override
   State<InviteToCoven> createState() => _InviteToCovenState();
+
+  static getInviteLink(Coven coven) {
+    var store = base64Encode(utf8.encode(coven.url));
+    return "https://behemoth.rocks/a/${coven.name}/${coven.creatorId}/$store";
+  }
 }
 
 class _InviteToCovenState extends State<InviteToCoven> {
@@ -131,11 +137,7 @@ class _InviteToCovenState extends State<InviteToCoven> {
     if (_coven == null || (_personal && _id.isEmpty)) {
       return "";
     }
-
-    var identity = _coven!.identity;
-    var access = decodeAccess(identity, _safe!.access);
-    var token = encodeAccess(_id, access);
-    return "https://behemoth.rocks/a/$token";
+    return InviteToCoven.getInviteLink(_coven!);
   }
 
   @override
@@ -356,9 +358,7 @@ class _InviteToCovenState extends State<InviteToCoven> {
       children: [
         ShareData("Access link", accessLink),
         const SizedBox(height: 10),
-        Text(_nick.isNotEmpty
-            ? "Share the below link with $_nick"
-            : "Link valid until ${nextHour.hour}:${nextHour.minute}"),
+        if (_nick.isNotEmpty) Text("Share the below link with $_nick"),
         //CopyField("Mobile", "https://behemoth.rocks/a/$_access"),
       ],
     );

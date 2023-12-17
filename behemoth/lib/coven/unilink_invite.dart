@@ -1,11 +1,10 @@
 import 'dart:io';
 
 import 'package:behemoth/common/snackbar.dart';
+import 'package:behemoth/coven/invite_to_coven.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:behemoth/common/profile.dart';
-import 'package:behemoth/woland/woland.dart';
-import 'package:behemoth/woland/types.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -17,22 +16,17 @@ class UnilinkInvite extends StatefulWidget {
 }
 
 class _UnilinkInviteState extends State<UnilinkInvite> {
-  String _access = "";
-
-  reencodeAccess(String access, Identity identity, String id) {
-    return encodeAccess(id, decodeAccess(identity, access));
-  }
+  Coven? _coven;
 
   @override
   Widget build(BuildContext context) {
     var args =
         ModalRoute.of(context)?.settings.arguments as Map<String, String>;
-    var id = args["id"] ?? "";
+
     var nick = args["nick"];
 
     var current = Profile.current;
-    var desktopLink = 'mg://a/$_access';
-    var mobileLink = 'https://behemoth.rocks/a/$_access';
+    var link = _coven != null ? InviteToCoven.getInviteLink(_coven!) : "";
 
     Widget shareButton;
     if (Platform.isAndroid || Platform.isIOS) {
@@ -41,7 +35,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
           label: const Text("Share the Link"),
           onPressed: () {
             final box = context.findRenderObject() as RenderBox?;
-            Share.share(mobileLink,
+            Share.share(link,
                 subject: "Hi, this is access for ${nick ?? '?'}",
                 sharePositionOrigin:
                     box!.localToGlobal(Offset.zero) & box.size);
@@ -51,7 +45,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
           icon: const Icon(Icons.copy),
           label: const Text("Copy to the clipboard"),
           onPressed: () {
-            Clipboard.setData(ClipboardData(text: desktopLink)).then((_) {
+            Clipboard.setData(ClipboardData(text: link)).then((_) {
               showPlatformSnackbar(context, "Link copied to clipboard",
                   backgroundColor: Colors.green);
             });
@@ -68,7 +62,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
           padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
           child: Column(
             children: [
-              if (_access.isEmpty)
+              if (_coven == null)
                 Column(
                   children: [
                     const Text("Choose the coven"),
@@ -81,10 +75,7 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
                               child: ListTile(
                                   title: Text(e.key),
                                   onTap: () {
-                                    setState(() {
-                                      _access = reencodeAccess(
-                                          e.value.access, current.identity, id);
-                                    });
+                                    setState(() {});
                                   }),
                             ),
                           )
@@ -96,13 +87,13 @@ class _UnilinkInviteState extends State<UnilinkInvite> {
                 Column(
                   children: [
                     QrImageView(
-                      data: mobileLink,
+                      data: link,
                       version: QrVersions.auto,
                       size: 320,
                       gapless: false,
                     ),
                     const SizedBox(height: 20),
-                    Text(desktopLink,
+                    Text(link,
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.grey[800],

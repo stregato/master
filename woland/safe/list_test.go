@@ -15,7 +15,7 @@ func TestList(t *testing.T) {
 	StartTestDB(t, dbPath)
 	defer sql.CloseDB()
 
-	s, err := Create(Identity1, access1, nil, CreateOptions{Wipe: true})
+	s, err := Create(Identity1, testSafe, testUrl, nil, CreateOptions{Wipe: true})
 	core.Assert(t, err == nil, "Cannot create safe: %v", err)
 
 	for i := 0; i < 10; i++ {

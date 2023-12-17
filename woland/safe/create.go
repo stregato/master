@@ -2,6 +2,7 @@ package safe
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,15 +28,13 @@ const (
 	DefaultReplicaWatch   = 10 * time.Minute
 )
 
-func Create(currentUser security.Identity, access string, users Users, options CreateOptions) (*Safe, error) {
-	name, id, creatorId, url, err := DecodeAccess(currentUser, access)
-	if core.IsErr(err, nil, "invalid access token 'account'") {
+func Create(currentUser security.Identity, name string, url string, users Users, options CreateOptions) (*Safe, error) {
+	name, err := validName(name)
+	if core.IsErr(err, nil, "invalid name %s: %v", name) {
 		return nil, err
 	}
 
-	if creatorId != currentUser.Id {
-		return nil, fmt.Errorf("invalid access token 'account'")
-	}
+	creatorId := currentUser.Id
 
 	store, err := storage.Open(url)
 	if core.IsErr(err, nil, "cannot connect to %s: %v", name) {
@@ -60,8 +59,19 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	if options.Wipe {
 		core.Info("wiping safe: name %s", name)
 		store.Delete(name)
+		wipeSafeInDB(name)
 	} else {
 		return nil, fmt.Errorf("safe already exist: name %s", name)
+	}
+
+	_, _, err = getSafeFromDB(name)
+	if err == nil {
+		return nil, fmt.Errorf("safe already exist: name %s", name)
+	}
+
+	err = setSafeInDB(name, creatorId, url)
+	if core.IsErr(err, nil, "cannot set safe in DB for %s: %v", name) {
+		return nil, err
 	}
 
 	keystore := Keystore{
@@ -126,22 +136,21 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	safesCounter++
 
 	s := &Safe{
-		Hnd:         safesCounter,
-		CurrentUser: currentUser,
-		CreatorId:   creatorId,
-		Access:      access,
-		Permission:  users[currentUser.Id],
-		Name:        name,
-		Id:          id,
-		Description: options.Description,
-		Storage:     store.Describe(),
-		Quota:       options.Quota,
-		QuotaGroup:  options.QuotaGroup,
-		Size:        0,
-		keystore:    keystore,
-		store:       store,
-		users:       users,
-		usersLock:   sync.Mutex{},
+		Hnd:              safesCounter,
+		CurrentUser:      currentUser,
+		CreatorId:        creatorId,
+		Store:            url,
+		Permission:       users[currentUser.Id],
+		Name:             name,
+		Description:      options.Description,
+		StoreDescription: store.Describe(),
+		Quota:            options.Quota,
+		QuotaGroup:       options.QuotaGroup,
+		Size:             0,
+		keystore:         keystore,
+		store:            store,
+		users:            users,
+		usersLock:        sync.Mutex{},
 
 		background:     time.NewTicker(time.Minute),
 		syncUsers:      make(chan bool),
@@ -152,4 +161,56 @@ func Create(currentUser security.Identity, access string, users Users, options C
 	}
 	go backgroundJob(s)
 	return s, nil
+}
+
+var forbiddenChars = []rune{'.', ';', '/', '`', '\'', '@', '"', '(', ')',
+	'[', ']', '{', '}', '<', '>', ',', '!', '#', '$', '%', '^', '&', '*',
+	'+', '=', '|', '\\', '~', ' '}
+
+func validName(name string) (string, error) {
+	for _, c := range name {
+		for _, f := range forbiddenChars {
+			if c == f {
+				return "", fmt.Errorf("invalid character %c in name %s", c, name)
+			}
+		}
+	}
+	return strings.ToLower(name), nil
+}
+
+func setSafeInDB(name string, creatorId string, url string) error {
+	_, err := sql.Exec("SET_SAFE", sql.Args{
+		"name":      name,
+		"creatorId": creatorId,
+		"url":       url,
+	})
+	return err
+}
+func getSafeFromDB(name string) (creatorId string, url string, err error) {
+	err = sql.QueryRow("GET_SAFE", sql.Args{"name": name}, &creatorId, &url)
+	return creatorId, url, err
+}
+
+func wipeSafeInDB(name string) error {
+	_, err := sql.Exec("DEL_SAFE", sql.Args{"name": name})
+	if core.IsErr(err, nil, "cannot delete safe %s from DB: %v", name) {
+		return err
+	}
+
+	_, err = sql.Exec("DELETE_SAFE_HEADERS", sql.Args{"safe": name})
+	if core.IsErr(err, nil, "cannot wipe DB headers for safe %s: %v", name, err) {
+		return err
+	}
+
+	_, err = sql.Exec("DELETE_SAFE_USERS", sql.Args{"safe": name})
+	if core.IsErr(err, nil, "cannot wipe DB users for safe %s: %v", name, err) {
+		return err
+	}
+
+	_, err = sql.Exec("DELETE_SAFE_CONFIGS", sql.Args{"safe": name})
+	if core.IsErr(err, nil, "cannot wipe DB configs for safe %s: %v", name, err) {
+		return err
+	}
+
+	return nil
 }

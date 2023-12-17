@@ -41,6 +41,24 @@ INSERT INTO configs(node,k,s,i,b) VALUES(:node,:key,:s,:i,:b)
 DELETE FROM configs WHERE node=:node
 
 -- INIT
+CREATE TABLE IF NOT EXISTS Safes (
+    name VARCHAR(255) PRIMARY KEY,
+    creatorId VARCHAR(255),
+    url VARCHAR(255)
+);
+
+-- GET_SAFE
+SELECT creatorId, url  FROM Safes WHERE name=:name
+
+-- SET_SAFE
+INSERT INTO Safes(name,url,creatorId) VALUES(:name,:url,:creatorId)
+  ON CONFLICT(name) DO UPDATE SET url=:url,creatorId=:creatorId
+  WHERE name=:name
+
+-- DEL_SAFE
+DELETE FROM Safes WHERE name=:name
+
+-- INIT
 CREATE TABLE IF NOT EXISTS Users (
   safe TEXT NOT NULL,
   id TEXT NOT NULL,

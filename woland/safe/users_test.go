@@ -13,7 +13,7 @@ func TestAddSecondUser(t *testing.T) {
 
 	StartTestDB(t, dbPath)
 
-	s, err := Create(Identity1, access1, nil, CreateOptions{Wipe: true})
+	s, err := Create(Identity1, testSafe, testUrl, nil, CreateOptions{Wipe: true})
 	core.Assert(t, err == nil, "Cannot create safe: %v", err)
 
 	r := core.NewBytesReader(testData)
@@ -42,7 +42,10 @@ func TestAddSecondUser(t *testing.T) {
 	sql.CloseDB()
 
 	StartTestDB(t, dbPath)
-	s, err = Open(Identity2, access2, OpenOptions{})
+	err = Add(testSafe, testUrl, Identity1.Id)
+	core.TestErr(t, err, "cannot join safe: %v")
+
+	s, err = Open(Identity2, testSafe, OpenOptions{})
 	core.TestErr(t, err, "cannot open safe: %v")
 	core.Assert(t, s.keystore.LastKeyId == lastKeyId, "Expected last key id to be %d, got %d", lastKeyId, s.keystore.LastKeyId)
 
@@ -76,7 +79,10 @@ func TestAddSecondUser(t *testing.T) {
 	sql.CloseDB()
 
 	StartTestDB(t, dbPath)
-	s, err = Open(Identity1, access1, OpenOptions{})
+	err = Add(testSafe, testUrl, Identity1.Id)
+	core.TestErr(t, err, "cannot join safe: %v")
+
+	s, err = Open(Identity1, testSafe, OpenOptions{})
 	core.TestErr(t, err, "cannot open safe: %v")
 
 	changes, err := SyncBucket(s, "bucket", SyncOptions{}, nil)

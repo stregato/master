@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'dart:typed_data';
 
-import 'package:behemoth/chat/unique_file_image.dart';
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/coven/cockpit.dart';
@@ -300,7 +299,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           ),
         );
       case 'application/x-behemoth-invite':
-        var access = message.metadata?['access'] as String;
+        var url = message.metadata?['url'] as String;
+        var creatorId = message.metadata?['creatorId'] as String;
         var name = message.metadata?['name'] as String;
         var sender = message.metadata?['sender'] as Identity;
 
@@ -324,8 +324,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                 if (sender.id != _safe.currentUser.id)
                   PlatformElevatedButton(
                     onPressed: () async {
-                      await progressDialog(
-                          context, "Joining $name", Coven.join(access, ""),
+                      await progressDialog(context, "Joining $name",
+                          Coven.join(name, creatorId, url, ""),
                           successMessage: "Joined $name",
                           errorMessage: "Failed to join $name");
                     },
@@ -569,6 +569,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           _bucket, h!.name, file.path, GetOptions(fileId: h.fileId));
       await progressDialog(context, "downloading image", task,
           errorMessage: "Cannot download image");
+
+      await FileImage(file).evict();
     }
   }
 
@@ -703,7 +705,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           messages: _messages,
           imageProviderBuilder: (
               {required conditional, required imageHeaders, required uri}) {
-            return UniqueFileImage(File(uri));
+            return FileImage(File(uri));
           },
           onAttachmentPressed: () {
             _handleAttachmentPressed(context);

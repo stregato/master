@@ -36,18 +36,17 @@ const KeySize = 32
 type Keys map[uint64][]byte
 
 type Safe struct {
-	Hnd         int                 `json:"hnd"`         // Handle of the safe
-	CurrentUser security.Identity   `json:"currentUser"` // Current user
-	Permission  Permission          `json:"permission"`  // Permission of the current user
-	Access      string              `json:"access"`      // Access token
-	CreatorId   string              `json:"creatorId"`   // Creator of the safe
-	Name        string              `json:"name"`        // Name of the safe including the path
-	Id          uint64              `json:"id"`          // Id of the safe
-	Description string              `json:"description"` // Description of the safe
-	Storage     storage.Description `json:"storage"`     // Information about the store
-	Quota       int64               `json:"quota"`       // Quota of the safe in bytes
-	QuotaGroup  string              `json:"quotaGroup"`  // QuotaGroup is the common prefix for the safes that share the quota
-	Size        int64               `json:"size"`        // Size of the safe in bytes
+	Hnd              int                 `json:"hnd"`         // Handle of the safe
+	CurrentUser      security.Identity   `json:"currentUser"` // Current user
+	Permission       Permission          `json:"permission"`  // Permission of the current user
+	Store            string              `json:"store"`       // Store of the safe
+	StoreDescription storage.Description `json:"storeDesc"`   // Description of the store
+	CreatorId        string              `json:"creatorId"`   // Creator of the safe
+	Name             string              `json:"name"`        // Name of the safe including the path
+	Description      string              `json:"description"` // Description of the safe
+	Quota            int64               `json:"quota"`       // Quota of the safe in bytes
+	QuotaGroup       string              `json:"quotaGroup"`  // QuotaGroup is the common prefix for the safes that share the quota
+	Size             int64               `json:"size"`        // Size of the safe in bytes
 
 	keystore         Keystore           // Keystore of the safe
 	store            storage.Store      // Stores of the safe

@@ -6,9 +6,14 @@ import (
 	"github.com/stregato/master/woland/storage"
 )
 
-func Wipe(currentUser security.Identity, token string) error {
-	name, _, _, url, err := DecodeAccess(currentUser, token)
-	if core.IsErr(err, nil, "invalid access token 'account'") {
+func Wipe(currentUser security.Identity, name string) error {
+	name, err := validName(name)
+	if core.IsErr(err, nil, "invalid name %s: %v", name) {
+		return err
+	}
+
+	_, url, err := getSafeFromDB(name)
+	if core.IsErr(err, nil, "cannot get safe from DB for %s: %v", name) {
 		return err
 	}
 

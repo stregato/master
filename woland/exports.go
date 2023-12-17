@@ -149,43 +149,43 @@ type Access struct {
 	Url       string `json:"url"`
 }
 
-//export wlnd_encodeAccess
-func wlnd_encodeAccess(userId *C.char, access *C.char) C.Result {
-	var a Access
-	err := cUnmarshal(access, &a)
-	if core.IsErr(err, nil, "cannot unmarshal token: %v") {
-		return cResult(nil, err)
-	}
+// //export wlnd_encodeAccess
+// func wlnd_encodeAccess(userId *C.char, access *C.char) C.Result {
+// 	var a Access
+// 	err := cUnmarshal(access, &a)
+// 	if core.IsErr(err, nil, "cannot unmarshal token: %v") {
+// 		return cResult(nil, err)
+// 	}
 
-	token, err := safe.EncodeAccess(C.GoString(userId), a.Name, a.Id, a.CreatorId, a.Url)
-	if core.IsErr(err, nil, "cannot create token: %v") {
-		return cResult(nil, err)
-	}
-	return cResult(token, nil)
-}
+// 	token, err := safe.EncodeAccess(C.GoString(userId), a.Name, a.Id, a.CreatorId, a.Url)
+// 	if core.IsErr(err, nil, "cannot create token: %v") {
+// 		return cResult(nil, err)
+// 	}
+// 	return cResult(token, nil)
+// }
 
-//export wlnd_decodeAccess
-func wlnd_decodeAccess(identity *C.char, access *C.char) C.Result {
-	var i security.Identity
-	err := cUnmarshal(identity, &i)
-	if core.IsErr(err, nil, "cannot unmarshal identity: %v") {
-		return cResult(nil, err)
-	}
+// //export wlnd_decodeAccess
+// func wlnd_decodeAccess(identity *C.char, access *C.char) C.Result {
+// 	var i security.Identity
+// 	err := cUnmarshal(identity, &i)
+// 	if core.IsErr(err, nil, "cannot unmarshal identity: %v") {
+// 		return cResult(nil, err)
+// 	}
 
-	safeName, id, creatorId, url, err := safe.DecodeAccess(i, C.GoString(access))
-	if core.IsErr(err, nil, "cannot transfer token: %v") {
-		return cResult(nil, err)
-	}
-	return cResult(Access{
-		Name:      safeName,
-		Id:        id,
-		CreatorId: creatorId,
-		Url:       url,
-	}, nil)
-}
+// 	safeName, id, creatorId, url, err := safe.DecodeAccess(i, C.GoString(access))
+// 	if core.IsErr(err, nil, "cannot transfer token: %v") {
+// 		return cResult(nil, err)
+// 	}
+// 	return cResult(Access{
+// 		Name:      safeName,
+// 		Id:        id,
+// 		CreatorId: creatorId,
+// 		Url:       url,
+// 	}, nil)
+// }
 
 //export wlnd_createSafe
-func wlnd_createSafe(creator *C.char, token *C.char, users *C.char, createOptions *C.char) C.Result {
+func wlnd_createSafe(creator, name, url *C.char, users *C.char, createOptions *C.char) C.Result {
 	var CreateOptions safe.CreateOptions
 	err := cUnmarshal(createOptions, &CreateOptions)
 	if core.IsErr(err, nil, "cannot unmarshal createOptions: %v") {
@@ -204,7 +204,7 @@ func wlnd_createSafe(creator *C.char, token *C.char, users *C.char, createOption
 		return cResult(nil, err)
 	}
 
-	s, err := safe.Create(i, C.GoString(token), u, CreateOptions)
+	s, err := safe.Create(i, C.GoString(name), C.GoString(url), u, CreateOptions)
 	if core.IsErr(err, nil, "cannot create safe: %v") {
 		return cResult(nil, err)
 	}
@@ -215,8 +215,17 @@ func wlnd_createSafe(creator *C.char, token *C.char, users *C.char, createOption
 	return cResult(s, err)
 }
 
+//export wlnd_addSafe
+func wlnd_addSafe(name, creatorId, url *C.char, addOptions *C.char) C.Result {
+	err := safe.Add(C.GoString(name), C.GoString(creatorId), C.GoString(url))
+	if core.IsErr(err, nil, "cannot add safe: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(nil, nil)
+}
+
 //export wlnd_openSafe
-func wlnd_openSafe(identity *C.char, token *C.char, openOptions *C.char) C.Result {
+func wlnd_openSafe(identity *C.char, name *C.char, openOptions *C.char) C.Result {
 	var OpenOptions safe.OpenOptions
 	err := cUnmarshal(openOptions, &OpenOptions)
 	if core.IsErr(err, nil, "cannot unmarshal openOptions: %v") {
@@ -229,8 +238,7 @@ func wlnd_openSafe(identity *C.char, token *C.char, openOptions *C.char) C.Resul
 		return cResult(nil, err)
 	}
 
-	var access = C.GoString(token)
-	s, err := safe.Open(i, access, OpenOptions)
+	s, err := safe.Open(i, C.GoString(name), OpenOptions)
 	if core.IsErr(err, nil, "cannot open portal: %v") {
 		return cResult(nil, err)
 	}

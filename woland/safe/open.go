@@ -1,6 +1,7 @@
 package safe
 
 import (
+	"database/sql"
 	"fmt"
 	"sync"
 	"time"
@@ -33,14 +34,23 @@ type OpenOptions struct {
 	Notification chan Header
 }
 
-func Open(currentUser security.Identity, access string, options OpenOptions) (*Safe, error) {
-	name, id, creatorId, url, err := DecodeAccess(currentUser, access)
-	if core.IsErr(err, nil, "invalid access token 'account'") {
+func Open(currentUser security.Identity, name string, options OpenOptions) (*Safe, error) {
+	name, err := validName(name)
+	if core.IsErr(err, nil, "invalid name %s: %v", name) {
+		return nil, err
+	}
+
+	creatorId, url, err := getSafeFromDB(name)
+	if core.IsErr(err, nil, "cannot get safe %s: %v", name) {
 		return nil, err
 	}
 
 	now := core.Now()
 	store, err := storage.Open(url)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("safe not joined: name %s", name)
+	}
+
 	if core.IsErr(err, nil, "cannot connect to %s: %v", name) {
 		return nil, err
 	}
@@ -64,18 +74,17 @@ func Open(currentUser security.Identity, access string, options OpenOptions) (*S
 	}
 
 	s := Safe{
-		Hnd:         safesCounter,
-		CurrentUser: currentUser,
-		Access:      access,
-		Name:        name,
-		Id:          id,
-		Description: manifest.Description,
-		CreatorId:   creatorId,
-		Storage:     store.Describe(),
-		Quota:       manifest.Quota,
-		QuotaGroup:  manifest.QuotaGroup,
-		Size:        size,
-		Permission:  users[currentUser.Id],
+		Hnd:              safesCounter,
+		CurrentUser:      currentUser,
+		Store:            url,
+		Name:             name,
+		Description:      manifest.Description,
+		CreatorId:        creatorId,
+		StoreDescription: store.Describe(),
+		Quota:            manifest.Quota,
+		QuotaGroup:       manifest.QuotaGroup,
+		Size:             size,
+		Permission:       users[currentUser.Id],
 
 		store:     store,
 		users:     users,

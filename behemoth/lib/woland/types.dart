@@ -77,18 +77,18 @@ class Access {
       };
 }
 
-class StorageDesc {
+class StoreDesc {
   double readCost;
   double writeCost;
 
-  StorageDesc({this.readCost = 0.0, this.writeCost = 0.0});
+  StoreDesc({this.readCost = 0.0, this.writeCost = 0.0});
 
   Map<String, dynamic> toJson() => {
         'readCost': readCost,
         'writeCost': writeCost,
       };
 
-  StorageDesc.fromJson(Map<String, dynamic> json)
+  StoreDesc.fromJson(Map<String, dynamic> json)
       : readCost = json['readCost'] ?? 0.0,
         writeCost = json['writeCost'] ?? 0.0;
 }

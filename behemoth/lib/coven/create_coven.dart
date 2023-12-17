@@ -4,7 +4,6 @@ import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/coven/add_storage.dart';
-import 'package:behemoth/woland/woland.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -184,11 +183,8 @@ class _CreateCovenState extends State<CreateCoven> {
                             .toList(),
                         onChanged: (name) {
                           var c = profile.covens[name];
-                          var access = c?.access;
-                          var d = decodeAccess(profile.identity, access!);
-
                           setState(() {
-                            _url = d.url;
+                            _url = c?.url ?? "";
                             _sameStorageAs = name;
                           });
                         },

@@ -13,11 +13,10 @@ import (
 	"github.com/stregato/master/woland/storage"
 )
 
-var storeUrl string
+var testUrl string
 var dbPath string
 var Identity1, Identity2 security.Identity
-var access1, access2 string
-var testSafeName = "test-safe"
+var testSafe = "test-safe"
 var testData = []byte("Hello, World!")
 var testSetup bool
 
@@ -26,12 +25,11 @@ func InitTest() {
 		return
 	}
 
-	var err error
 	store := *flag.String("store", "local", "store url")
 	urls := storage.LoadTestURLs("../../../credentials/urls.yaml")
 
-	storeUrl = urls[store]
-	if storeUrl == "" {
+	testUrl = urls[store]
+	if testUrl == "" {
 		panic("invalid store " + store)
 	}
 
@@ -47,16 +45,6 @@ func InitTest() {
 
 	Identity1, _ = security.NewIdentity("identity1")
 	Identity2, _ = security.NewIdentity("identity2")
-
-	access1, err = EncodeAccess("", testSafeName, 123, Identity1.Id, storeUrl)
-	if err != nil {
-		panic(err)
-	}
-
-	access2, err = EncodeAccess(Identity2.Id, testSafeName, 123, Identity1.Id, storeUrl)
-	if err != nil {
-		panic(err)
-	}
 
 	os.RemoveAll("/tmp/.identities")
 	testSetup = true

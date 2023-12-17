@@ -26,24 +26,30 @@ typedef Args5TSSSS<T> = CResult Function(
 
 class Safe {
   DateTime accessed = DateTime.now();
-  String access = "";
   Identity currentUser;
   int hnd = 0;
   Permission permission = 0;
   String creatorId = "";
   String name = "";
   String description = "";
-  StorageDesc storage = StorageDesc();
+  String store = "";
+  StoreDesc storeDesc = StoreDesc();
   int quota = 0;
   String quotaGroup = "";
 
   static Map<String, Safe> instances = {};
 
+  static void add(String name, String creatorId, String url) {
+    var fun = lib.lookupFunction<Args3SSS, Args3SSS>("wlnd_addSafe");
+    fun(name.toNativeUtf8(), creatorId.toNativeUtf8(), url.toNativeUtf8())
+        .unwrapVoid();
+  }
+
   static Future<Safe> open(
-      Identity identity, String access, OpenOptions options) async {
+      Identity identity, String name, OpenOptions options) async {
     return Isolate.run<Safe>(() {
       var fun = lib.lookupFunction<Args3SSS, Args3SSS>("wlnd_openSafe");
-      var json = fun(jsonEncode(identity).toNativeUtf8(), access.toNativeUtf8(),
+      var json = fun(jsonEncode(identity).toNativeUtf8(), name.toNativeUtf8(),
               jsonEncode(options).toNativeUtf8())
           .unwrapMap();
       var safe = Safe._(identity);
@@ -52,13 +58,14 @@ class Safe {
     });
   }
 
-  static Future<Safe> create(
-      Identity identity, String token, Users users, CreateOptions options) {
+  static Future<Safe> create(Identity identity, String name, String url,
+      Users users, CreateOptions options) {
     return Isolate.run<Safe>(() {
-      var fun = lib.lookupFunction<Args4SSSS, Args4SSSS>("wlnd_createSafe");
+      var fun = lib.lookupFunction<Args5SSSSS, Args5SSSSS>("wlnd_createSafe");
       var json = fun(
               jsonEncode(identity).toNativeUtf8(),
-              token.toNativeUtf8(),
+              name.toNativeUtf8(),
+              url.toNativeUtf8(),
               jsonEncode(users).toNativeUtf8(),
               jsonEncode(options).toNativeUtf8())
           .unwrapMap();
@@ -73,12 +80,13 @@ class Safe {
   fromJson(Map<String, dynamic> json) {
     hnd = json['hnd'];
     name = json['name'];
-    access = json['access'];
+
     currentUser = Identity.fromJson(json['currentUser']);
     creatorId = json['creatorId'];
     permission = json['permission'];
     description = json['description'];
-    storage = StorageDesc.fromJson(json['storage']);
+    store = json['store'];
+    storeDesc = StoreDesc.fromJson(json['storeDesc']);
     quota = json['quota'] ?? 0;
     quotaGroup = json['quotaGroup'] ?? "";
   }
