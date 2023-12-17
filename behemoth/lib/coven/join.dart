@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/common/qrcode_scan_button.dart';
-import 'package:behemoth/woland/types.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,13 +23,13 @@ class Join extends StatefulWidget {
     }
     var path = url.path;
     var parts = path.split('/');
-    if (parts.length != 4 || parts[0] != "a") {
+    if (parts.length != 5 || parts[1] != "a") {
       return null;
     }
 
     try {
-      var url = utf8.decode(base64Decode(parts[3].replaceAll("_", "/")));
-      return [parts[1], parts[2], url];
+      var url = utf8.decode(base64Decode(parts[4].replaceAll("_", "/")));
+      return [parts[2], parts[3], url];
     } catch (e) {
       return null;
     }
@@ -39,7 +38,6 @@ class Join extends StatefulWidget {
 
 class _JoinState extends State<Join> {
   String? _errorText;
-  Access? _decodedToken;
   String _name = "";
   String _creatorId = "";
   String _url = "";
@@ -65,9 +63,12 @@ class _JoinState extends State<Join> {
       });
       return;
     }
-    _name = parts[0];
-    _creatorId = parts[1];
-    _url = parts[2];
+    setState(() {
+      _name = parts[0];
+      _creatorId = parts[1];
+      _url = parts[2];
+      _errorText = "";
+    });
   }
 
   @override
@@ -133,21 +134,19 @@ class _JoinState extends State<Join> {
           })
       ]),
       const SizedBox(height: 20),
-      if (_decodedToken != null)
+      if (_url.isNotEmpty)
         Row(
           children: [
             Expanded(
               child: PlatformElevatedButton(
-                onPressed: (_decodedToken != null && _errorText == null)
-                    ? () async {
-                        var task = Coven.join(
-                            _name, _creatorId, _url, _secretController.text);
-                        await progressDialog(context, "Joining $_name", task,
-                            successMessage: "Added $_name");
-                        widget.onComplete?.call();
-                      }
-                    : null,
-                child: Text("Join ${_decodedToken!.name}"),
+                onPressed: () async {
+                  var task = Coven.join(
+                      _name, _creatorId, _url, _secretController.text);
+                  await progressDialog(context, "Joining $_name", task,
+                      successMessage: "Added $_name");
+                  widget.onComplete?.call();
+                },
+                child: Text("Join $_name"),
               ),
             ),
           ],

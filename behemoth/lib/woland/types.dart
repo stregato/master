@@ -55,27 +55,27 @@ class Identity {
       };
 }
 
-class Access {
-  String name;
-  int id;
-  String creatorId;
-  String url;
+// class Access {
+//   String name;
+//   int id;
+//   String creatorId;
+//   String url;
 
-  Access(this.name, this.id, this.creatorId, this.url);
+//   Access(this.name, this.id, this.creatorId, this.url);
 
-  Access.fromJson(Map<String, dynamic> json)
-      : name = json['name'],
-        id = json['id'],
-        creatorId = json['creatorId'],
-        url = json['url'];
+//   Access.fromJson(Map<String, dynamic> json)
+//       : name = json['name'],
+//         id = json['id'],
+//         creatorId = json['creatorId'],
+//         url = json['url'];
 
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'id': id,
-        'creatorId': creatorId,
-        'url': url,
-      };
-}
+//   Map<String, dynamic> toJson() => {
+//         'name': name,
+//         'id': id,
+//         'creatorId': creatorId,
+//         'url': url,
+//       };
+// }
 
 class StoreDesc {
   double readCost;
