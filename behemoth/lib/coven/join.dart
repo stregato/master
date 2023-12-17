@@ -29,7 +29,7 @@ class Join extends StatefulWidget {
     }
 
     try {
-      var url = utf8.decode(base64Decode(parts[3]));
+      var url = utf8.decode(base64Decode(parts[3].replaceAll("_", "/")));
       return [parts[1], parts[2], url];
     } catch (e) {
       return null;
