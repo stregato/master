@@ -22,6 +22,10 @@ func EncryptNames(s Store, key []byte, nonce []byte, propagateClose bool) Store 
 	return &encrypted{s, key, nonce, propagateClose}
 }
 
+func (s *encrypted) Url() string {
+	return s.Store.Url()
+}
+
 func (s *encrypted) ReadDir(name string, filter Filter) ([]fs.FileInfo, error) {
 	c, err := security.EncryptBlock(s.Key, s.Nonce, []byte(name))
 	if err != nil {

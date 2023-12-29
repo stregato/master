@@ -1,46 +1,34 @@
 import 'package:behemoth/common/profile.dart';
 import 'package:flutter/material.dart';
 
-class Federate extends StatefulWidget {
+class AddStore extends StatefulWidget {
   final Coven coven;
-  const Federate(this.coven, {super.key});
+  const AddStore(this.coven, {super.key});
 
   @override
-  State<Federate> createState() => _FederateState();
+  State<AddStore> createState() => _AddStoreState();
 }
 
-class _FederateState extends State<Federate> {
+class _AddStoreState extends State<AddStore> {
   late Coven _coven;
 
   @override
   Widget build(BuildContext context) {
     _coven = widget.coven;
-    var p = Profile.current;
 
-    var covens = <Widget>[];
-    for (var c in Profile.current.covens.keys) {
-      if (c == _coven.name) continue;
-
-      var federated = _coven.federated.contains(c);
-      covens.add(ListTile(
-        title: Text(c),
-        trailing: federated ? const Icon(Icons.check) : const Icon(Icons.add),
-        onTap: () {
-          setState(() {
-            if (federated) {
-              _coven.federated.remove(c);
-            } else {
-              _coven.federated.add(c);
-            }
-            p.update(_coven);
-          });
-        },
+    var stores = <Widget>[];
+    for (var sc in _coven.safe.storeConfigs) {
+      stores.add(ListTile(
+        title: Text(
+          sc.url,
+          overflow: TextOverflow.ellipsis,
+        ),
       ));
     }
 
     return ListView(
       shrinkWrap: true,
-      children: covens,
+      children: stores,
     );
   }
 }

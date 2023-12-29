@@ -28,8 +28,7 @@ class Cockpit extends StatefulWidget {
   final Coven coven;
   final String room;
   final Function(int)? updateUnread;
-  const Cockpit(this.coven, this.room, {this.updateUnread, Key? key})
-      : super(key: key);
+  const Cockpit(this.coven, this.room, {this.updateUnread, super.key});
 
   static List<RoomState> state = [];
 
@@ -55,7 +54,11 @@ class Cockpit extends StatefulWidget {
     var headers = c.safe.listFiles(
         "$r/chat",
         ListOptions(
-            limit: 6, reverseOrder: true, orderBy: "modTime", noPrivate: true));
+            limit: 6,
+            reverseOrder: true,
+            orderBy: "modTime",
+            noPrivate: true,
+            onlyChanges: true));
     var lastModTime = headers.firstOrNull?.modTime ?? DateTime(1970);
     var lastAccess = DateTime(1970);
     var unread = 0;
@@ -150,11 +153,8 @@ class Cockpit extends StatefulWidget {
       changes += updatePrivate(c);
       for (var r in c.rooms) {
         try {
-          var ch = await c.safe.syncBucket(r, SyncOptions());
-          if (ch > 0) {
-            updateRoom(c, r, true);
-          }
-          changes += ch;
+          updateRoom(c, r, true);
+          //  changes += ch; //TODO: take it back
         } catch (e) {
           //ignore
         }

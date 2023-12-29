@@ -8,13 +8,11 @@ import (
 	"testing"
 
 	"github.com/stregato/master/woland/core"
-	"github.com/stregato/master/woland/sql"
 )
 
 func TestPut(t *testing.T) {
 	InitTest()
 	StartTestDB(t, dbPath)
-	defer sql.CloseDB()
 
 	s, err := Create(Identity1, testSafe, testUrl, nil, CreateOptions{Wipe: true})
 	core.Assert(t, err == nil, "Cannot create safe: %v", err)
@@ -67,6 +65,20 @@ func TestPut(t *testing.T) {
 	core.Assert(t, file.Name == "file3", "Expected file name to be 'file3', got '%s'", file.Name)
 	core.Assert(t, file.Uploading, "Expected file to be uploading")
 
+	ListFiles(s, "bucket", ListOptions{})
+	// Put header
+	file, err = Put(s, "bucket", "file3", r, PutOptions{
+		OnlyHeader: true,
+		Meta:       map[string]any{"key1": "value1"},
+	}, nil)
+	core.TestErr(t, err, "cannot put file: %v")
+	core.Assert(t, file.Attributes.Meta["key1"] == "value1", "Expected extra to be 'value1', got '%s'", file.Attributes.Meta["key1"])
+
+	hs, err := ListFiles(s, "bucket", ListOptions{OnlyChanges: false})
+	core.TestErr(t, err, "cannot list files: %v")
+	core.Assert(t, len(hs) == 1, "Expected 1 file, got %d", len(hs))
+	core.Assert(t, hs[0].Name == "file3", "Expected file name to be 'file3', got '%s'", hs[0].Name)
+	core.Assert(t, hs[0].Attributes.Meta["key1"] == "value1", "Expected extra to be 'value1', got '%s'", hs[0].Attributes.Meta["key1"])
 	Close(s)
 }
 

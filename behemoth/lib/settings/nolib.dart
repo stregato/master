@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 class NoLib extends StatelessWidget {
   final String err;
-  const NoLib(this.err, {Key? key}) : super(key: key);
+  const NoLib(this.err, {super.key});
 
   @override
   Widget build(BuildContext context) {

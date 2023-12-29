@@ -13,6 +13,7 @@ import (
 type ListOptions struct {
 	Name            string    `json:"name"`            // Filter on the file name
 	Dir             string    `json:"dir"`             // Filter on the directory
+	NoSync          bool      `json:"noSync"`          // Skip syncing with the store
 	Recursive       bool      `json:"recursive"`       // Recursively list files in subfolders
 	Prefix          string    `json:"prefix"`          // Filter on the file prefix
 	Suffix          string    `json:"suffix"`          // Filter on the file suffix
@@ -22,6 +23,7 @@ type ListOptions struct {
 	Before          time.Time `json:"before"`          // Filter on the modification time
 	After           time.Time `json:"after"`           // Filter on the modification time
 	KnownSince      time.Time `json:"knownSince"`      // Filter on the sync time
+	OnlyChanges     bool      `json:"onlyChanges"`     // Only return files that have changed since the last sync
 	Offset          int       `json:"offset"`          // Offset of the first file to return
 	Limit           int       `json:"limit"`           // Maximum number of files to return
 	IncludeDeleted  bool      `json:"includeDeleted"`  // Include deleted files
@@ -32,18 +34,20 @@ type ListOptions struct {
 	ErrorIfNotExist bool      `json:"errorIfNotExist"` // Return an error if the directory does not exist. Otherwise, return empty list
 	OrderBy         string    `json:"orderBy"`         // Order by name or modTime. Default is name
 	ReverseOrder    bool      `json:"reverseOrder"`    // Order descending when true. Default is false
-	Sync            bool      `json:"sync"`            // Sync with the remote store
 }
 
 func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error) {
 	bucket = strings.Trim(bucket, "/")
 	core.Info("list files '%s'", bucket)
 
-	if listOptions.Sync {
+	now := core.Now()
+	lastSync := s.lastBucketSync[bucket]
+	if !listOptions.NoSync || (s.MinimalSyncTime > 0 && s.MinimalSyncTime < now.Sub(lastSync)) {
 		_, err := SyncBucket(s, bucket, SyncOptions{}, nil)
 		if core.IsErr(err, nil, "cannot sync files: %v", err) {
 			return nil, err
 		}
+		s.lastBucketSync[bucket] = now
 	}
 
 	tags, err := getTagsArg(listOptions.Tags)
@@ -62,6 +66,10 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 	}
 	if listOptions.ReverseOrder {
 		key += "_DESC"
+	}
+	knownSince := listOptions.KnownSince
+	if listOptions.OnlyChanges {
+		knownSince = lastSync
 	}
 
 	var depth int
@@ -86,9 +94,9 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 		"currentUser":    s.CurrentUser.Id,
 		"tags":           tags,
 		"includeDeleted": listOptions.IncludeDeleted,
-		"before":         listOptions.Before.Unix(),
-		"after":          listOptions.After.Unix(),
-		"syncAfter":      listOptions.KnownSince.Unix(),
+		"before":         listOptions.Before.UnixMilli(),
+		"after":          listOptions.After.UnixMilli(),
+		"syncAfter":      knownSince.UnixMilli(),
 		"offset":         listOptions.Offset,
 		"depth":          depth,
 		"limit":          listOptions.Limit,

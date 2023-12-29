@@ -11,7 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 class ShareData extends StatelessWidget {
   final String _label;
   final String _value;
-  const ShareData(this._label, this._value, {Key? key}) : super(key: key);
+  const ShareData(this._label, this._value, {super.key});
 
   @override
   Widget build(BuildContext context) {

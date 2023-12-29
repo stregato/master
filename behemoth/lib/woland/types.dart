@@ -128,7 +128,7 @@ class Attributes {
   bool zip = false;
   Uint8List thumbnail = Uint8List(0);
   List<String> tags = [];
-  Map<String, dynamic> extra = {};
+  Map<String, dynamic> meta = {};
 
   Attributes();
 
@@ -138,7 +138,7 @@ class Attributes {
         zip = json['zip'] ?? false,
         thumbnail = base64Decode(json['th'] ?? ""),
         tags = dynamicToList(json['ta']),
-        extra = json['ex'] ?? {};
+        meta = json['mt'] ?? {};
 
   Map<String, dynamic> toJson() => {
         'ha': base64Encode(hash),
@@ -146,7 +146,7 @@ class Attributes {
         'zi': zip,
         'th': base64Encode(thumbnail),
         'ta': tags,
-        'ex': extra,
+        'mt': meta,
       };
 }
 
@@ -274,6 +274,8 @@ class SyncResult {
 class ListOptions {
   String name;
   String dir;
+  bool noSync;
+  bool onlyChanges;
   String prefix;
   String suffix;
   String contentType;
@@ -296,6 +298,8 @@ class ListOptions {
   ListOptions(
       {this.name = '',
       this.dir = '',
+      this.noSync = false,
+      this.onlyChanges = false,
       this.prefix = '',
       this.suffix = '',
       this.contentType = '',
@@ -318,6 +322,8 @@ class ListOptions {
   Map<String, dynamic> toJson() => {
         'name': name,
         'dir': dir,
+        'noSync': noSync,
+        'onlyChanges': onlyChanges,
         'prefix': prefix,
         'suffix': suffix,
         'contentType': contentType,
@@ -358,7 +364,7 @@ class PutOptions {
   bool replace;
   int replaceID;
   bool async;
-  int updateMeta;
+  bool onlyHeader;
   List<String> tags;
   List<int> thumbnail;
   int thumbnailWidth;
@@ -373,7 +379,7 @@ class PutOptions {
       {this.replace = false,
       this.replaceID = 0,
       this.async = false,
-      this.updateMeta = 0,
+      this.onlyHeader = false,
       this.tags = const [],
       this.thumbnail = const [],
       this.thumbnailWidth = 0,
@@ -388,7 +394,7 @@ class PutOptions {
         'replace': replace,
         'replaceID': replaceID,
         'async': async,
-        'updateMeta': updateMeta,
+        'onlyHeader': onlyHeader,
         'tags': tags,
         'thumbnail': thumbnail,
         'thumbnailWidth': thumbnailWidth,

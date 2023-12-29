@@ -1,7 +1,6 @@
 package safe
 
 import (
-	"database/sql"
 	"fmt"
 	"sync"
 	"time"
@@ -21,106 +20,86 @@ type OpenOptions struct {
 	//InitiateSecret is the information the admin receives when a user requests access to a safe
 	InitiateSecret string
 
-	//ForceCreate
-	ForceCreate bool
-
-	//SyncUsersRefreshRate is the period for refreshing the access control list. Default is 10 minutes.
-	SyncUsersRefreshRate time.Duration
-
-	// AdaptiveSync dynamically modifies the sync period based on data availability and API calls
-	AdaptiveSync bool
+	//Reset cleans the DB before opening the safe
+	Reset bool
 
 	//Notification is
 	Notification chan Header
 }
 
-func Open(currentUser security.Identity, name string, options OpenOptions) (*Safe, error) {
+func Open(currentUser security.Identity, name string, storeUrl string, creatorId string, options OpenOptions) (*Safe, error) {
 	name, err := validName(name)
 	if core.IsErr(err, nil, "invalid name %s: %v", name) {
 		return nil, err
 	}
 
-	creatorId, url, err := getSafeFromDB(name)
-	if core.IsErr(err, nil, "cannot get safe %s: %v", name) {
-		return nil, err
+	if options.Reset {
+		resetSafeInDB(name)
 	}
+
+	safesCounterLock.Lock()
+	s := &Safe{
+		Hnd:         safesCounter,
+		CurrentUser: currentUser,
+		CreatorId:   creatorId,
+		Name:        name,
+
+		usersLock:      sync.Mutex{},
+		syncUsers:      make(chan bool),
+		uploadFile:     make(chan UploadTask),
+		compactHeaders: make(chan CompactHeader),
+		quit:           make(chan bool),
+		wg:             sync.WaitGroup{},
+		lastBucketSync: map[string]time.Time{},
+	}
+	safesCounter++
+	safesCounterLock.Unlock()
 
 	now := core.Now()
-	store, err := storage.Open(url)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("safe not joined: name %s", name)
-	}
-
+	err = connect(s, storeUrl)
 	if core.IsErr(err, nil, "cannot connect to %s: %v", name) {
 		return nil, err
 	}
 	core.Info("connected to %s in %v", name, core.Since(now))
 
 	now = core.Now()
-	manifest, err := readManifestFile(name, store, creatorId)
+	manifest, err := readManifestFile(name, s.primary, creatorId)
 	if core.IsErr(err, nil, "cannot read manifest file in %s: %v", name) {
 		return nil, err
 	}
+	s.Description = manifest.Description
+	s.MinimalSyncTime = manifest.MinimalSyncTime
 	core.Info("read manifest file of %s in %v", name, core.Since(now))
 
-	size, err := getSafeSize(name)
-	if core.IsErr(err, nil, "cannot get size of %s: %v", name) {
-		return nil, err
-	}
-
+	now = core.Now()
 	users, err := getUsersFromDB(name)
 	if core.IsErr(err, nil, "cannot get users in %s: %v", name) {
 		return nil, err
 	}
+	s.users = users
+	s.Permission = users[currentUser.Id]
+	s.keystore = readKeystoreFromDB(name)
 
-	s := Safe{
-		Hnd:              safesCounter,
-		CurrentUser:      currentUser,
-		Store:            url,
-		Name:             name,
-		Description:      manifest.Description,
-		CreatorId:        creatorId,
-		StoreDescription: store.Describe(),
-		Quota:            manifest.Quota,
-		QuotaGroup:       manifest.QuotaGroup,
-		Size:             size,
-		Permission:       users[currentUser.Id],
+	core.Info("read users from DB of %s in %v", name, core.Since(now))
 
-		store:     store,
-		users:     users,
-		keystore:  readKeystoreFromDB(name),
-		usersLock: sync.Mutex{},
-
-		background:     time.NewTicker(time.Minute),
-		syncUsers:      make(chan bool),
-		uploadFile:     make(chan UploadTask),
-		compactHeaders: make(chan CompactHeader),
-		quit:           make(chan bool),
-		wg:             sync.WaitGroup{},
+	now = core.Now()
+	err = syncStores(s)
+	if core.IsErr(err, nil, "cannot sync stores in %s: %v", name) {
+		return nil, err
 	}
+	core.Info("synchorized stores of %s in %v", name, core.Since(now))
 
-	_, err = SyncUsers(&s)
+	now = core.Now()
+	_, err = SyncUsers(s)
 	if core.IsErr(err, nil, "cannot sync users in %s: %v", name) {
 		return nil, err
 	}
-
-	// now = core.Now()
-	// users, _, err := syncUsers(name, store, currentUser, creatorId, false)
-	// if core.IsErr(err, nil, "cannot sync users in %s: %v", name) {
-	// 	return nil, err
-	// }
-	// core.Info("synchorized users of %s in %v", name, core.Since(now))
-
-	// keystore, _, err := syncKeystore(store, name, currentUser, users)
-	// if core.IsErr(err, nil, "cannot read keystores in %s: %v", name) {
-	// 	return nil, err
-	// }
-	// core.Info("synchorized keystore of %s in %v", name, core.Since(now))
+	core.Info("synchorized users of %s in %v", name, core.Since(now))
 
 	if s.Permission == 0 {
 		if options.InitiateSecret != "" { // if current user is not in the ACL, create an initiate file
 			core.Info("creating initiate file for %s with secret %s", currentUser.Id, options.InitiateSecret)
-			createInitiateFile(name, store, currentUser, options.InitiateSecret)
+			createInitiateFile(name, s.primary, currentUser, options.InitiateSecret)
 		}
 		return nil, fmt.Errorf("access pending")
 	}
@@ -129,66 +108,71 @@ func Open(currentUser security.Identity, name string, options OpenOptions) (*Saf
 		return nil, fmt.Errorf("access denied")
 	}
 
-	safesCounterLock.Lock()
-	safesCounter++
-	safesCounterLock.Unlock()
-
-	go backgroundJob(&s)
+	s.background = time.NewTicker(time.Minute)
+	go backgroundJob(s)
 
 	core.Info("safe opened: name %s, creator %s, description %s, quota %d, #users %d, keystore %d", name,
 		currentUser.Id, manifest.Description, manifest.Quota, len(s.users), s.keystore.LastKeyId)
 
-	return &s, nil
+	return s, nil
 }
 
-// func connect(urls []string, name string, aesKey []byte) (stores []storage.Store, failedUrls []string, err error) {
-// 	var wg sync.WaitGroup
-// 	var lock sync.Mutex
-// 	var elapsed = make([]time.Duration, len(urls))
-// 	stores = make([]storage.Store, len(urls))
+func connect(s *Safe, storeUrl string) error {
+	configs, err := getStoreConfigsFromDB(s.Name)
+	if core.IsErr(err, nil, "cannot get stores for safe %s: %v", s.Name, err) {
+		return err
+	}
+	if len(configs) == 0 {
+		store, err := storage.Open(storeUrl)
+		if core.IsErr(err, nil, "cannot connect to store %s: %v", storeUrl, err) {
+			return err
+		}
 
-// 	if len(urls) == 0 {
-// 		return nil, nil, fmt.Errorf("no url provided")
-// 	}
+		s.primary = store
+		s.stores = []storage.Store{store}
+		core.Info("connected to primary of %s for first time in %v", s.Name, core.Since(core.Now()))
+		return nil
+	}
 
-// 	for idx, u := range urls {
-// 		wg.Add(1)
-// 		go func(idx int, u string) {
-// 			defer wg.Done()
-// 			start := core.Now()
-// 			s, err := storage.Open(u)
-// 			if core.IsErr(err, nil, "cannot connect to store %s: %v", u, err) {
-// 				lock.Lock()
-// 				failedUrls = append(failedUrls, u)
-// 				lock.Unlock()
-// 				return
-// 			}
-// 			if aesKey != nil {
-// 				s = storage.EncryptNames(s, aesKey, aesKey, true)
-// 			}
-// 			stores[idx] = s
-// 			elapsed[idx] = core.Since(start)
-// 		}(idx, u)
-// 	}
-// 	wg.Wait()
+	ch := make(chan storage.Store, len(configs))
+	s.StoreConfigs = configs
 
-// 	sort.Slice(stores, func(i, j int) bool {
-// 		if stores[i] == nil {
-// 			return false
-// 		}
-// 		if stores[j] == nil {
-// 			return true
-// 		}
-// 		return elapsed[i] < elapsed[j]
-// 	})
+	now := core.Now()
+	for _, c := range s.StoreConfigs {
+		go func(c StoreConfig) {
+			store, err := storage.Open(c.Url)
+			if core.IsErr(err, nil, "cannot connect to store %s: %v", c.Url, err) {
+				ch <- nil
+				return
+			}
+			if c.Primary {
+				core.Info("connected to primary store %s of %s in %v", store, s.Name, core.Since(now))
+				s.primary = store
+			} else {
+				core.Info("connected to secondary store %s of %s in %v", store, s.Name, core.Since(now))
+			}
+			ch <- store
+		}(c)
+	}
 
-// 	if store == nil {
-// 		return nil, failedUrls, ErrNoStoreAvailable
-// 	}
-// 	for idx, s := range stores {
-// 		if s == nil {
-// 			return stores[:idx], failedUrls, nil
-// 		}
-// 	}
-// 	return stores, failedUrls, nil
-// }
+	for i := 0; i < len(configs); i++ {
+		store := <-ch
+		if store != nil {
+			s.stores = append(s.stores, store)
+			if s.primary == store {
+				core.Info("connected to %s in %v", s.Name, core.Since(now))
+				go func(count int) {
+					for j := 0; j < count; j++ {
+						store := <-ch
+						if store != nil {
+							s.stores = append(s.stores, store)
+						}
+					}
+				}(len(configs) - i - 1)
+				return nil
+			}
+		}
+	}
+
+	return ErrNoStoreAvailable
+}

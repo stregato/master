@@ -38,9 +38,9 @@ type PutOptions struct {
 	Progress chan int64 // Progress channel
 
 	Async          bool           `json:"async"`          // Do not wait for the file to be uploaded
+	OnlyHeader     bool           `json:"onlyHeader"`     // Only update the header of the last version of the file
 	Replace        bool           `json:"replace"`        // Replace all other files with the same name
 	ReplaceID      uint64         `json:"replaceId"`      // Replace the file with the specified ID
-	UpdateMeta     uint64         `json:"updateMeta"`     // Update the metadata of the file with the specified ID. It does not change the file content
 	Tags           []string       `json:"tags"`           // Tags associated with the file
 	Thumbnail      []byte         `json:"thumbnail"`      // Thumbnail associated with the file
 	ThumbnailWidth int            `json:"thumbnailWidth"` // Thumbnail width
@@ -61,61 +61,59 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		return Header{}, fmt.Errorf(ErrInvalidName, name)
 	}
 
-	sourceFile, ok := src.(string)
-	if ok {
-		r, err = os.Open(sourceFile)
-		if core.IsErr(err, nil, "cannot open source file: %v", err) {
-			return Header{}, err
-		}
-	} else {
-		r, ok = src.(io.ReadSeeker)
-		if !ok {
-			return Header{}, fmt.Errorf("source must be a filename or io.ReadSeeker: %v", src)
-		}
-	}
-
-	hash, size, err := getReaderHashAndSize(r)
-	if core.IsErr(err, nil, "cannot create hash: %v", err) {
-		return Header{}, err
-	}
-
-	applyQuota(0.97, s.QuotaGroup, s.store, s.Size, s.Quota, true)
-
 	now := core.Now()
 	var bodyId uint64
+	var hash []byte
+	var size int64
+	var modTime time.Time
 
-	if options.UpdateMeta != 0 {
-		bodyId = options.UpdateMeta
+	sourceFile, ok := src.(string)
+	if options.OnlyHeader {
+		h, err := getLastHeader(s, bucket, name, 0)
+		if core.IsErr(err, nil, "cannot get last header: %v", err) {
+			return Header{}, err
+		}
+		bodyId = h.FileId
+		hash = h.Attributes.Hash
+		size = h.Size
+		modTime = h.ModTime
 	} else {
+		if ok {
+			r, err = os.Open(sourceFile)
+			if core.IsErr(err, nil, "cannot open source file: %v", err) {
+				return Header{}, err
+			}
+		} else {
+			r, ok = src.(io.ReadSeeker)
+			if !ok {
+				return Header{}, fmt.Errorf("source must be a filename or io.ReadSeeker: %v", src)
+			}
+		}
 		bodyId = snowflake.ID()
-	}
+		hash, size, err = getReaderHashAndSize(r)
+		if core.IsErr(err, nil, "cannot create hash: %v", err) {
+			return Header{}, err
+		}
 
-	// store := s.store
-	// if options.UpdateMeta == 0 {
-	// 	err = store.Write(bodyFile, r, nil)
-	// 	if core.IsErr(err, nil, "cannot write body: %v", err) {
-	// 		return Header{}, err
-	// 	}
-	// 	core.Info("Wrote body for %s to %s", name, bodyFile)
-	// }
+		if options.AutoThumbnail && len(options.Thumbnail) == 0 {
+			var width = options.ThumbnailWidth
+			if width == 0 {
+				width = MaxThumbnailWidth
+			}
+
+			options.Thumbnail, err = generateThumbnail(r, width)
+			if core.IsErr(err, nil, "cannot generate thumbnail: %v", err) {
+				return Header{}, err
+			}
+			core.Info("Generated thumbnail for %s, size %d", name, len(options.Thumbnail))
+		}
+		modTime = now
+	}
 
 	for _, tag := range options.Tags {
 		if !isAlphanumeric(tag) {
 			return Header{}, ErrInvalidTag
 		}
-	}
-
-	if options.AutoThumbnail && len(options.Thumbnail) == 0 {
-		var width = options.ThumbnailWidth
-		if width == 0 {
-			width = MaxThumbnailWidth
-		}
-
-		options.Thumbnail, err = generateThumbnail(r, width)
-		if core.IsErr(err, nil, "cannot generate thumbnail: %v", err) {
-			return Header{}, err
-		}
-		core.Info("Generated thumbnail for %s, size %d", name, len(options.Thumbnail))
 	}
 
 	if options.ContentType == "" {
@@ -129,7 +127,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		Hash:        hash,
 		Thumbnail:   options.Thumbnail,
 		Tags:        options.Tags,
-		Extra:       options.Meta,
+		Meta:        options.Meta,
 	}
 
 	header := Header{
@@ -140,7 +138,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		IV:         core.GenerateRandomBytes(aes.BlockSize),
 		PrivateId:  options.Private,
 		Attributes: attributes,
-		ModTime:    now,
+		ModTime:    modTime,
 		Uploading:  true,
 		SourceFile: sourceFile,
 		ReplaceId:  options.ReplaceID,
@@ -165,7 +163,8 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
 
 	s.Size += header.Size
-	applyQuota(0.95, s.QuotaGroup, s.store, s.Size, s.Quota, false)
+	//	applyQuota(0.95, s.QuotaGroup, store, s.Size, s.Quota, false)
+
 	if options.Async {
 		if sourceFile == "" {
 			sourceFile := path.Join(os.TempDir(), fmt.Sprintf("%d.delete", header.FileId))
@@ -290,35 +289,37 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	defer delete(uploading, headerFile)
 
 	header.Uploading = false
-	store := s.store
+	origin := s.primary
 	hashedBucket := hashPath(bucket)
 	bodyFile := path.Join(s.Name, DataFolder, hashedBucket, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
 	var err error
 
-	r, err = encryptReader(r, header.BodyKey, header.IV)
-	if core.IsErr(err, nil, "cannot create encrypting reader: %v", err) {
-		return Header{}, err
-	}
-	if header.Zip {
-		r, err = gzipStream(r)
-		if core.IsErr(err, nil, "cannot compress data: %v", err) {
+	if r != nil {
+		r, err = encryptReader(r, header.BodyKey, header.IV)
+		if core.IsErr(err, nil, "cannot create encrypting reader: %v", err) {
 			return Header{}, err
 		}
-		core.Info("Using compression for file %s", header.Name)
-	}
+		if header.Zip {
+			r, err = gzipStream(r)
+			if core.IsErr(err, nil, "cannot compress data: %v", err) {
+				return Header{}, err
+			}
+			core.Info("Using compression for file %s", header.Name)
+		}
 
-	err = store.Write(bodyFile, r, nil)
-	if core.IsErr(err, nil, "cannot write body: %v", err) {
-		return Header{}, err
+		err = origin.Write(bodyFile, r, nil)
+		if core.IsErr(err, nil, "cannot write body: %v", err) {
+			return Header{}, err
+		}
+		core.Info("Wrote body for %s to %s", header.Name, bodyFile)
 	}
-	core.Info("Wrote body for %s to %s", header.Name, bodyFile)
 
 	var deletables []Header
 	if header.Replace {
 		homonyms, err := ListFiles(s, bucket, ListOptions{Name: header.Name})
 		if core.IsErr(err, nil, "cannot list homonyms: %v", err) {
-			store.Delete(bodyFile)
+			origin.Delete(bodyFile)
 			return Header{}, err
 		}
 		deletables = homonyms
@@ -327,7 +328,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	if header.ReplaceId != 0 {
 		replaceable, err := ListFiles(s, bucket, ListOptions{FileId: header.ReplaceId})
 		if core.IsErr(err, nil, "cannot list replaceable: %v", err) {
-			store.Delete(bodyFile)
+			origin.Delete(bodyFile)
 			return Header{}, err
 		}
 		deletables = append(deletables, replaceable...)
@@ -335,7 +336,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	}
 
 	for _, file := range deletables {
-		deleteFile(s.store, s.Name, hashedBucket, file.FileId)
+		deleteFile(origin, s.Name, hashedBucket, file.FileId)
 		core.Info("Deleted %s[%d]", file.Name, file.FileId)
 	}
 
@@ -363,13 +364,13 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 		Bucket:  bucket,
 		Headers: []Header{header2},
 	}
-	err = writeHeadersFile(store, s.Name, filePath, keyValue, headersFile)
+	err = writeHeadersFile(origin, s.Name, filePath, keyValue, headersFile)
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
-		store.Delete(bodyFile)
+		origin.Delete(bodyFile)
 		return Header{}, err
 	}
 	core.Info("Wrote header for %s[%d]", header2.Name, header2.FileId)
-	err = SetCached(s.Name, store, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, s.CurrentUser.Id)
+	err = SetCached(s.Name, origin, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, s.CurrentUser.Id)
 	if core.IsErr(err, nil, "cannot set touch file: %v", err) {
 		return Header{}, err
 	}

@@ -63,6 +63,8 @@ class _AddStorageState extends State<AddStorage> {
         return u;
       case "Folder":
         return "file://${a.path}";
+      case "URL":
+        return a.url;
       default:
         return "";
     }
@@ -81,6 +83,8 @@ class _AddStorageState extends State<AddStorage> {
         return a.host.isNotEmpty;
       case "Folder":
         return a.path.isNotEmpty;
+      case "URL":
+        return a.url.isNotEmpty;
       default:
         return false;
     }
@@ -345,6 +349,27 @@ class _AddStorageState extends State<AddStorage> {
             ),
             onChanged: (val) => setState(() {
               a.path = val;
+            }),
+          ),
+        ],
+      ),
+      "URL": Column(
+        children: [
+          PlatformTextField(
+            material: (_, __) => MaterialTextFieldData(
+              decoration: const InputDecoration(
+                labelText: 'URL',
+              ),
+            ),
+            cupertino: (_, __) => CupertinoTextFieldData(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(4.0),
+              ),
+              placeholder: 'Full url',
+            ),
+            onChanged: (val) => setState(() {
+              a.url = val;
             }),
           ),
         ],

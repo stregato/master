@@ -8,7 +8,7 @@ import 'package:behemoth/woland/woland.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 class Setup extends StatefulWidget {
-  const Setup({Key? key}) : super(key: key);
+  const Setup({super.key});
 
   @override
   State<Setup> createState() => _SetupState();
@@ -123,7 +123,7 @@ class _SetupState extends State<Setup> {
                         profile.identity.avatar = _avatar;
                         profile.identity.email = email.text;
                         profile.save();
-                        Navigator.of(context).pop();
+                        // Navigator.of(context).pop();
                         Navigator.pushReplacementNamed(context, "/");
                       }),
           ],

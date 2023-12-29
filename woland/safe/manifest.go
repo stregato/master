@@ -11,12 +11,13 @@ import (
 )
 
 type manifestFile struct {
-	CreatorId      string        `json:"creatorId"`      // CreatorId is the id of the creator of the safe
-	Description    string        `json:"description"`    // Description of the safe
-	ChangeLogWatch time.Duration `json:"changeLogWatch"` // ChangeLogWatch is the period for watching changes in the change log
-	ReplicaWatch   time.Duration `json:"replicaWatch"`   // ReplicaWatch is the period for synchronizing replicas
-	Quota          int64         `json:"quota"`          // Quota is the maximum size of the safe in bytes
-	QuotaGroup     string        `json:"quotaGroup"`     // QuotaGroup is the common prefix for the safes that share the quota
+	CreatorId       string        `json:"creatorId"`       // CreatorId is the id of the creator of the safe
+	Description     string        `json:"description"`     // Description of the safe
+	ChangeLogWatch  time.Duration `json:"changeLogWatch"`  // ChangeLogWatch is the period for watching changes in the change log
+	ReplicaWatch    time.Duration `json:"replicaWatch"`    // ReplicaWatch is the period for synchronizing replicas
+	Quota           int64         `json:"quota"`           // Quota is the maximum size of the safe in bytes
+	QuotaGroup      string        `json:"quotaGroup"`      // QuotaGroup is the common prefix for the safes that share the quota
+	MinimalSyncTime time.Duration `json:"minimalSyncTime"` // MinimalSyncTime is the minimal time between syncs
 }
 
 func readManifestFile(safeName string, s storage.Store, creatorId string) (manifestFile, error) {
@@ -41,6 +42,10 @@ func readManifestFile(safeName string, s storage.Store, creatorId string) (manif
 	}
 	if signedId != creatorId {
 		return manifest, fmt.Errorf("invalid manifest file: creatorId mismatch")
+	}
+
+	if creatorId != "" && creatorId != manifest.CreatorId {
+		return manifest, fmt.Errorf("mismatch creatorId")
 	}
 
 	err = SetCached(safeName, s, "config/.manifest.touch", &manifest, "")

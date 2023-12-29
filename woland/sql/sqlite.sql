@@ -41,22 +41,23 @@ INSERT INTO configs(node,k,s,i,b) VALUES(:node,:key,:s,:i,:b)
 DELETE FROM configs WHERE node=:node
 
 -- INIT
-CREATE TABLE IF NOT EXISTS Safes (
-    name VARCHAR(255) PRIMARY KEY,
-    creatorId VARCHAR(255),
-    url VARCHAR(255)
+CREATE TABLE IF NOT EXISTS Stores (
+    safe TEXT NOT NULL,
+    url TEXT NOT NULL,
+    store TEXT NOT NULL,
+    PRIMARY KEY (safe, url)
 );
 
--- GET_SAFE
-SELECT creatorId, url  FROM Safes WHERE name=:name
+-- GET_STORES
+SELECT store FROM Stores WHERE safe=:safe
 
--- SET_SAFE
-INSERT INTO Safes(name,url,creatorId) VALUES(:name,:url,:creatorId)
-  ON CONFLICT(name) DO UPDATE SET url=:url,creatorId=:creatorId
-  WHERE name=:name
+-- SET_STORE
+INSERT INTO Stores(safe,url,store) VALUES(:safe,:url,:store) 
+ON CONFLICT(safe,url) DO UPDATE SET store=:store
+WHERE safe=:safe AND url=:url
 
--- DEL_SAFE
-DELETE FROM Safes WHERE name=:name
+--- DEL_STORES
+DELETE FROM Stores WHERE safe=:safe
 
 -- INIT
 CREATE TABLE IF NOT EXISTS Users (
@@ -113,7 +114,8 @@ CREATE INDEX IF NOT EXISTS nameIndex ON Header (name);
 -- INSERT_HEADER
 INSERT INTO Header (safe, bucket, name, headerFile, fileId, size, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, uploading, cacheExpires, header)
 VALUES (:safe, :bucket, :name, :headerFile, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :uploading, :cacheExpires, :header)
-ON CONFLICT (safe, bucket, name, fileId) DO UPDATE SET headerFile = :headerFile;
+ON CONFLICT (safe, bucket, name, fileId) DO UPDATE SET headerFile = :headerFile, syncTime = :syncTime, tags = :tags, contentType = :contentType, creator = :creator, privateId = :privateId, deleted = :deleted, uploading = :uploading, cacheExpires = :cacheExpires, header = :header
+WHERE safe = :safe AND bucket = :bucket AND name = :name AND fileId = :fileId;
 
 -- UPDATE_HEADER
 UPDATE Header SET header = :header, cacheExpires=:cacheExpires, uploading=:uploading WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
@@ -156,9 +158,9 @@ WHERE safe = :safe
   AND (:before < 0 OR modTime < :before)
   AND (:after < 0 OR modTime > :after)
   AND (depth = :depth)
-  AND (:syncAfter < 0 OR syncTime > :syncAfter)
+  AND (:syncAfter < 0 OR syncTime >= :syncAfter)
   AND (:includeDeleted == 1 OR deleted = 0)
-  ORDER BY name LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
+  ORDER BY name, syncTime DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_HEADER_BY_MODTIME
 SELECT header FROM Header
@@ -200,7 +202,7 @@ WHERE safe = :safe
   AND (depth = :depth)
   AND (:syncAfter < 0 OR syncTime > :syncAfter)
   AND (:includeDeleted == 1 OR deleted = 0)
-  ORDER BY name DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
+  ORDER BY name DESC, syncTime DESC LIMIT CASE WHEN :limit = 0 THEN -1 ELSE :limit END OFFSET :offset
 
 -- GET_HEADER_BY_MODTIME_DESC
 SELECT header FROM Header

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class AddCoven extends StatelessWidget {
-  const AddCoven({Key? key}) : super(key: key);
+  const AddCoven({super.key});
 
   @override
   Widget build(BuildContext context) {

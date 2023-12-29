@@ -52,6 +52,10 @@ func OpenWebDAV(connectionUrl string) (Store, error) {
 	return w, nil
 }
 
+func (w *WebDAV) Url() string {
+	return w.url
+}
+
 func (w *WebDAV) Read(name string, rang *Range, dest io.Writer, progress chan int64) error {
 	p := path.Join(w.p, name)
 

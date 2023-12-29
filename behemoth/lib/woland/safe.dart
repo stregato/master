@@ -24,6 +24,29 @@ typedef Args4TSSS<T> = CResult Function(
 typedef Args5TSSSS<T> = CResult Function(
     T, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 
+class StoreConfig {
+  String url;
+  bool primary;
+  int quota;
+  String creatorid;
+
+  StoreConfig(this.url,
+      {this.primary = false, this.quota = 0, this.creatorid = ""});
+
+  StoreConfig.fromJson(Map<String, dynamic> json)
+      : url = json['url'],
+        primary = json['primary'] ?? false,
+        quota = json['quota'] ?? 0,
+        creatorid = json['creatorid'] ?? "";
+
+  Map<String, dynamic> toJson() => {
+        'url': url,
+        'primary': primary,
+        'quota': quota,
+        'creatorid': creatorid,
+      };
+}
+
 class Safe {
   DateTime accessed = DateTime.now();
   Identity currentUser;
@@ -32,24 +55,19 @@ class Safe {
   String creatorId = "";
   String name = "";
   String description = "";
-  String store = "";
-  StoreDesc storeDesc = StoreDesc();
-  int quota = 0;
-  String quotaGroup = "";
+  List<StoreConfig> storeConfigs = [];
 
   static Map<String, Safe> instances = {};
 
-  static void add(String name, String creatorId, String url) {
-    var fun = lib.lookupFunction<Args3SSS, Args3SSS>("wlnd_addSafe");
-    fun(name.toNativeUtf8(), creatorId.toNativeUtf8(), url.toNativeUtf8())
-        .unwrapVoid();
-  }
-
-  static Future<Safe> open(
-      Identity identity, String name, OpenOptions options) async {
+  static Future<Safe> open(Identity identity, String name, String url,
+      String creatorId, OpenOptions options) async {
     return Isolate.run<Safe>(() {
-      var fun = lib.lookupFunction<Args3SSS, Args3SSS>("wlnd_openSafe");
-      var json = fun(jsonEncode(identity).toNativeUtf8(), name.toNativeUtf8(),
+      var fun = lib.lookupFunction<Args5SSSSS, Args5SSSSS>("wlnd_openSafe");
+      var json = fun(
+              jsonEncode(identity).toNativeUtf8(),
+              name.toNativeUtf8(),
+              url.toNativeUtf8(),
+              creatorId.toNativeUtf8(),
               jsonEncode(options).toNativeUtf8())
           .unwrapMap();
       var safe = Safe._(identity);
@@ -85,10 +103,9 @@ class Safe {
     creatorId = json['creatorId'];
     permission = json['permission'];
     description = json['description'];
-    store = json['store'];
-    storeDesc = StoreDesc.fromJson(json['storeDesc']);
-    quota = json['quota'] ?? 0;
-    quotaGroup = json['quotaGroup'] ?? "";
+    storeConfigs = dynamicToList<Map<String, dynamic>>(json['storeConfigs'])
+        .map((e) => StoreConfig.fromJson(e))
+        .toList();
   }
 
   void close() {
@@ -100,12 +117,17 @@ class Safe {
     accessed = DateTime.now();
   }
 
-  Future<int> syncBucket(String bucket, SyncOptions options) async {
-    var fun =
-        lib.lookupFunction<Args3TSS<Int32>, Args3TSS<int>>("wlnd_syncBucket");
-    return fun(hnd, bucket.toNativeUtf8(), jsonEncode(options).toNativeUtf8())
-        .unwrapInt();
+  void addStore(StoreConfig config) {
+    var fun = lib.lookupFunction<Args2TS<Int32>, Args2TS<int>>("wlnd_addStore");
+    fun(hnd, jsonEncode(config).toNativeUtf8()).unwrapVoid();
   }
+
+  // Future<int> syncBucket(String bucket, SyncOptions options) async {
+  //   var fun =
+  //       lib.lookupFunction<Args3TSS<Int32>, Args3TSS<int>>("wlnd_syncBucket");
+  //   return fun(hnd, bucket.toNativeUtf8(), jsonEncode(options).toNativeUtf8())
+  //       .unwrapInt();
+  // }
 
   Future<int> syncUsers() async {
     var fun = lib.lookupFunction<Args1T<Int32>, Args1T<int>>("wlnd_syncUsers");

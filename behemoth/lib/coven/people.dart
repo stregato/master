@@ -10,7 +10,7 @@ var currentPanelIdx = <String, int>{};
 class People extends StatefulWidget {
   final Safe safe;
   final Safe lounge;
-  const People(this.safe, this.lounge, {Key? key}) : super(key: key);
+  const People(this.safe, this.lounge, {super.key});
 
   @override
   State<People> createState() => _PeopleState();

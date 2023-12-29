@@ -59,4 +59,13 @@ func TestList(t *testing.T) {
 	core.TestErr(t, err, "cannot list dirs: %v")
 	core.Assert(t, len(dirs) == 1, "Expected 1 dir, got %d", len(dirs))
 
+	r = core.NewBytesReader(testData)
+	_, err = Put(s, "bucket", "newone", r, PutOptions{}, nil)
+	core.TestErr(t, err, "cannot put file: %v")
+
+	files, err = ListFiles(s, "bucket", ListOptions{OnlyChanges: true})
+	core.TestErr(t, err, "cannot list files: %v")
+	core.Assert(t, len(files) == 1, "Expected 1 file, got %d", len(files))
+	core.Assert(t, files[0].Name == "newone", "Expected first file to be 'newone', got '%s'", files[0].Name)
+
 }

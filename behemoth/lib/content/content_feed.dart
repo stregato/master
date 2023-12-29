@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -7,7 +6,6 @@ import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/checkbox2.dart';
 import 'package:behemoth/common/image.dart';
 import 'package:behemoth/common/io.dart';
-import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/rate_me.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
@@ -48,12 +46,9 @@ class _ContentFeedState extends State<ContentFeed> {
   final Map<int, Widget> _cache = {};
   final Set<Header> _checked = {};
   final List<Player> _players = [];
-  Map<int, List<Feedback>> _feedbacks = {};
-  List<Feedback> _myFeedback = [];
   final ScrollController _scrollController = ScrollController();
   //bool _reload = true;
   int _pending = 0;
-  Timer? _writeFeedbackTimer;
 
   @override
   void initState() {
@@ -64,17 +59,15 @@ class _ContentFeedState extends State<ContentFeed> {
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
-    _writeFeedbackTimer?.cancel();
     super.dispose();
   }
 
-  Future<bool> _cleanUp() async {
+  void _cleanUp(bool _) async {
     for (var p in _players) {
       await p.stop();
       await p.dispose();
     }
     _players.clear();
-    return true;
   }
 
   void _handleScroll() {
@@ -142,38 +135,38 @@ class _ContentFeedState extends State<ContentFeed> {
     return Container();
   }
 
-  Future _readFeedbacks() async {
-    var cu = _safe.currentUser.id;
-    var feedbacks = <int, List<Feedback>>{};
-    var headers = _safe.listFiles(
-        "rooms/$_room/content",
-        ListOptions(
-          dir: _dir,
-          suffix: ".feedback",
-        ));
-    for (var h in headers) {
-      var fb = <Feedback>[];
-      try {
-        var byteList = await _safe.getBytes(
-            "rooms/$_room/content", h.name, GetOptions(noCache: true));
-        var content = utf8.decode(byteList.toList());
-        var decoded = jsonDecode(content) as List;
-        fb = decoded.map((v) {
-          var f = v as Map<String, dynamic>;
-          return Feedback.fromJson(h.creator, f);
-        }).toList();
-        if (h.creator == cu) {
-          _myFeedback = fb.toList();
-        }
-        for (var f in fb) {
-          feedbacks.putIfAbsent(f.fileId, () => []).add(f);
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    _feedbacks = feedbacks;
-  }
+  // Future _readFeedbacks() async {
+  //   var cu = _safe.currentUser.id;
+  //   var feedbacks = <int, List<Feedback>>{};
+  //   var headers = _safe.listFiles(
+  //       "rooms/$_room/content",
+  //       ListOptions(
+  //         dir: _dir,
+  //         suffix: ".feedback",
+  //       ));
+  //   for (var h in headers) {
+  //     var fb = <Feedback>[];
+  //     try {
+  //       var byteList = await _safe.getBytes(
+  //           "rooms/$_room/content", h.name, GetOptions(noCache: true));
+  //       var content = utf8.decode(byteList.toList());
+  //       var decoded = jsonDecode(content) as List;
+  //       fb = decoded.map((v) {
+  //         var f = v as Map<String, dynamic>;
+  //         return Feedback.fromJson(h.creator, f);
+  //       }).toList();
+  //       if (h.creator == cu) {
+  //         _myFeedback = fb.toList();
+  //       }
+  //       for (var f in fb) {
+  //         feedbacks.putIfAbsent(f.fileId, () => []).add(f);
+  //       }
+  //     } catch (e) {
+  //       // ignore
+  //     }
+  //   }
+  //   _feedbacks = feedbacks;
+  // }
 
   Future _read() async {
     var headers = _safe.listFiles(
@@ -206,7 +199,7 @@ class _ContentFeedState extends State<ContentFeed> {
       }
     }
     _headers.sort((a, b) => b.modTime.compareTo(a.modTime));
-    await _readFeedbacks();
+//    await _readFeedbacks();
 //    _reload = false;
   }
 
@@ -214,7 +207,7 @@ class _ContentFeedState extends State<ContentFeed> {
     List<XFile> xfiles;
     switch (mediaType) {
       case "image":
-        xfiles = await pickImage(ImageSource.gallery);
+        xfiles = await pickImage(ImageSource.gallery, multiple: true);
         break;
       case "video":
         xfiles = await pickVideo();
@@ -295,30 +288,27 @@ class _ContentFeedState extends State<ContentFeed> {
     );
   }
 
-  void _writeFeedback(int fileId, String comment) {
-    _writeFeedbackTimer?.cancel();
-    _writeFeedbackTimer = Timer(const Duration(seconds: 2), () async {
-      _writeFeedbackTimer?.cancel();
-      var found = _myFeedback
-          .where((f) => f.fileId == fileId && f.comment == comment)
-          .firstOrNull;
+  void _writeFeedback(String name, String symbol) {
+    var bucket = "rooms/$_room/content";
+    var headers = _safe.listFiles(bucket, ListOptions(name: name));
 
-      if (found != null) {
-        _myFeedback.remove(found);
-        _feedbacks[fileId]!.remove(found);
-      } else {
-        var f = Feedback(
-            fileId: fileId, id: _safe.currentUser.id, comment: comment);
-        _myFeedback.add(f);
-        _feedbacks.putIfAbsent(fileId, () => []).add(f);
-      }
-
-      var name = "$_dir/${_safe.currentUser.id}.feedback";
-      var json = jsonEncode(_myFeedback);
-      var bytes = Uint8List.fromList(utf8.encode(json));
-      _safe.putBytes("rooms/$_room/content", name, bytes,
-          PutOptions(replace: true, zip: false));
-    });
+    if (headers.isEmpty) {
+      return;
+    }
+    var h = headers.first;
+    var extra = h.attributes.meta;
+    extra.putIfAbsent(symbol, () => []);
+    extra[symbol].add(_safe.currentUser.id);
+    _safe.putBytes(
+        bucket,
+        name,
+        Uint8List(0),
+        PutOptions(
+            onlyHeader: true,
+            meta: extra,
+            tags: h.attributes.tags,
+            thumbnail: h.attributes.thumbnail,
+            contentType: h.attributes.contentType));
   }
 
   void _comment(Header h) {}
@@ -339,13 +329,6 @@ class _ContentFeedState extends State<ContentFeed> {
       _safe = args["safe"] as Safe;
       _room = args["room"] as String;
       _dir = args["folder"] as String;
-      Future.delayed(const Duration(seconds: 1), () async {
-        var changes =
-            await _safe.syncBucket("rooms/$_room/content", SyncOptions());
-        if (changes > 0) {
-          setState(() {});
-        }
-      });
     }
 
     return PlatformScaffold(
@@ -353,13 +336,13 @@ class _ContentFeedState extends State<ContentFeed> {
         title: Text(_dir.substring(0, _dir.length - 5),
             style: const TextStyle(fontSize: 18)),
         trailingActions: [
-          const NewsIcon(),
+//          const NewsIcon(),
           PlatformIconButton(
               onPressed: () {}, icon: const Icon(Icons.exit_to_app)),
         ],
       ),
-      body: WillPopScope(
-        onWillPop: _cleanUp,
+      body: PopScope(
+        onPopInvoked: _cleanUp,
         child: FutureBuilder(
             future: _read(),
             builder: (context, snapshot) {
@@ -408,38 +391,13 @@ class _ContentFeedState extends State<ContentFeed> {
                           var w =
                               _cache.putIfAbsent(h.fileId, () => _getWidget(h));
 
-                          var comments = <String>[];
-                          var hearts = 0;
-                          var iHearts = false;
-                          var likes = 0;
-                          var iLike = false;
-                          var smiles = 0;
-                          var iSmile = false;
-                          var shocked = 0;
-                          var iShocked = false;
-                          var fb = _feedbacks[h.fileId] ?? [];
-                          for (var f in fb) {
-                            switch (f.comment) {
-                              case "👍":
-                                likes++;
-                                iLike |= f.id == _safe.currentUser.id;
-                                break;
-                              case "❤️":
-                                hearts++;
-                                iHearts |= f.id == _safe.currentUser.id;
-                                break;
-                              case "😊":
-                                smiles++;
-                                iSmile |= f.id == _safe.currentUser.id;
-                                break;
-                              case "😲":
-                                shocked++;
-                                iShocked |= f.id == _safe.currentUser.id;
-                                break;
-                              default:
-                                comments.add(f.comment);
-                            }
-                          }
+                          var extra = h.attributes.meta;
+                          var hearts = extra['❤️'] ?? [];
+                          var iHearts =
+                              hearts.contains(_safe.currentUser.id) ?? false;
+                          var likes = extra['👍'] ?? [];
+                          var iLike =
+                              likes.contains(_safe.currentUser.id) ?? false;
 
                           return Card(
                             elevation: 3.0,
@@ -457,34 +415,19 @@ class _ContentFeedState extends State<ContentFeed> {
                                   const SizedBox(width: 10),
                                   const Spacer(),
                                   RateMe(
-                                      initialCount: likes,
+                                      initialCount: likes.length,
                                       hasRated: iLike,
                                       icon: const Icon(Icons.thumb_up),
                                       color: Colors.green,
                                       onChanged: (_, __) =>
-                                          _writeFeedback(h.fileId, "👍")),
+                                          _writeFeedback(h.name, "👍")),
                                   RateMe(
-                                      initialCount: hearts,
+                                      initialCount: hearts.length,
                                       hasRated: iHearts,
                                       icon: const Icon(Icons.favorite),
                                       color: Colors.red,
                                       onChanged: (_, __) =>
-                                          _writeFeedback(h.fileId, "❤️")),
-                                  RateMe(
-                                      initialCount: smiles,
-                                      hasRated: iSmile,
-                                      icon: const Icon(
-                                          Icons.sentiment_very_satisfied),
-                                      color: Colors.yellow,
-                                      onChanged: (_, __) =>
-                                          _writeFeedback(h.fileId, "😊")),
-                                  RateMe(
-                                      initialCount: shocked,
-                                      hasRated: iShocked,
-                                      icon: const Icon(Icons.priority_high),
-                                      color: Colors.red,
-                                      onChanged: (_, __) =>
-                                          _writeFeedback(h.fileId, "😲")),
+                                          _writeFeedback(h.name, "❤️")),
                                   IconButton(
                                       onPressed: () => _comment(h),
                                       icon: const Icon(Icons.comment)),

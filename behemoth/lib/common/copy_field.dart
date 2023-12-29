@@ -5,7 +5,7 @@ import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 class CopyField extends StatelessWidget {
   final String _label;
   final String _value;
-  const CopyField(this._label, this._value, {Key? key}) : super(key: key);
+  const CopyField(this._label, this._value, {super.key});
 
   @override
   Widget build(BuildContext context) {

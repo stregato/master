@@ -46,7 +46,7 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
             child: const Text("Accept"),
             onPressed: () async {
               await progressDialog<Coven>(context, "Connect to $name",
-                  Coven.join(name, creatorId, url, ""),
+                  Coven.join(name, url, creatorId, ""),
                   successMessage: "Successfully connected to $name",
                   errorMessage: "Failed to connect to $name");
               if (mounted) {

@@ -21,7 +21,7 @@ import 'package:path/path.dart';
 class Content extends StatefulWidget {
   final Coven coven;
   final String room;
-  const Content(this.coven, this.room, {Key? key}) : super(key: key);
+  const Content(this.coven, this.room, {super.key});
 
   @override
   State<Content> createState() => _ContentState();
@@ -47,11 +47,9 @@ class _ContentState extends State<Content> {
     _room = widget.room;
     _safe = widget.coven.safe;
     _timer = Timer.periodic(const Duration(minutes: 10), (timer) async {
-      await _safe.syncBucket("rooms/$_room/content", SyncOptions());
       _read();
     });
     Future.delayed(Duration.zero, () async {
-      await _safe.syncBucket("rooms/$_room/content", SyncOptions());
       _read();
     });
     _read();
@@ -81,7 +79,7 @@ class _ContentState extends State<Content> {
     }
     var downloadTime = headers[idx].downloads[localFile]!;
     var uploading = headers[idx].uploading;
-    var modified = localStat.modified.difference(downloadTime).inMinutes > 1;
+    var modified = localStat.modified.difference(downloadTime).inSeconds > 2;
     if (modified) {
       return idx == 0 ? "modified" : "conflict";
     } else {
@@ -178,8 +176,6 @@ class _ContentState extends State<Content> {
                     'folder': _dir.isEmpty ? e : "$_dir/$e"
                   });
                 } else {
-                  await _safe.syncBucket("rooms/$_room/content", SyncOptions());
-
                   _dir = _dir.isEmpty ? e : "$_dir/$e";
                   _read();
                 }
@@ -283,7 +279,6 @@ class _ContentState extends State<Content> {
             children: items,
           ),
           onRefresh: () async {
-            await _safe.syncBucket("rooms/$_room/content", SyncOptions());
             _read();
           },
         ),

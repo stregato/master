@@ -27,8 +27,9 @@ import (
 type SFTP struct {
 	c     *sftp.Client
 	base  string
-	url   string
+	repr  string
 	touch map[string]time.Time
+	url   string
 }
 
 // func ParseSFTPUrl(s string) (SFTPConfig, error) {
@@ -110,7 +111,11 @@ func OpenSFTP(connectionUrl string) (Store, error) {
 	if base == "" {
 		base = "/"
 	}
-	return &SFTP{c, base, repr, map[string]time.Time{}}, nil
+	return &SFTP{c, base, repr, map[string]time.Time{}, connectionUrl}, nil
+}
+
+func (s *SFTP) Url() string {
+	return s.url
 }
 
 func (s *SFTP) Read(name string, rang *Range, dest io.Writer, progress chan int64) error {
@@ -222,7 +227,7 @@ func (s *SFTP) Close() error {
 }
 
 func (s *SFTP) String() string {
-	return s.url
+	return s.repr
 }
 
 // Describe implements Store.

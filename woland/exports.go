@@ -215,9 +215,22 @@ func wlnd_createSafe(creator, name, url *C.char, users *C.char, createOptions *C
 	return cResult(s, err)
 }
 
-//export wlnd_addSafe
-func wlnd_addSafe(name, creatorId, url *C.char, addOptions *C.char) C.Result {
-	err := safe.Add(C.GoString(name), C.GoString(creatorId), C.GoString(url))
+//export wlnd_addStore
+func wlnd_addStore(hnd C.int, storeConfig *C.char) C.Result {
+	safesSync.Lock()
+	defer safesSync.Unlock()
+	s, ok := safes[int(hnd)]
+	if !ok {
+		return cResult(nil, ErrSafeNotFound)
+	}
+
+	var sc safe.StoreConfig
+	err := cUnmarshal(storeConfig, &sc)
+	if core.IsErr(err, nil, "cannot unmarshal storeOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	err = safe.AddStore(s, sc)
 	if core.IsErr(err, nil, "cannot add safe: %v") {
 		return cResult(nil, err)
 	}
@@ -225,7 +238,7 @@ func wlnd_addSafe(name, creatorId, url *C.char, addOptions *C.char) C.Result {
 }
 
 //export wlnd_openSafe
-func wlnd_openSafe(identity *C.char, name *C.char, openOptions *C.char) C.Result {
+func wlnd_openSafe(identity *C.char, name, storeUrl, creatorId *C.char, openOptions *C.char) C.Result {
 	var OpenOptions safe.OpenOptions
 	err := cUnmarshal(openOptions, &OpenOptions)
 	if core.IsErr(err, nil, "cannot unmarshal openOptions: %v") {
@@ -238,7 +251,7 @@ func wlnd_openSafe(identity *C.char, name *C.char, openOptions *C.char) C.Result
 		return cResult(nil, err)
 	}
 
-	s, err := safe.Open(i, C.GoString(name), OpenOptions)
+	s, err := safe.Open(i, C.GoString(name), C.GoString(storeUrl), C.GoString(creatorId), OpenOptions)
 	if core.IsErr(err, nil, "cannot open portal: %v") {
 		return cResult(nil, err)
 	}

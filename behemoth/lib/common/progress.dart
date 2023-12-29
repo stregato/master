@@ -94,8 +94,7 @@ Future<T?> progressDialog<T>(
 class ProgressDialog extends StatefulWidget {
   final String message;
   final Function? getProgress;
-  const ProgressDialog(this.message, this.getProgress, {Key? key})
-      : super(key: key);
+  const ProgressDialog(this.message, this.getProgress, {super.key});
 
   @override
   // ignore: no_logic_in_create_state

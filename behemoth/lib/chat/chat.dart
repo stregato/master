@@ -31,8 +31,7 @@ class Chat extends StatefulWidget {
   final String room;
   final String privateId;
 
-  const Chat(this.coven, this.room, this.privateId, {Key? key})
-      : super(key: key);
+  const Chat(this.coven, this.room, this.privateId, {super.key});
 
   @override
   State<Chat> createState() => _ChatState();
@@ -98,9 +97,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     _lastAction = DateTime.now();
   }
 
-  Future<bool> _sync() async {
-    return await _safe.syncBucket(_bucket, SyncOptions()) > 0;
-  }
+  // Future<bool> _sync() async {
+  //   return await _safe.syncBucket(_bucket, SyncOptions()) > 0;
+  // }
 
   void _refresh() async {
     if (!mounted) return;
@@ -113,10 +112,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         diff2 > 600 || diff < 60 || _refreshCount > (1 + diff / 60);
 
     if (syncNeeded) {
-      if (await _sync()) {
-        Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
-        _loadMoreMessages();
-      }
+      _loadMoreMessages();
       _lastSync = now;
       _refreshCount = 0;
     }
@@ -129,20 +125,20 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         createdAt: h.modTime.millisecondsSinceEpoch,
         metadata: {
           'mime': h.attributes.contentType,
-          'data': h.attributes.extra['data'],
+          'data': h.attributes.meta['data'],
         });
   }
 
   types.Message _convertText(Header h, types.User user) {
     return types.TextMessage(
         id: h.name,
-        text: h.attributes.extra['text'],
+        text: h.attributes.meta['text'],
         author: user,
         createdAt: h.modTime.millisecondsSinceEpoch);
   }
 
   types.Message _convertLibraryFile(Header h, types.User user) {
-    var text = h.attributes.extra['text'];
+    var text = h.attributes.meta['text'];
     return types.FileMessage(
         author: user,
         createdAt: h.modTime.millisecondsSinceEpoch,
@@ -185,15 +181,15 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   types.Message _convertInvite(Header h, types.User user) {
-    var sender = Identity.fromJson(h.attributes.extra['sender']);
+    var sender = Identity.fromJson(h.attributes.meta['sender']);
     return types.CustomMessage(
         id: h.name,
         author: user,
         createdAt: h.modTime.millisecondsSinceEpoch,
         metadata: {
           'mime': h.attributes.contentType,
-          'access': h.attributes.extra['access'],
-          'name': h.attributes.extra['name'],
+          'access': h.attributes.meta['access'],
+          'name': h.attributes.meta['name'],
           'sender': sender,
         });
   }
@@ -235,23 +231,27 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     }
   }
 
-  _listFiles(Chat widget, DateTime after, DateTime before) async {
+  _listFiles(Chat widget, DateTime after, DateTime before,
+      {bool onlyChanges = false}) async {
     var options = ListOptions(
         after: after,
         before: before,
         limit: isDesktop ? 40 : 20,
         orderBy: "modTime",
         privateId: widget.privateId,
+        onlyChanges: onlyChanges,
         reverseOrder: true);
     return _safe.listFiles(_bucket, options);
   }
 
   _loadMoreMessages() async {
     _to = DateTime.now().add(const Duration(seconds: 10));
-    var headers = await _listFiles(widget, _from, _to);
+    var headers = await _listFiles(widget, _from, _to, onlyChanges: false);
     if (headers == null || headers.isEmpty) {
       return;
     }
+
+    Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
 
     headers = headers.reversed.toList();
     var newMessages = <types.Message>[];
@@ -325,7 +325,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                   PlatformElevatedButton(
                     onPressed: () async {
                       await progressDialog(context, "Joining $name",
-                          Coven.join(name, creatorId, url, ""),
+                          Coven.join(name, url, creatorId, ""),
                           successMessage: "Joined $name",
                           errorMessage: "Failed to join $name");
                     },
@@ -343,7 +343,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   Future<void> _handleEndReached() async {
     var after = _from.add(-const Duration(days: -1));
     var before = _from;
-    await _safe.syncBucket(_bucket, SyncOptions());
     if (!mounted) return;
 
     var headers = await _listFiles(widget, after, before);

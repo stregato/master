@@ -34,7 +34,7 @@ func TestCreateAndOpen(t *testing.T) {
 	core.TestErr(t, err, "cannot open portal: %v")
 
 	Close(s)
-	s, err = Open(Identity1, testSafe, OpenOptions{})
+	s, err = Open(Identity1, testSafe, testUrl, Identity1.Id, OpenOptions{})
 	core.TestErr(t, err, "cannot open portal: %v")
 	Close(s)
 }

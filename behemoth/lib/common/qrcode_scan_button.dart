@@ -9,8 +9,7 @@ typedef QRCodeDetectCallback = void Function(Barcode code);
 class QRCodeScannerButton extends StatelessWidget {
   final Function(List<String>, Uint8List) onDetect;
 
-  const QRCodeScannerButton({Key? key, required this.onDetect})
-      : super(key: key);
+  const QRCodeScannerButton({super.key, required this.onDetect});
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +37,7 @@ class QRScannerScreen extends StatelessWidget {
   final Function(List<String>, Uint8List) onDetect;
   final MobileScannerController controller = MobileScannerController();
 
-  QRScannerScreen({Key? key, required this.onDetect}) : super(key: key);
+  QRScannerScreen({super.key, required this.onDetect});
 
   @override
   Widget build(BuildContext context) {

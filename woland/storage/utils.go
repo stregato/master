@@ -110,6 +110,7 @@ func CopyFile(dest Store, destName string, source Store, sourceName string) erro
 
 	err = dest.Write(destName, r, nil)
 	if core.IsErr(err, nil, "cannot write %s/%s: %v", dest, destName) {
+		dest.Delete(destName)
 		return err
 	}
 

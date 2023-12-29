@@ -66,6 +66,9 @@ type Store interface {
 	// Delete deletes a file
 	Delete(name string) error
 
+	//Url returns the connection url
+	Url() string
+
 	// Close releases resources
 	Close() error
 

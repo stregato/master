@@ -20,8 +20,7 @@ class Add extends StatelessWidget {
     var tabAddRoom =
         const Tab(icon: Icon(Icons.meeting_room), text: "New Room");
     var tabAddToRoom = const Tab(icon: Icon(Icons.person_add), text: "To Room");
-    var tabFederate =
-        const Tab(icon: Icon(Icons.wifi_tethering), text: "Federate");
+    var tabAddStore = const Tab(icon: Icon(Icons.storage), text: "Store");
 
     var length = isAdmin ? 4 : 3;
 
@@ -39,7 +38,7 @@ class Add extends StatelessWidget {
                   if (isAdmin) tabAddToCoven,
                   tabAddRoom,
                   tabAddToRoom,
-                  tabFederate,
+                  tabAddStore,
                 ],
               ),
               Expanded(
@@ -50,7 +49,7 @@ class Add extends StatelessWidget {
                       if (isAdmin) InviteToCoven(coven: coven),
                       CreateRoom(coven),
                       InviteToRoom(coven),
-                      Federate(coven),
+                      AddStore(coven),
                     ],
                   ),
                 ),

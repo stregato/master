@@ -16,7 +16,8 @@ type Initiate struct {
 }
 
 func GetInitiates(s *Safe) ([]Initiate, error) {
-	ls, err := s.store.ReadDir(path.Join(s.Name, InitiateFolder), storage.Filter{})
+	store := s.primary
+	ls, err := store.ReadDir(path.Join(s.Name, InitiateFolder), storage.Filter{})
 	if core.IsErr(err, nil, "cannot read initiates in %s: %v", s.Name) {
 		return nil, err
 	}
@@ -25,11 +26,11 @@ func GetInitiates(s *Safe) ([]Initiate, error) {
 
 	for _, l := range ls {
 		if l.ModTime().Before(core.Now().Add(-time.Hour * 24)) {
-			s.store.Delete(path.Join(s.Name, InitiateFolder, l.Name()))
+			store.Delete(path.Join(s.Name, InitiateFolder, l.Name()))
 			continue
 		}
 
-		data, err := storage.ReadFile(s.store, path.Join(s.Name, InitiateFolder, l.Name()))
+		data, err := storage.ReadFile(store, path.Join(s.Name, InitiateFolder, l.Name()))
 		if core.IsErr(err, nil, "cannot read initiate %s in %s: %v", l.Name(), s.Name) {
 			continue
 		}
@@ -43,7 +44,7 @@ func GetInitiates(s *Safe) ([]Initiate, error) {
 			continue
 		}
 
-		new, err := syncIdentities(s.store, s.Name, s.CurrentUser)
+		new, err := syncIdentities(store, s.Name, s.CurrentUser)
 		if core.IsErr(err, nil, "cannot sync identities in %s: %v", s.Name) {
 			continue
 		}

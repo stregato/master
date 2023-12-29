@@ -15,7 +15,7 @@ import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:path/path.dart' as path;
 
 class ContentActions extends StatefulWidget {
-  const ContentActions({Key? key}) : super(key: key);
+  const ContentActions({super.key});
 
   @override
   State<ContentActions> createState() => _ContentActionsState();
@@ -69,7 +69,7 @@ class _ContentActionsState extends State<ContentActions> {
         var downloadTime = h.downloads[localPath];
         if (localModtime != null &&
             downloadTime != null &&
-            localModtime.difference(downloadTime).inMinutes < 1) {
+            localModtime.difference(downloadTime).inSeconds < 2) {
           syncFileId = h.fileId;
         }
       }

@@ -8,13 +8,13 @@ class RateMe extends StatefulWidget {
   final Function(int, bool) onChanged;
 
   const RateMe({
-    Key? key,
+    super.key,
     required this.initialCount,
     required this.hasRated,
     required this.icon,
     required this.color,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<RateMe> createState() => _RateMeState();

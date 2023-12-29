@@ -41,6 +41,10 @@ func OpenMemory(connectionUrl string) (Store, error) {
 	return m, nil
 }
 
+func (m *Memory) Url() string {
+	return m.url
+}
+
 func (m *Memory) Read(name string, rang *Range, dest io.Writer, progress chan int64) error {
 	f, ok := m.data[name]
 	if !ok {

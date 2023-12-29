@@ -40,6 +40,10 @@ func OpenLocal(connectionUrl string) (Store, error) {
 	return &Local{u.Path, connectionUrl, map[string]time.Time{}}, nil
 }
 
+func (l *Local) Url() string {
+	return l.url
+}
+
 func (l *Local) Read(name string, rang *Range, dest io.Writer, progress chan int64) error {
 	f, err := os.Open(path.Join(l.base, name))
 	if core.IsErr(err, nil, "cannot open file on %v:%v", l) {

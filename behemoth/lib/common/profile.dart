@@ -38,18 +38,18 @@ class Coven {
   static Map<String, DateTime> safesAccessed = {};
 
   static Future<Coven> join(
-      String name, String creatorId, String url, String secret) async {
+      String name, String url, String creatorId, String secret) async {
     var p = Profile.current;
 
-    Safe.add(name, creatorId, url);
-    var coven = p.covens.putIfAbsent(
-        name, () => Coven(p.identity, name, creatorId, url, secret, {}));
-    p.save();
     try {
-      await Safe.open(p.identity, name, OpenOptions(initiateSecret: secret));
+      await Safe.open(p.identity, name, url, creatorId,
+          OpenOptions(initiateSecret: secret));
     } catch (e) {
       // ignore
     }
+    var coven = p.covens.putIfAbsent(
+        name, () => Coven(p.identity, name, url, creatorId, secret, {}));
+    p.save();
     return coven;
   }
 
@@ -60,22 +60,22 @@ class Coven {
     await safe.putBytes("rooms/.list", "lounge", Uint8List(0), PutOptions());
     safe.close();
 
-    var coven = Coven(p.identity, name, p.identity.id, url, "0000", {"lounge"});
+    var coven = Coven(p.identity, name, url, p.identity.id, "0000", {"lounge"});
     p.update(coven);
   }
 
-  Coven(this.identity, this.name, this.creatorId, this.url, this.secret,
+  Coven(this.identity, this.name, this.url, this.creatorId, this.secret,
       this.rooms);
   Coven.fromJson(this.identity, Map<String, dynamic> json)
       : name = json['name'],
-        creatorId = json['creatorId'],
         url = json['url'],
+        creatorId = json['creatorId'],
         rooms = json['rooms'].map<String>((v) => v as String).toList().toSet();
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'creatorId': creatorId,
         'url': url,
+        'creatorId': creatorId,
         'rooms': rooms.toList(),
       };
 
@@ -83,8 +83,8 @@ class Coven {
     if (_safe != null) {
       return _safe!;
     }
-    _safe =
-        await Safe.open(identity, name, OpenOptions(initiateSecret: secret));
+    _safe = await Safe.open(
+        identity, name, url, creatorId, OpenOptions(initiateSecret: secret));
     opened[name] = this;
     safesAccessed[name] = DateTime.now();
     Cockpit.openCoven(this);

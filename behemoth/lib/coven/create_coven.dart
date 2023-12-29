@@ -143,6 +143,7 @@ class _CreateCovenState extends State<CreateCoven> {
                     PlatformText(
                       "Storage",
                       style: const TextStyle(color: Colors.grey, fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const Spacer(),
                     PlatformIconButton(

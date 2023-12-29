@@ -4,7 +4,6 @@ import 'package:behemoth/coven/cockpit.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/chat.dart';
-import 'package:behemoth/common/news_icon.dart';
 
 import 'package:behemoth/content/content.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
@@ -12,7 +11,7 @@ import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 var currentPanelIdx = <String, int>{};
 
 class Room extends StatefulWidget {
-  const Room({Key? key}) : super(key: key);
+  const Room({super.key});
 
   @override
   State<Room> createState() => _RoomState();
@@ -38,8 +37,6 @@ class _RoomState extends State<Room> {
 
   @override
   Widget build(BuildContext context) {
-    NewsIcon.onChange = (_) => setState(() {});
-
     var args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     _room = args['room'] as String;

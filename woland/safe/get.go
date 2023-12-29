@@ -106,7 +106,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 			cachedFile = name
 		}
 
-		err = writeFile(s.store, s.Name, bucket, options, header, f)
+		err = writeFile(s.primary, s.Name, bucket, options, header, f)
 		if core.IsErr(err, nil, "cannot write file: %v", err) {
 			return Header{}, err
 		}
@@ -135,7 +135,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 			}
 		}
 	} else if w != nil {
-		err = writeFile(s.store, s.Name, bucket, options, header, w)
+		err = writeFile(s.primary, s.Name, bucket, options, header, w)
 		if core.IsErr(err, nil, "cannot write file: %v", err) {
 			return Header{}, err
 		}

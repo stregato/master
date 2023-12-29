@@ -23,6 +23,10 @@ func Sub(s Store, base string, propagateClose bool) Store {
 	}
 }
 
+func (s *sub) Url() string {
+	return s.Store.Url()
+}
+
 func (s *sub) ReadDir(name string, filter Filter) ([]fs.FileInfo, error) {
 	return s.Store.ReadDir(path.Join(s.Base, name), filter)
 }

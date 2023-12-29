@@ -6,7 +6,7 @@ import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/woland/woland.dart';
 
 class Reset extends StatefulWidget {
-  const Reset({Key? key}) : super(key: key);
+  const Reset({super.key});
 
   @override
   State<Reset> createState() => _Reset();

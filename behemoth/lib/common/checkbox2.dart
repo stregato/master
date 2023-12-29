@@ -20,8 +20,7 @@ class Checkbox2 extends StatefulWidget {
   final bool initialValue;
 
   const Checkbox2(
-      {Key? key, required this.onChanged, this.initialValue = false})
-      : super(key: key);
+      {super.key, required this.onChanged, this.initialValue = false});
 
   @override
   State<Checkbox2> createState() => _Checkbox2State();

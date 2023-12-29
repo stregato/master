@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class CatProgressIndicator extends StatelessWidget {
   final String message;
-  const CatProgressIndicator(this.message, {Key? key}) : super(key: key);
+  const CatProgressIndicator(this.message, {super.key});
 
   @override
   Widget build(BuildContext context) {

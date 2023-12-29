@@ -34,7 +34,7 @@ type Attributes struct {
 	ContentType string         `json:"co,omitempty"` // Content type of the file
 	Thumbnail   []byte         `json:"th,omitempty"` // Thumbnail of the file
 	Tags        []string       `json:"ta,omitempty"` // Tags of the file
-	Extra       map[string]any `json:"ex,omitempty"` // Extra attributes of the file
+	Meta        map[string]any `json:"mt,omitempty"` // Extra attributes of the file
 }
 
 type Header struct {
@@ -171,14 +171,14 @@ func insertHeaderOrIgnoreToDB(safeName, bucket string, headerFile uint64, header
 		"base":         path.Base(header.Name),
 		"dir":          getDir(header.Name),
 		"depth":        depth,
-		"modTime":      header.ModTime.Unix(),
-		"syncTime":     time.Now().Unix(),
+		"modTime":      header.ModTime.UnixMilli(),
+		"syncTime":     core.Now().UnixMilli(),
 		"tags":         tags,
 		"contentType":  header.Attributes.ContentType,
 		"creator":      header.Creator,
 		"privateId":    header.PrivateId,
 		"deleted":      header.Deleted,
-		"cacheExpires": header.CachedExpires.Unix(),
+		"cacheExpires": header.CachedExpires.UnixMilli(),
 		"uploading":    header.Uploading,
 		"header":       data,
 	})
@@ -320,8 +320,8 @@ type CompactHeader struct {
 }
 
 func compactHeaders(s *Safe, newKey bool) error {
-	ls, err := s.store.ReadDir(path.Join(s.Name, DataFolder), storage.Filter{})
-	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", s.store, s.Name, err) {
+	ls, err := s.primary.ReadDir(path.Join(s.Name, DataFolder), storage.Filter{})
+	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", s.primary, s.Name, err) {
 		return err
 	}
 
@@ -343,7 +343,7 @@ func compactHeadersInBucket(s *Safe, buckerDir string, newKey bool) {
 	defer s.compactHeadersWg.Done()
 
 	folder := path.Join(s.Name, DataFolder, buckerDir, HeaderFolder)
-	store := s.store
+	store := s.primary
 	ls, err := store.ReadDir(folder, storage.Filter{})
 	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, folder, err) {
 		return
@@ -391,7 +391,7 @@ func compactHeadersInBucket(s *Safe, buckerDir string, newKey bool) {
 
 func mergeHeadersFiles(s *Safe, folder string, files []string, wg *sync.WaitGroup) {
 	headersMap := map[uint64]Header{}
-	store := s.store
+	store := s.primary
 	safeName := s.Name
 
 	var bucket string

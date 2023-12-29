@@ -5,7 +5,7 @@ import 'package:behemoth/common/profile.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class Privates extends StatefulWidget {
-  const Privates({Key? key}) : super(key: key);
+  const Privates({super.key});
 
   @override
   State<Privates> createState() => _PrivatesState();

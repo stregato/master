@@ -26,6 +26,7 @@ import (
 type S3 struct {
 	client *s3.Client
 	bucket string
+	repr   string
 	url    string
 }
 
@@ -89,13 +90,18 @@ func OpenS3(connectionUrl string) (Store, error) {
 
 	s := &S3{
 		client: s3.NewFromConfig(cfg),
-		url:    repr,
+		repr:   repr,
 		bucket: bucket,
+		url:    connectionUrl,
 	}
 
 	err = s.createBucketIfNeeded()
 
 	return s, s.mapError(err)
+}
+
+func (s *S3) Url() string {
+	return s.url
 }
 
 func (s *S3) createBucketIfNeeded() error {
@@ -328,7 +334,7 @@ func (s *S3) Close() error {
 }
 
 func (s *S3) String() string {
-	return s.url
+	return s.repr
 }
 
 // Describe implements Store.

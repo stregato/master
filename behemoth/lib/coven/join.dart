@@ -141,7 +141,7 @@ class _JoinState extends State<Join> {
               child: PlatformElevatedButton(
                 onPressed: () async {
                   var task = Coven.join(
-                      _name, _creatorId, _url, _secretController.text);
+                      _name, _url, _creatorId, _secretController.text);
                   await progressDialog(context, "Joining $_name", task,
                       successMessage: "Added $_name");
                   widget.onComplete?.call();

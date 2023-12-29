@@ -18,7 +18,7 @@ import 'package:path/path.dart' as path;
 import 'package:behemoth/common/file_access.dart' as fa;
 
 class Settings extends StatefulWidget {
-  const Settings({Key? key}) : super(key: key);
+  const Settings({super.key});
 
   @override
   State<Settings> createState() => _SettingsState();

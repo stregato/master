@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/io.dart';
-import 'package:behemoth/common/news_icon.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/coven/create_coven.dart';
@@ -16,7 +15,7 @@ import 'package:uni_links/uni_links.dart';
 import 'package:flutter/services.dart' show PlatformException;
 
 class Home extends StatefulWidget {
-  const Home({Key? key}) : super(key: key);
+  const Home({super.key});
 
   @override
   State<Home> createState() => _HomeState();
@@ -111,30 +110,6 @@ class _HomeState extends State<Home> {
     });
   }
 
-  List<Card> getNotificationsWidgets() {
-    var cards = <Card>[];
-
-    for (var n in NewsIcon.notifications) {
-      var title = "${n.room}@${n.coven.name} (${n.updates})";
-      cards.add(Card(
-        child: PlatformListTile(
-          title: PlatformText(title),
-          trailing: const Icon(Icons.notifications),
-          onTap: () async {
-            NewsIcon.notifications.remove(n);
-            Navigator.of(context).popUntil((route) => route.isFirst);
-            await Navigator.pushNamed(context, "/coven/room", arguments: {
-              "coven": n.coven,
-              "room": n.room,
-            });
-            setState(() {});
-          },
-        ),
-      ));
-    }
-    return cards;
-  }
-
   connectAll(BuildContext context) async {
     setState(() {
       _connecting = true;
@@ -183,7 +158,9 @@ class _HomeState extends State<Home> {
             textAlign:
                 TextAlign.justify, // Set the maximum number of lines to 3
           ),
-          const Spacer(),
+          const SizedBox(
+            height: 16,
+          ),
           const Text(
             "Create a  coven or join an existing one",
             textAlign: TextAlign.center,
@@ -200,7 +177,8 @@ class _HomeState extends State<Home> {
 
   Widget getMyCovens() {
     var profile = Profile.current;
-    var widgets = getNotificationsWidgets();
+//    var widgets = getNotificationsWidgets();
+    var widgets = <Card>[];
     widgets.addAll(profile.covens.values.map(
       (coven) {
         return Card(
@@ -212,7 +190,7 @@ class _HomeState extends State<Home> {
                     ? const CircularProgressIndicator()
                     : const Icon(Icons.lock),
             onTap: () async {
-              NewsIcon.onChange = null;
+//              NewsIcon.onChange = null;
               Navigator.of(context).popUntil((route) => route.isFirst);
               await Navigator.pushNamed(context, "/coven/room", arguments: {
                 "coven": coven,
@@ -268,7 +246,6 @@ class _HomeState extends State<Home> {
     }
     var profile = Profile.current;
     Widget body;
-//    NewsIcon.onChange = _notifications;
 
     switch (_selectedIndex) {
       case 0:
@@ -293,19 +270,21 @@ class _HomeState extends State<Home> {
             overflow: TextOverflow.ellipsis,
           ),
         ]),
-        trailingActions: [
-          PlatformIconButton(
-              onPressed: () async {
-                NewsIcon.onChange = null;
-                Navigator.of(context).popUntil((route) => route.isFirst);
-                await Navigator.pushNamed(context, "/settings");
-                setState(() {});
-              },
-              icon: const Icon(Icons.settings)),
-        ],
+        // trailingActions: [
+        // PlatformIconButton(
+        //     onPressed: () async {
+        //       NewsIcon.onChange = null;
+        //       Navigator.of(context).popUntil((route) => route.isFirst);
+        //       await Navigator.pushNamed(context, "/settings");
+        //       setState(() {});
+        //     },
+        //     icon: const Icon(Icons.settings)),
+        // ],
       ),
       body: SafeArea(
-        child: body,
+        child: SingleChildScrollView(
+          child: body,
+        ),
       ),
       bottomNavBar: PlatformNavBar(
         currentIndex: _selectedIndex,
@@ -313,22 +292,6 @@ class _HomeState extends State<Home> {
           setState(() {
             _selectedIndex = idx;
           });
-          // switch (idx) {
-          //   case 1:
-          //     NewsIcon.onChange = null;
-          //     Navigator.of(context).popUntil((route) => route.isFirst);
-          //     await Navigator.pushNamed(context, "/join");
-          //     if (!mounted) return;
-          //     setState(() {});
-          //     break;
-          //   case 2:
-          //     NewsIcon.onChange = null;
-          //     Navigator.of(context).popUntil((route) => route.isFirst);
-          //     await Navigator.pushNamed(context, "/create");
-          //     if (!mounted) return;
-          //     setState(() {});
-          //     break;
-          // }
         },
         items: const [
           BottomNavigationBarItem(
