@@ -18,6 +18,7 @@ class _ContentEditorState extends State<ContentEditor> {
   TextEditingController? _textEditingController;
   bool _ready = false;
   int _currentPanelIdx = 0;
+  bool _isDirty = false;
 
   Future<bool> loadMarkdownContent() async {
     if (_textEditingController != null) {
@@ -28,6 +29,9 @@ class _ContentEditorState extends State<ContentEditor> {
           text: _markdownFile.existsSync()
               ? _markdownFile.readAsStringSync()
               : '_Click on Edit_');
+      _textEditingController!.addListener(() {
+        _isDirty = true;
+      });
       _ready = true;
     });
     return true;
@@ -52,45 +56,61 @@ class _ContentEditorState extends State<ContentEditor> {
     return PlatformScaffold(
       appBar: PlatformAppBar(
         title: Text(basename(filename)),
-        trailingActions: [
-          PlatformIconButton(
-            onPressed: () => saveMarkdownContent(context),
-            icon: const Icon(Icons.save),
-          ),
-        ],
       ),
-      body: SafeArea(
-        child: FutureBuilder<bool>(
-          future: loadMarkdownContent(),
-          builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
-            return _ready
-                ? IndexedStack(index: _currentPanelIdx, children: [
-                    Markdown(data: _textEditingController!.text),
-                    Expanded(
-                      child: PlatformTextField(
-                        controller: _textEditingController,
-                        maxLines: null,
-                        keyboardType: TextInputType.multiline,
+      body: PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) async {
+          if (didPop) {
+            return;
+          }
+          if (!_isDirty) {
+            Navigator.of(context).pop();
+            return;
+          }
+          final result = await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Save changes?'),
+              content:
+                  const Text('Do you want to save the changes before exiting?'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop('discard'),
+                  child: const Text('Discard'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop('save'),
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          );
+          if (result == 'save' && mounted) {
+            saveMarkdownContent(context);
+          }
+          // If save or discard, pop the screen
+          if (result != null && mounted) {
+            Navigator.of(context).pop();
+          }
+        },
+        child: SafeArea(
+          child: FutureBuilder<bool>(
+            future: loadMarkdownContent(),
+            builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
+              return _ready
+                  ? IndexedStack(index: _currentPanelIdx, children: [
+                      Markdown(data: _textEditingController!.text),
+                      Expanded(
+                        child: PlatformTextField(
+                          controller: _textEditingController,
+                          maxLines: null,
+                          keyboardType: TextInputType.multiline,
+                        ),
                       ),
-                    ),
-                    Column(
-                      children: [
-                        Expanded(
-                          child: PlatformTextField(
-                            controller: _textEditingController,
-                            maxLines: null,
-                            keyboardType: TextInputType.multiline,
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ),
-                        Expanded(
-                          child: Markdown(data: _textEditingController!.text),
-                        ),
-                      ],
-                    ),
-                  ])
-                : const CatProgressIndicator('Loading file...');
-          },
+                    ])
+                  : const CatProgressIndicator('Loading file...');
+            },
+          ),
         ),
       ),
       bottomNavBar: PlatformNavBar(
@@ -103,8 +123,6 @@ class _ContentEditorState extends State<ContentEditor> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.preview), label: "Preview"),
           BottomNavigationBarItem(icon: Icon(Icons.edit), label: "Edit"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.edit_document), label: "Preview+Edit"),
         ],
       ),
     );

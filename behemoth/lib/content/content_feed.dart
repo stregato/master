@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/checkbox2.dart';
 import 'package:behemoth/common/image.dart';
 import 'package:behemoth/common/io.dart';
@@ -75,16 +74,18 @@ class _ContentFeedState extends State<ContentFeed> {
 
   void _handleScroll() {
     var pos = _scrollController.position.pixels;
-    if (pos == _scrollController.position.maxScrollExtent && !_noMore) {
+    if (pos > _scrollController.position.maxScrollExtent - 128 && !_noMore) {
       setState(() {
         _offset += itemsPerRead;
         _pos = pos - 100;
+        _read();
       });
     }
     if (pos == _scrollController.position.minScrollExtent) {
       setState(() {
         _offset = 0;
         _pos = pos;
+        _read();
       });
     }
   }
@@ -151,9 +152,8 @@ class _ContentFeedState extends State<ContentFeed> {
           offset: _offset,
         ));
 
-    _noMore = headers.length < itemsPerRead;
-    if (headers.isEmpty) {
-      return;
+    if (headers.length < itemsPerRead) {
+      _noMore = true;
     }
     headers.sort((a, b) => b.modTime.compareTo(a.modTime));
     for (var h in headers) {
@@ -374,6 +374,9 @@ class _ContentFeedState extends State<ContentFeed> {
       _safe = args["safe"] as Safe;
       _room = args["room"] as String;
       _dir = args["folder"] as String;
+      setState(() {
+        _read();
+      });
     }
 
     return PlatformScaffold(
@@ -387,43 +390,35 @@ class _ContentFeedState extends State<ContentFeed> {
       ),
       body: PopScope(
         onPopInvoked: _cleanUp,
-        child: FutureBuilder(
-            future: _read(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const CatProgressIndicator("Loading...");
-              }
-
-              return SafeArea(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Spacer(),
-                        PlatformIconButton(
-                            onPressed: _read, icon: const Icon(Icons.refresh)),
-                        const SizedBox(width: 10),
-                        PlatformIconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: () => _handleAttachmentPressed(context),
-                        ),
-                      ],
-                    ),
-                    if (_pending > 0)
-                      Container(
-                        margin: const EdgeInsets.all(32),
-                        child: Text(
-                          "Loading $_pending...",
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                      ),
-                    Expanded(
-                      child: _getListView(),
-                    ),
-                  ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Spacer(),
+                  PlatformIconButton(
+                      onPressed: _read, icon: const Icon(Icons.refresh)),
+                  const SizedBox(width: 10),
+                  PlatformIconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: () => _handleAttachmentPressed(context),
+                  ),
+                ],
+              ),
+              if (_pending > 0)
+                Container(
+                  margin: const EdgeInsets.all(32),
+                  child: Text(
+                    "Loading $_pending...",
+                    style: const TextStyle(fontSize: 20),
+                  ),
                 ),
-              );
-            }),
+              Expanded(
+                child: _getListView(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
