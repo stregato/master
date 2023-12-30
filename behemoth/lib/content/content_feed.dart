@@ -37,6 +37,8 @@ class Feedback {
   Map<String, dynamic> toJson() => {'f': fileId, 'c': comment};
 }
 
+const itemsPerRead = 3;
+
 class _ContentFeedState extends State<ContentFeed> {
   int _offset = 0;
   List<Header> _headers = [];
@@ -47,8 +49,9 @@ class _ContentFeedState extends State<ContentFeed> {
   final Set<Header> _checked = {};
   final List<Player> _players = [];
   final ScrollController _scrollController = ScrollController();
-  //bool _reload = true;
   int _pending = 0;
+  double _pos = 0.0;
+  bool _noMore = false;
 
   @override
   void initState() {
@@ -72,15 +75,16 @@ class _ContentFeedState extends State<ContentFeed> {
 
   void _handleScroll() {
     var pos = _scrollController.position.pixels;
-    if (pos == _scrollController.position.maxScrollExtent) {
+    if (pos == _scrollController.position.maxScrollExtent && !_noMore) {
       setState(() {
-        _offset += 5;
-        //   _reload = true;
+        _offset += itemsPerRead;
+        _pos = pos - 100;
       });
     }
     if (pos == _scrollController.position.minScrollExtent) {
       setState(() {
-        //     _reload = true;
+        _offset = 0;
+        _pos = pos;
       });
     }
   }
@@ -135,39 +139,6 @@ class _ContentFeedState extends State<ContentFeed> {
     return Container();
   }
 
-  // Future _readFeedbacks() async {
-  //   var cu = _safe.currentUser.id;
-  //   var feedbacks = <int, List<Feedback>>{};
-  //   var headers = _safe.listFiles(
-  //       "rooms/$_room/content",
-  //       ListOptions(
-  //         dir: _dir,
-  //         suffix: ".feedback",
-  //       ));
-  //   for (var h in headers) {
-  //     var fb = <Feedback>[];
-  //     try {
-  //       var byteList = await _safe.getBytes(
-  //           "rooms/$_room/content", h.name, GetOptions(noCache: true));
-  //       var content = utf8.decode(byteList.toList());
-  //       var decoded = jsonDecode(content) as List;
-  //       fb = decoded.map((v) {
-  //         var f = v as Map<String, dynamic>;
-  //         return Feedback.fromJson(h.creator, f);
-  //       }).toList();
-  //       if (h.creator == cu) {
-  //         _myFeedback = fb.toList();
-  //       }
-  //       for (var f in fb) {
-  //         feedbacks.putIfAbsent(f.fileId, () => []).add(f);
-  //       }
-  //     } catch (e) {
-  //       // ignore
-  //     }
-  //   }
-  //   _feedbacks = feedbacks;
-  // }
-
   Future _read() async {
     var headers = _safe.listFiles(
         "rooms/$_room/content",
@@ -176,10 +147,15 @@ class _ContentFeedState extends State<ContentFeed> {
           tags: ['media'],
           reverseOrder: true,
           orderBy: 'modTime',
-          limit: 5,
+          limit: itemsPerRead,
           offset: _offset,
         ));
 
+    _noMore = headers.length < itemsPerRead;
+    if (headers.isEmpty) {
+      return;
+    }
+    headers.sort((a, b) => b.modTime.compareTo(a.modTime));
     for (var h in headers) {
       var found = _headers.where((h2) => h2.fileId == h.fileId);
       if (found.isNotEmpty) {
@@ -198,9 +174,6 @@ class _ContentFeedState extends State<ContentFeed> {
         continue;
       }
     }
-    _headers.sort((a, b) => b.modTime.compareTo(a.modTime));
-//    await _readFeedbacks();
-//    _reload = false;
   }
 
   void _addMedia(BuildContext context, String mediaType) async {
@@ -298,7 +271,11 @@ class _ContentFeedState extends State<ContentFeed> {
     var h = headers.first;
     var extra = h.attributes.meta;
     extra.putIfAbsent(symbol, () => []);
-    extra[symbol].add(_safe.currentUser.id);
+    if (extra[symbol].contains(_safe.currentUser.id)) {
+      extra[symbol].remove(_safe.currentUser.id);
+    } else {
+      extra[symbol].add(_safe.currentUser.id);
+    }
     _safe.putBytes(
         bucket,
         name,
@@ -321,6 +298,74 @@ class _ContentFeedState extends State<ContentFeed> {
     }
   }
 
+  ListView _getListView() {
+    var listView = ListView.builder(
+      controller: _scrollController,
+      itemCount: _headers.length + 1,
+      itemBuilder: (context, index) {
+        if (index == _headers.length) {
+          return _noMore
+              ? const SizedBox(height: 100)
+              : const Column(children: [
+                  SizedBox(height: 80),
+                  Text("Pull for more", style: TextStyle(fontSize: 20)),
+                  SizedBox(height: 80),
+                ]);
+        }
+
+        var h = _headers[index];
+        var w = _cache.putIfAbsent(h.fileId, () => _getWidget(h));
+
+        var extra = h.attributes.meta;
+        var hearts = extra['❤️'] ?? [];
+        var iHearts = hearts.contains(_safe.currentUser.id) ?? false;
+        var likes = extra['👍'] ?? [];
+        var iLike = likes.contains(_safe.currentUser.id) ?? false;
+
+        return Card(
+          elevation: 3.0,
+          margin: const EdgeInsets.all(8.0),
+          child: Column(
+            children: [
+              w,
+              const SizedBox(
+                height: 2,
+              ),
+              Row(children: [
+                Checkbox2(
+                    initialValue: _checked.contains(h),
+                    onChanged: (_) => _check(h)),
+                const SizedBox(width: 10),
+                const Spacer(),
+                RateMe(
+                    initialCount: likes.length,
+                    hasRated: iLike,
+                    icon: const Icon(Icons.thumb_up),
+                    color: Colors.green,
+                    onChanged: (_, __) => _writeFeedback(h.name, "👍")),
+                RateMe(
+                    initialCount: hearts.length,
+                    hasRated: iHearts,
+                    icon: const Icon(Icons.favorite),
+                    color: Colors.red,
+                    onChanged: (_, __) => _writeFeedback(h.name, "❤️")),
+                IconButton(
+                    onPressed: () => _comment(h),
+                    icon: const Icon(Icons.comment)),
+              ]),
+            ],
+          ),
+        );
+      },
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_pos);
+      }
+    });
+    return listView;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_dir.isEmpty) {
@@ -336,7 +381,6 @@ class _ContentFeedState extends State<ContentFeed> {
         title: Text(_dir.substring(0, _dir.length - 5),
             style: const TextStyle(fontSize: 18)),
         trailingActions: [
-//          const NewsIcon(),
           PlatformIconButton(
               onPressed: () {}, icon: const Icon(Icons.exit_to_app)),
         ],
@@ -374,69 +418,7 @@ class _ContentFeedState extends State<ContentFeed> {
                         ),
                       ),
                     Expanded(
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        itemCount: _headers.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == _headers.length) {
-                            return const Column(children: [
-                              SizedBox(height: 80),
-                              Text("Pull for more",
-                                  style: TextStyle(fontSize: 20)),
-                              SizedBox(height: 80),
-                            ]);
-                          }
-
-                          var h = _headers[index];
-                          var w =
-                              _cache.putIfAbsent(h.fileId, () => _getWidget(h));
-
-                          var extra = h.attributes.meta;
-                          var hearts = extra['❤️'] ?? [];
-                          var iHearts =
-                              hearts.contains(_safe.currentUser.id) ?? false;
-                          var likes = extra['👍'] ?? [];
-                          var iLike =
-                              likes.contains(_safe.currentUser.id) ?? false;
-
-                          return Card(
-                            elevation: 3.0,
-                            margin: const EdgeInsets.all(8.0),
-                            child: Column(
-                              children: [
-                                w,
-                                const SizedBox(
-                                  height: 2,
-                                ),
-                                Row(children: [
-                                  Checkbox2(
-                                      initialValue: _checked.contains(h),
-                                      onChanged: (_) => _check(h)),
-                                  const SizedBox(width: 10),
-                                  const Spacer(),
-                                  RateMe(
-                                      initialCount: likes.length,
-                                      hasRated: iLike,
-                                      icon: const Icon(Icons.thumb_up),
-                                      color: Colors.green,
-                                      onChanged: (_, __) =>
-                                          _writeFeedback(h.name, "👍")),
-                                  RateMe(
-                                      initialCount: hearts.length,
-                                      hasRated: iHearts,
-                                      icon: const Icon(Icons.favorite),
-                                      color: Colors.red,
-                                      onChanged: (_, __) =>
-                                          _writeFeedback(h.name, "❤️")),
-                                  IconButton(
-                                      onPressed: () => _comment(h),
-                                      icon: const Icon(Icons.comment)),
-                                ]),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                      child: _getListView(),
                     ),
                   ],
                 ),

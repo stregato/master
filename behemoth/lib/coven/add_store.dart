@@ -1,18 +1,15 @@
+import 'dart:math';
+
+import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
-class AddStorage extends StatefulWidget {
-  const AddStorage({super.key});
+class AddStore extends StatefulWidget {
+  const AddStore({super.key});
 
   @override
-  State<AddStorage> createState() => _AddStorageState();
-}
-
-class Storage {
-  String url;
-  bool public;
-
-  Storage(this.url, this.public);
+  State<AddStore> createState() => _AddStoreState();
 }
 
 class Args {
@@ -30,9 +27,37 @@ class Args {
   int verbose = 0;
 }
 
-class _AddStorageState extends State<AddStorage> {
+class _AddStoreState extends State<AddStore> {
   String storageType = "";
   Args a = Args();
+
+  final StoreConfig _storeConfig = StoreConfig("");
+  double _sliderValue = 1;
+
+  int _mapSliderToValue(double sliderValue) {
+    if (sliderValue == 1) {
+      return 0;
+    }
+    // Map the slider's logarithmic value (0-1) to the desired byte range
+    const double minValue = 1e7; // 10 MB in bytes
+    const double maxValue = 1.1e11; // 100 GB in bytes
+    var value = minValue * pow(maxValue / minValue, sliderValue).truncate();
+    return value < 1e9
+        ? value.toInt()
+        : ((value / 1e9).truncate() * 1e9).toInt();
+  }
+
+  String _getDisplayValue(int value) {
+    if (value == 0) {
+      return 'Unlimited';
+    } else if (value >= 1e9) {
+      // Display in GB if greater than or equal to 1 GB
+      return '${(value / 1e9).toStringAsFixed(2)} GB';
+    } else {
+      // Display in MB if less than 1 GB
+      return '${(value / 1e6).toStringAsFixed(2)} MB';
+    }
+  }
 
   String getUrl() {
     switch (storageType) {
@@ -61,8 +86,6 @@ class _AddStorageState extends State<AddStorage> {
         }
         u += "${a.host}/${a.path}";
         return u;
-      case "Folder":
-        return "file://${a.path}";
       case "URL":
         return a.url;
       default:
@@ -81,8 +104,6 @@ class _AddStorageState extends State<AddStorage> {
         return a.host.isNotEmpty;
       case "WebDAV":
         return a.host.isNotEmpty;
-      case "Folder":
-        return a.path.isNotEmpty;
       case "URL":
         return a.url.isNotEmpty;
       default:
@@ -332,27 +353,6 @@ class _AddStorageState extends State<AddStorage> {
           ),
         ],
       ),
-      "Folder": Column(
-        children: [
-          PlatformTextField(
-            material: (_, __) => MaterialTextFieldData(
-              decoration: const InputDecoration(
-                labelText: 'Path',
-              ),
-            ),
-            cupertino: (_, __) => CupertinoTextFieldData(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(4.0),
-              ),
-              placeholder: 'Path',
-            ),
-            onChanged: (val) => setState(() {
-              a.path = val;
-            }),
-          ),
-        ],
-      ),
       "URL": Column(
         children: [
           PlatformTextField(
@@ -409,7 +409,47 @@ class _AddStorageState extends State<AddStorage> {
     } else {
       var fields = builders[storageType]!;
       content = Column(children: [
+        PlatformTextFormField(
+          material: (_, __) => MaterialTextFormFieldData(
+            decoration: const InputDecoration(
+              labelText: 'Name',
+            ),
+          ),
+          cupertino: (_, __) => CupertinoTextFormFieldData(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
+              borderRadius: BorderRadius.circular(4.0),
+            ),
+            placeholder: 'Name',
+          ),
+          onChanged: (val) => setState(() {
+            _storeConfig.name = val;
+          }),
+        ),
         fields,
+        const SizedBox(
+          height: 20,
+        ),
+        PlatformText(
+          "Limit storage",
+          style: const TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Text(_getDisplayValue(_mapSliderToValue(_sliderValue))),
+            Slider(
+              min: 0.0,
+              max: 1.0,
+              value: _sliderValue,
+              onChanged: (value) {
+                setState(() {
+                  _sliderValue = value;
+                });
+              },
+            ),
+          ],
+        ),
         ButtonBar(children: [
           PlatformElevatedButton(
             onPressed: valid()
@@ -422,7 +462,11 @@ class _AddStorageState extends State<AddStorage> {
           PlatformElevatedButton(
             onPressed: valid()
                 ? () => setState(() {
-                      Navigator.of(context).pop(Storage(getUrl(), a.public_));
+                      _storeConfig.creatorid = Profile.current.identity.id;
+                      _storeConfig.url = getUrl();
+                      _storeConfig.quota = _mapSliderToValue(_sliderValue);
+
+                      Navigator.of(context).pop(_storeConfig);
                     })
                 : null,
             child: const Text("Add"),
@@ -440,7 +484,7 @@ class _AddStorageState extends State<AddStorage> {
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
-        title: const Text("Add Storage"),
+        title: const Text("Add Store"),
       ),
       body: SafeArea(
         child: Container(

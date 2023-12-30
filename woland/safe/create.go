@@ -19,8 +19,6 @@ type CreateOptions struct {
 	Description     string        `json:"description"`     // Description of the safe
 	ChangeLogWatch  time.Duration `json:"changeLogWatch"`  // ChangeLogWatch is the period for watching changes in the change log
 	ReplicaWatch    time.Duration `json:"replicaWatch"`    // ReplicaWatch is the period for synchronizing replicas
-	Quota           int64         `json:"quota"`           // Quota is the maximum size of the safe in bytes
-	QuotaGroup      string        `json:"quotaGroup"`      // QuotaGroup is the common prefix for the safes that share the quota
 	MinimalSyncTime time.Duration `json:"minimalSyncTime"` // MinimalSyncTime is the minimal time between syncs
 }
 
@@ -31,14 +29,16 @@ const (
 
 // Create creates a new safe with the given name and store. The current user is the creator of the safe and it is
 // automatically added to the list of users with creator permissions. Other users are optional.
-func Create(currentUser security.Identity, name string, storeUrl string, users Users, options CreateOptions) (*Safe, error) {
+func Create(currentUser security.Identity, name string, storeConfig StoreConfig, users Users, options CreateOptions) (*Safe, error) {
 	name, err := validName(name)
 	if core.IsErr(err, nil, "invalid name %s: %v", name) {
 		return nil, err
 	}
+	storeConfig.CreatorId = currentUser.Id
+	storeConfig.Primary = true
 
-	origin, err := storage.Open(storeUrl)
-	if core.IsErr(err, nil, "cannot open store %s: %v", storeUrl) {
+	origin, err := storage.Open(storeConfig.Url)
+	if core.IsErr(err, nil, "cannot open store %s: %v", storeConfig.Url) {
 		return nil, err
 	}
 
@@ -73,8 +73,6 @@ func Create(currentUser security.Identity, name string, storeUrl string, users U
 		Description:     options.Description,
 		ChangeLogWatch:  options.ChangeLogWatch,
 		ReplicaWatch:    options.ReplicaWatch,
-		Quota:           options.Quota,
-		QuotaGroup:      options.QuotaGroup,
 		MinimalSyncTime: options.MinimalSyncTime,
 	})
 	if core.IsErr(err, nil, "cannot write manifest file in %s: %v", name) {
@@ -106,8 +104,8 @@ func Create(currentUser security.Identity, name string, storeUrl string, users U
 		return nil, err
 	}
 
-	core.Info("safe created: name %s, creator %s, description %s, quota %d", name, currentUser.Id,
-		options.Description, options.Quota)
+	core.Info("safe created: name %s, creator %s, description %s", name, currentUser.Id,
+		options.Description)
 
 	safesCounterLock.Lock()
 	safesCounter++
@@ -130,16 +128,18 @@ func Create(currentUser security.Identity, name string, storeUrl string, users U
 		background:     time.NewTicker(time.Minute),
 		syncUsers:      make(chan bool),
 		uploadFile:     make(chan UploadTask),
+		enforceQuota:   make(chan bool),
 		compactHeaders: make(chan CompactHeader),
 		quit:           make(chan bool),
 		wg:             sync.WaitGroup{},
 		lastBucketSync: map[string]time.Time{},
+		storeSizes:     map[string]int64{},
+		storeSizesLock: sync.Mutex{},
 	}
 	safesCounterLock.Unlock()
 
-	storeConfig := StoreConfig{Url: storeUrl, Quota: options.Quota, Primary: true, CreatorId: creatorId}
 	err = AddStore(s, storeConfig)
-	if core.IsErr(err, nil, "cannot add store %s/%s: %v", name, storeUrl, err) {
+	if core.IsErr(err, nil, "cannot add store %s/%s: %v", name, storeConfig.Url, err) {
 		return nil, err
 	}
 

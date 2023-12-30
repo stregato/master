@@ -20,7 +20,8 @@ class InviteToCoven extends StatefulWidget {
   State<InviteToCoven> createState() => _InviteToCovenState();
 
   static getInviteLink(Coven coven) {
-    var store = base64Encode(utf8.encode(coven.url)).replaceAll("/", "_");
+    var store =
+        base64Encode(utf8.encode(coven.storeConfig.url)).replaceAll("/", "_");
     return "https://behemoth.rocks/a/${coven.name}/${coven.creatorId}/$store";
   }
 }

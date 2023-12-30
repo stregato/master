@@ -30,7 +30,7 @@ func TestCreateAndOpen(t *testing.T) {
 	defer sql.CloseDB()
 
 	// Call the Open function
-	s, err := Create(Identity1, testSafe, testUrl, nil, CreateOptions{Wipe: true})
+	s, err := Create(Identity1, testSafe, testStoreConfig, nil, CreateOptions{Wipe: true})
 	core.TestErr(t, err, "cannot open portal: %v")
 
 	Close(s)

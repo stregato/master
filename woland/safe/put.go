@@ -69,7 +69,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 
 	sourceFile, ok := src.(string)
 	if options.OnlyHeader {
-		h, err := getLastHeader(s, bucket, name, 0)
+		h, _, err := getLastHeader(s.Name, bucket, name, 0)
 		if core.IsErr(err, nil, "cannot get last header: %v", err) {
 			return Header{}, err
 		}
@@ -184,7 +184,7 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		s.uploadFile <- UploadTask{Bucket: bucket, Header: header, HeaderFile: headerFile}
 		return header, nil
 	} else {
-		return writeToStore(s, bucket, r, headerFile, header, onComplete)
+		return writeToStore(s, s.primary, bucket, r, headerFile, header, onComplete)
 	}
 }
 
@@ -266,10 +266,19 @@ func uploadFileInBackground(s *Safe, uploadTask UploadTask) error {
 	if core.IsErr(err, nil, "cannot open source file: %v", err) {
 		return err
 	}
+	defer f.Close()
 	core.Info("Uploading %s[%d] in %s/%s", header.Name, header.FileId, s.Name, uploadTask.Bucket)
 
-	_, err = writeToStore(s, uploadTask.Bucket, f, uploadTask.HeaderFile, header, nil)
-	f.Close()
+	_, err = writeToStore(s, s.primary, uploadTask.Bucket, f, uploadTask.HeaderFile, header, nil)
+	if core.IsErr(err, nil, "cannot write to store: %v", err) {
+		return err
+	}
+	if s.stores[0] != s.primary {
+		f.Seek(0, io.SeekStart)
+		_, err = writeToStore(s, s.stores[0], uploadTask.Bucket, f, uploadTask.HeaderFile, header, nil)
+		core.IsErr(err, nil, "cannot write to secondary store: %v", err)
+	}
+
 	core.Info("Uploaded %s[%d]", header.Name, header.FileId)
 
 	if path.Dir(header.SourceFile) == os.TempDir() && strings.HasSuffix(header.SourceFile, ".delete") {
@@ -284,12 +293,11 @@ var uploading = make(map[uint64]bool)
 
 //var uploadingLock sync.Mutex
 
-func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, header Header, onComplete func(Header, error)) (Header, error) {
+func writeToStore(s *Safe, store storage.Store, bucket string, r io.ReadSeeker, headerFile uint64, header Header, onComplete func(Header, error)) (Header, error) {
 	uploading[headerFile] = true
 	defer delete(uploading, headerFile)
 
 	header.Uploading = false
-	origin := s.primary
 	hashedBucket := hashPath(bucket)
 	bodyFile := path.Join(s.Name, DataFolder, hashedBucket, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
@@ -308,7 +316,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 			core.Info("Using compression for file %s", header.Name)
 		}
 
-		err = origin.Write(bodyFile, r, nil)
+		err = store.Write(bodyFile, r, nil)
 		if core.IsErr(err, nil, "cannot write body: %v", err) {
 			return Header{}, err
 		}
@@ -319,7 +327,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	if header.Replace {
 		homonyms, err := ListFiles(s, bucket, ListOptions{Name: header.Name})
 		if core.IsErr(err, nil, "cannot list homonyms: %v", err) {
-			origin.Delete(bodyFile)
+			store.Delete(bodyFile)
 			return Header{}, err
 		}
 		deletables = homonyms
@@ -328,7 +336,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	if header.ReplaceId != 0 {
 		replaceable, err := ListFiles(s, bucket, ListOptions{FileId: header.ReplaceId})
 		if core.IsErr(err, nil, "cannot list replaceable: %v", err) {
-			origin.Delete(bodyFile)
+			store.Delete(bodyFile)
 			return Header{}, err
 		}
 		deletables = append(deletables, replaceable...)
@@ -336,7 +344,7 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 	}
 
 	for _, file := range deletables {
-		deleteFile(origin, s.Name, hashedBucket, file.FileId)
+		deleteFile(store, s.Name, hashedBucket, file.FileId)
 		core.Info("Deleted %s[%d]", file.Name, file.FileId)
 	}
 
@@ -364,13 +372,13 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 		Bucket:  bucket,
 		Headers: []Header{header2},
 	}
-	err = writeHeadersFile(origin, s.Name, filePath, keyValue, headersFile)
+	err = writeHeadersFile(store, s.Name, filePath, keyValue, headersFile)
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
-		origin.Delete(bodyFile)
+		store.Delete(bodyFile)
 		return Header{}, err
 	}
 	core.Info("Wrote header for %s[%d]", header2.Name, header2.FileId)
-	err = SetCached(s.Name, origin, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, s.CurrentUser.Id)
+	err = SetCached(s.Name, store, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, s.CurrentUser.Id)
 	if core.IsErr(err, nil, "cannot set touch file: %v", err) {
 		return Header{}, err
 	}
@@ -386,6 +394,19 @@ func writeToStore(s *Safe, bucket string, r io.ReadSeeker, headerFile uint64, he
 
 	if onComplete != nil {
 		onComplete(header, err)
+	}
+
+	for _, sc := range s.StoreConfigs {
+		if sc.Url == store.Url() {
+			limit := sc.Quota * 9 / 10
+			s.storeSizesLock.Lock()
+			s.storeSizes[store.Url()] = s.storeSizes[store.Url()] + header.Size
+			if s.storeSizes[store.Url()] > limit {
+				core.Info("Enforcing quota on %s in %s because likely exceeding", store.Url(), s.Name)
+				s.enforceQuota <- true
+			}
+			s.storeSizesLock.Unlock()
+		}
 	}
 
 	return header, nil

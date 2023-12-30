@@ -14,6 +14,7 @@ import (
 )
 
 var testUrl string
+var testStoreConfig StoreConfig
 var dbPath string
 var Identity1, Identity2 security.Identity
 var testSafe = "test-safe"
@@ -31,6 +32,12 @@ func InitTest() {
 	testUrl = urls[store]
 	if testUrl == "" {
 		panic("invalid store " + store)
+	}
+	testStoreConfig = StoreConfig{
+		Name:    "test-store",
+		Url:     testUrl,
+		Quota:   1024 * 1024 * 30,
+		Primary: true,
 	}
 
 	db := *flag.String("db", "mem", "db type")

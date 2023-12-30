@@ -13,7 +13,7 @@ func TestAddSecondUser(t *testing.T) {
 
 	StartTestDB(t, dbPath)
 
-	s, err := Create(Identity1, testSafe, testUrl, nil, CreateOptions{Wipe: true})
+	s, err := Create(Identity1, testSafe, testStoreConfig, nil, CreateOptions{Wipe: true})
 	core.Assert(t, err == nil, "Cannot create safe: %v", err)
 
 	r := core.NewBytesReader(testData)

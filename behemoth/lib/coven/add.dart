@@ -1,5 +1,5 @@
 import 'package:behemoth/common/profile.dart';
-import 'package:behemoth/coven/federate.dart';
+import 'package:behemoth/coven/stores.dart';
 import 'package:behemoth/coven/invite_to_coven.dart';
 import 'package:behemoth/coven/invite_to_room.dart';
 import 'package:behemoth/room/create_room.dart';
@@ -49,7 +49,7 @@ class Add extends StatelessWidget {
                       if (isAdmin) InviteToCoven(coven: coven),
                       CreateRoom(coven),
                       InviteToRoom(coven),
-                      AddStore(coven),
+                      Stores(coven),
                     ],
                   ),
                 ),

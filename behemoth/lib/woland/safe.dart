@@ -25,22 +25,28 @@ typedef Args5TSSSS<T> = CResult Function(
     T, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>);
 
 class StoreConfig {
+  String name;
   String url;
   bool primary;
   int quota;
   String creatorid;
 
   StoreConfig(this.url,
-      {this.primary = false, this.quota = 0, this.creatorid = ""});
+      {this.name = "",
+      this.primary = false,
+      this.quota = 0,
+      this.creatorid = ""});
 
   StoreConfig.fromJson(Map<String, dynamic> json)
       : url = json['url'],
+        name = json['name'] ?? "",
         primary = json['primary'] ?? false,
         quota = json['quota'] ?? 0,
         creatorid = json['creatorid'] ?? "";
 
   Map<String, dynamic> toJson() => {
         'url': url,
+        'name': name,
         'primary': primary,
         'quota': quota,
         'creatorid': creatorid,
@@ -76,14 +82,14 @@ class Safe {
     });
   }
 
-  static Future<Safe> create(Identity identity, String name, String url,
-      Users users, CreateOptions options) {
+  static Future<Safe> create(Identity identity, String name,
+      StoreConfig storeConfig, Users users, CreateOptions options) {
     return Isolate.run<Safe>(() {
       var fun = lib.lookupFunction<Args5SSSSS, Args5SSSSS>("wlnd_createSafe");
       var json = fun(
               jsonEncode(identity).toNativeUtf8(),
               name.toNativeUtf8(),
-              url.toNativeUtf8(),
+              jsonEncode(storeConfig).toNativeUtf8(),
               jsonEncode(users).toNativeUtf8(),
               jsonEncode(options).toNativeUtf8())
           .unwrapMap();

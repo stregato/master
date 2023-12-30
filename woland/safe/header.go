@@ -196,25 +196,31 @@ func insertHeaderOrIgnoreToDB(safeName, bucket string, headerFile uint64, header
 }
 
 func updateHeaderInDB(safeName, bucket string, fileId uint64, update func(Header) Header) error {
-	var data []byte
+	// var data []byte
+	// var headerFile uint64
 
-	err := sql.QueryRow("GET_LAST_HEADER", sql.Args{
-		"safe":   safeName,
-		"bucket": bucket,
-		"name":   "",
-		"fileId": fileId}, &data)
-	if core.IsErr(err, nil, "cannot get header: %v", err) {
-		return err
-	}
+	// err := sql.QueryRow("GET_LAST_HEADER", sql.Args{
+	// 	"safe":   safeName,
+	// 	"bucket": bucket,
+	// 	"name":   "",
+	// 	"fileId": fileId}, &data, &headerFile)
+	// if core.IsErr(err, nil, "cannot get header: %v", err) {
+	// 	return err
+	// }
 
-	var header Header
-	err = json.Unmarshal(data, &header)
-	if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
+	// var header Header
+	// err = json.Unmarshal(data, &header)
+	// if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
+	// 	return err
+	// }
+
+	header, _, err := getLastHeader(safeName, bucket, "", fileId)
+	if core.IsErr(err, nil, "cannot get last header: %v", err) {
 		return err
 	}
 
 	header = update(header)
-	data, err = json.Marshal(header)
+	data, err := json.Marshal(header)
 	if core.IsErr(err, nil, "cannot marshal header: %v", err) {
 		return err
 	}

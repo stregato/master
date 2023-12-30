@@ -185,9 +185,15 @@ type Access struct {
 // }
 
 //export wlnd_createSafe
-func wlnd_createSafe(creator, name, url *C.char, users *C.char, createOptions *C.char) C.Result {
+func wlnd_createSafe(creator, name, storeConfig *C.char, users *C.char, createOptions *C.char) C.Result {
+	var sc safe.StoreConfig
+	err := cUnmarshal(storeConfig, &sc)
+	if core.IsErr(err, nil, "cannot unmarshal storeConfig: %v") {
+		return cResult(nil, err)
+	}
+
 	var CreateOptions safe.CreateOptions
-	err := cUnmarshal(createOptions, &CreateOptions)
+	err = cUnmarshal(createOptions, &CreateOptions)
 	if core.IsErr(err, nil, "cannot unmarshal createOptions: %v") {
 		return cResult(nil, err)
 	}
@@ -204,7 +210,7 @@ func wlnd_createSafe(creator, name, url *C.char, users *C.char, createOptions *C
 		return cResult(nil, err)
 	}
 
-	s, err := safe.Create(i, C.GoString(name), C.GoString(url), u, CreateOptions)
+	s, err := safe.Create(i, C.GoString(name), sc, u, CreateOptions)
 	if core.IsErr(err, nil, "cannot create safe: %v") {
 		return cResult(nil, err)
 	}

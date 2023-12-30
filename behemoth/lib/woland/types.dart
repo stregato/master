@@ -205,16 +205,12 @@ class CreateOptions {
   String description;
   int changeLogWatch;
   int replicaWatch;
-  int quota;
-  String quotaGroup;
 
   CreateOptions({
     this.wipe = false,
     this.description = '',
     this.changeLogWatch = 0,
     this.replicaWatch = 0,
-    this.quota = 0,
-    this.quotaGroup = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -222,8 +218,6 @@ class CreateOptions {
         'description': description,
         'changeLogWatch': changeLogWatch,
         'replicaWatch': replicaWatch,
-        'quota': quota,
-        'quotaGroup': quotaGroup,
       };
 }
 

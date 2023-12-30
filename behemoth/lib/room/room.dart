@@ -64,12 +64,12 @@ class _RoomState extends State<Room> {
 
     var items = [
       const BottomNavigationBarItem(
-        icon: Icon(Icons.chat),
-        label: 'Chat',
-      ),
-      const BottomNavigationBarItem(
         icon: Icon(Icons.dataset),
         label: 'Content',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.chat),
+        label: 'Chat',
       ),
       BottomNavigationBarItem(
         icon: _unread > 0
@@ -145,11 +145,11 @@ class _RoomState extends State<Room> {
 
               switch (_currentItem) {
                 case 0:
-                  _chat ??= Chat(_coven, _room, "");
-                  return _chat!;
-                case 1:
                   _content ??= Content(_coven, _room);
                   return _content!;
+                case 1:
+                  _chat ??= Chat(_coven, _room, "");
+                  return _chat!;
                 case 2:
                   return _cockpit;
                 // _people ??= People(_safe!, _coven.getLoungeSync()!);

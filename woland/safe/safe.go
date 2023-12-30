@@ -36,6 +36,7 @@ const KeySize = 32
 type Keys map[uint64][]byte
 
 type StoreConfig struct {
+	Name      string `json:"name"`
 	Url       string `json:"url"`
 	Quota     int64  `json:"quota"`
 	Primary   bool   `json:"primary"`
@@ -53,19 +54,23 @@ type Safe struct {
 	StoreConfigs    []StoreConfig     `json:"storeConfigs"`    // Stores of the safe
 	MinimalSyncTime time.Duration     `json:"minimalSyncTime"` // Minimal time between syncs
 
-	keystore         Keystore             // Keystore of the safe
-	primary          storage.Store        // Primary stores of the safe
-	stores           []storage.Store      // Secondary stores of the safe
-	users            Users                // Users and their permissions
-	usersLock        sync.Mutex           // Lock for users
-	background       *time.Ticker         // Ticker for background tasks
-	syncUsers        chan bool            // Channel for syncing users
-	compactHeaders   chan CompactHeader   // Channel for compacting the headers
-	compactHeadersWg sync.WaitGroup       // Wait group for compacting the headers
-	uploadFile       chan UploadTask      // Channel for uploading headers
-	quit             chan bool            // Channel for quitting background tasks
-	wg               sync.WaitGroup       // Wait group for background tasks
-	lastBucketSync   map[string]time.Time // Last sync time for each bucket
+	keystore             Keystore             // Keystore of the safe
+	primary              storage.Store        // Primary stores of the safe
+	stores               []storage.Store      // Secondary stores of the safe
+	storeSizes           map[string]int64     // Sizes of the stores
+	storeSizesLock       sync.Mutex           // Lock for store sizes
+	users                Users                // Users and their permissions
+	usersLock            sync.Mutex           // Lock for users
+	background           *time.Ticker         // Ticker for background tasks
+	syncUsers            chan bool            // Channel for syncing users
+	compactHeaders       chan CompactHeader   // Channel for compacting the headers
+	enforceQuota         chan bool            // Channel for enforcing the quota
+	compactHeadersWg     sync.WaitGroup       // Wait group for compacting the headers
+	uploadFile           chan UploadTask      // Channel for uploading headers
+	quit                 chan bool            // Channel for quitting background tasks
+	wg                   sync.WaitGroup       // Wait group for background tasks
+	lastBucketSync       map[string]time.Time // Last sync time for each bucket
+	lastQuotaEnforcement time.Time            // Last time the quota was checked
 
 	//identities []security.Identity
 	//	newestChangeFile     string

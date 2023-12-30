@@ -1,6 +1,9 @@
 package safe
 
 import (
+	"path"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/stregato/master/woland/core"
@@ -10,43 +13,83 @@ import (
 
 var HousekeepingMaxDuration = time.Hour * 23
 
-func getSafeSize(quotaGroup string) (int64, error) {
-	var total int64
-	err := sql.QueryRow("GET_SAFE_SIZE", sql.Args{"quotaGroup": quotaGroup}, &total)
-	if core.IsErr(err, nil, "cannot get safe size: %v", err) {
+type cleanupCandidates struct {
+	name    string
+	fileId  uint64
+	size    int64
+	modTime time.Time
+}
+
+func enforceQuota(s *Safe) {
+	for _, store := range s.stores {
+		for _, sc := range s.StoreConfigs {
+			if sc.Url == store.Url() {
+				limit := sc.Quota * 9 / 10
+				size, err := enforceQuotaOnStore(s.Name, store, sc.Primary, limit)
+				if !core.IsErr(err, nil, "cannot enforce quota on store %s: %v", store, err) {
+					s.storeSizesLock.Lock()
+					s.storeSizes[store.Url()] = size
+					s.storeSizesLock.Unlock()
+				}
+				break
+			}
+		}
+	}
+}
+
+func enforceQuotaOnStore(safeName string, store storage.Store, primary bool, limit int64) (size int64, err error) {
+	var candidates []cleanupCandidates
+	var dataFolder = path.Join(safeName, DataFolder)
+	var totalSize int64
+
+	ls, err := store.ReadDir(dataFolder, storage.Filter{OnlyFolders: true})
+	if core.IsErr(err, nil, "cannot list files: %v", err) {
 		return 0, err
 	}
-	return total, nil
-}
 
-func applyQuota(limit float32, quotaGroup string, store storage.Store, size int64, quota int64, sync bool) {
-	if quotaGroup != "" && quota > 0 && size > int64(float32(quota)*limit) {
-		core.Info("Quota exceeded: %d/%d", size, quota)
-		if sync {
-			cleanupFilesOnQuotaExceedance(quotaGroup, store, size, quota)
-		} else {
-			go cleanupFilesOnQuotaExceedance(quotaGroup, store, size, quota)
-		}
-	}
-}
-
-func cleanupFilesOnQuotaExceedance(quotaGroup string, store storage.Store, size int64, quota int64) error {
-	for quotaGroup != "" && quota > 0 && size > quota*9/10 {
-		var safeName string
-		var fileId uint64
-		var dir string
-		var sz int64
-		err := sql.QueryRow("GET_OLDEST_FILE", sql.Args{"quotaGroup": quotaGroup}, &safeName, &fileId, &dir, &sz)
-		if core.IsErr(err, nil, "cannot get oldest file: %v", err) {
-			return err
+	for _, bucketDir := range ls {
+		bucket := bucketDir.Name()
+		bucketPath := path.Join(dataFolder, bucket, BodyFolder)
+		ls, err := store.ReadDir(bucketPath, storage.Filter{})
+		if core.IsErr(err, nil, "cannot list files: %v", err) {
+			continue
 		}
 
-		hashedDir := hashPath(dir)
-		err = deleteFile(store, safeName, hashedDir, fileId)
-		if err == nil {
-			size -= sz
+		for _, l := range ls {
+			fileId, err := strconv.ParseInt(l.Name(), 10, 64)
+			if core.IsErr(err, nil, "cannot parse fileId: %v", err) {
+				continue
+			}
+			name := path.Join(bucketPath, l.Name())
+			candidates = append(candidates, cleanupCandidates{
+				name:    name,
+				fileId:  uint64(fileId),
+				size:    l.Size(),
+				modTime: l.ModTime(),
+			})
+			totalSize += l.Size()
 		}
 	}
 
-	return nil
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].modTime.Before(candidates[j].modTime)
+	})
+	for i := 0; totalSize > limit && i < len(candidates); i++ {
+		oldest := candidates[i]
+		err := store.Delete(oldest.name)
+		if core.IsErr(err, nil, "cannot delete file %s: %v", oldest.name, err) {
+			continue
+		}
+		core.Info("deleted %s from %s size %d", oldest.name, store, oldest.size)
+		totalSize -= oldest.size
+
+		if primary {
+			_, err := sql.Exec("SET_DELETED_FILE", sql.Args{"safe": safeName, "fileId": oldest.fileId})
+			if !core.IsErr(err, nil, "cannot set deleted file: %v", err) {
+				core.Info("set header for %d deleted for %s", oldest.fileId, safeName)
+			}
+		}
+	}
+	core.Info("enforced quota on %s: %d bytes occupied", store, totalSize)
+	return totalSize, nil
 }

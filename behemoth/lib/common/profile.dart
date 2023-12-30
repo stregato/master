@@ -28,7 +28,7 @@ List<String> covenAndRoom(String safeName) {
 class Coven {
   Identity identity;
   String name;
-  String url = "";
+  StoreConfig storeConfig = StoreConfig("");
   String creatorId = "";
   String secret = "";
   Set<String> rooms;
@@ -47,34 +47,37 @@ class Coven {
     } catch (e) {
       // ignore
     }
-    var coven = p.covens.putIfAbsent(
-        name, () => Coven(p.identity, name, url, creatorId, secret, {}));
+    var storeConfig = StoreConfig(url, creatorid: creatorId);
+    var coven = p.covens.putIfAbsent(name,
+        () => Coven(p.identity, name, storeConfig, creatorId, secret, {}));
     p.save();
     return coven;
   }
 
-  static Future create(String name, String url, CreateOptions options) async {
+  static Future create(
+      String name, StoreConfig storeConfig, CreateOptions options) async {
     var p = Profile.current;
 
-    var safe = await Safe.create(p.identity, name, url, {}, options);
+    var safe = await Safe.create(p.identity, name, storeConfig, {}, options);
     await safe.putBytes("rooms/.list", "lounge", Uint8List(0), PutOptions());
     safe.close();
 
-    var coven = Coven(p.identity, name, url, p.identity.id, "0000", {"lounge"});
+    var coven =
+        Coven(p.identity, name, storeConfig, p.identity.id, "0000", {"lounge"});
     p.update(coven);
   }
 
-  Coven(this.identity, this.name, this.url, this.creatorId, this.secret,
+  Coven(this.identity, this.name, this.storeConfig, this.creatorId, this.secret,
       this.rooms);
   Coven.fromJson(this.identity, Map<String, dynamic> json)
       : name = json['name'],
-        url = json['url'],
+        storeConfig = StoreConfig.fromJson(json['storeConfig']),
         creatorId = json['creatorId'],
         rooms = json['rooms'].map<String>((v) => v as String).toList().toSet();
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'url': url,
+        'storeConfig': storeConfig.toJson(),
         'creatorId': creatorId,
         'rooms': rooms.toList(),
       };
@@ -83,11 +86,23 @@ class Coven {
     if (_safe != null) {
       return _safe!;
     }
-    _safe = await Safe.open(
-        identity, name, url, creatorId, OpenOptions(initiateSecret: secret));
+    _safe = await Safe.open(identity, name, storeConfig.url, creatorId,
+        OpenOptions(initiateSecret: secret));
     opened[name] = this;
     safesAccessed[name] = DateTime.now();
     Cockpit.openCoven(this);
+
+    for (var st in _safe!.storeConfigs) {
+      if (st.url == storeConfig.url &&
+          (st.creatorid != storeConfig.creatorid ||
+              st.name != storeConfig.name ||
+              st.quota != storeConfig.quota)) {
+        storeConfig = st;
+        Profile.current.update(this);
+        break;
+      }
+    }
+
     return _safe!;
   }
 

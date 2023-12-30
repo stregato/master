@@ -64,6 +64,7 @@ class _ContentState extends State<Content> {
   String _getState(String name, List<Header> headers) {
     var localFile = path.join(documentsFolder, _safe.name, _room, name);
     var localStat = File(localFile).statSync();
+    var localExists = File(localFile).existsSync();
 
     if (headers.isEmpty) {
       return "unstaged";
@@ -72,11 +73,15 @@ class _ContentState extends State<Content> {
     headers.sort((a, b) => b.modTime.compareTo(a.modTime));
     var idx = headers.indexWhere((h) => h.downloads[localFile] != null);
     if (idx < 0) {
-      if (File(localFile).existsSync()) {
+      if (localExists) {
         return "conflict";
       }
       return headers[0].uploading ? "uploading" : "new";
     }
+    if (!localExists) {
+      return "deleted";
+    }
+
     var downloadTime = headers[idx].downloads[localFile]!;
     var uploading = headers[idx].uploading;
     var modified = localStat.modified.difference(downloadTime).inSeconds > 2;
@@ -252,7 +257,9 @@ class _ContentState extends State<Content> {
               'room': _room,
               'folder': _dir,
             });
-            _read();
+            Future.delayed(
+              Duration.zero,
+            );
           },
         ),
       ],

@@ -15,8 +15,6 @@ type manifestFile struct {
 	Description     string        `json:"description"`     // Description of the safe
 	ChangeLogWatch  time.Duration `json:"changeLogWatch"`  // ChangeLogWatch is the period for watching changes in the change log
 	ReplicaWatch    time.Duration `json:"replicaWatch"`    // ReplicaWatch is the period for synchronizing replicas
-	Quota           int64         `json:"quota"`           // Quota is the maximum size of the safe in bytes
-	QuotaGroup      string        `json:"quotaGroup"`      // QuotaGroup is the common prefix for the safes that share the quota
 	MinimalSyncTime time.Duration `json:"minimalSyncTime"` // MinimalSyncTime is the minimal time between syncs
 }
 

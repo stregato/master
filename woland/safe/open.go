@@ -47,10 +47,13 @@ func Open(currentUser security.Identity, name string, storeUrl string, creatorId
 		usersLock:      sync.Mutex{},
 		syncUsers:      make(chan bool),
 		uploadFile:     make(chan UploadTask),
+		enforceQuota:   make(chan bool),
 		compactHeaders: make(chan CompactHeader),
 		quit:           make(chan bool),
 		wg:             sync.WaitGroup{},
 		lastBucketSync: map[string]time.Time{},
+		storeSizes:     map[string]int64{},
+		storeSizesLock: sync.Mutex{},
 	}
 	safesCounter++
 	safesCounterLock.Unlock()
@@ -110,9 +113,10 @@ func Open(currentUser security.Identity, name string, storeUrl string, creatorId
 
 	s.background = time.NewTicker(time.Minute)
 	go backgroundJob(s)
+	s.enforceQuota <- true
 
-	core.Info("safe opened: name %s, creator %s, description %s, quota %d, #users %d, keystore %d", name,
-		currentUser.Id, manifest.Description, manifest.Quota, len(s.users), s.keystore.LastKeyId)
+	core.Info("safe opened: name %s, creator %s, description %s,  #users %d, keystore %d", name,
+		currentUser.Id, manifest.Description, len(s.users), s.keystore.LastKeyId)
 
 	return s, nil
 }

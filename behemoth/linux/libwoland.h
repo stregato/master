@@ -89,7 +89,7 @@ extern Result wlnd_newIdentity(char* nick);
 extern Result wlnd_newIdentityFromId(char* nick, char* privateId);
 extern Result wlnd_setIdentity(char* identity);
 extern Result wlnd_getIdentity(char* id);
-extern Result wlnd_createSafe(char* creator, char* name, char* url, char* users, char* createOptions);
+extern Result wlnd_createSafe(char* creator, char* name, char* storeConfig, char* users, char* createOptions);
 extern Result wlnd_addStore(int hnd, char* storeConfig);
 extern Result wlnd_openSafe(char* identity, char* name, char* storeUrl, char* creatorId, char* openOptions);
 extern Result wlnd_closeSafe(int hnd);

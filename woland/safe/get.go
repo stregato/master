@@ -40,7 +40,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 		}
 	}
 
-	var header, err = getLastHeader(s, bucket, name, options.FileId)
+	var header, headerFile, err = getLastHeader(s.Name, bucket, name, options.FileId)
 	if core.IsErr(err, nil, "cannot get header: %v", err) {
 		return Header{}, err
 	}
@@ -106,7 +106,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 			cachedFile = name
 		}
 
-		err = writeFile(s.primary, s.Name, bucket, options, header, f)
+		err = writeFile(s, bucket, options, headerFile, header, f)
 		if core.IsErr(err, nil, "cannot write file: %v", err) {
 			return Header{}, err
 		}
@@ -135,7 +135,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 			}
 		}
 	} else if w != nil {
-		err = writeFile(s.primary, s.Name, bucket, options, header, w)
+		err = writeFile(s, bucket, options, headerFile, header, w)
 		if core.IsErr(err, nil, "cannot write file: %v", err) {
 			return Header{}, err
 		}
@@ -172,29 +172,28 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 	return header, nil
 }
 
-func getLastHeader(s *Safe, bucket, name string, fileId uint64) (Header, error) {
+func getLastHeader(safeName, bucket, name string, fileId uint64) (header Header, headerFile uint64, err error) {
 	var data []byte
-	err := sql.QueryRow("GET_LAST_HEADER", sql.Args{
-		"safe":   s.Name,
+	err = sql.QueryRow("GET_LAST_HEADER", sql.Args{
+		"safe":   safeName,
 		"bucket": bucket,
 		"name":   name,
 		"fileId": fileId,
-	}, &data)
+	}, &data, &headerFile)
 	if err == sql.ErrNoRows {
 		core.Info("file %s/%s does not exist", bucket, name)
-		return Header{}, ErrFileNotExist
+		return Header{}, 0, ErrFileNotExist
 	}
 	if core.IsErr(err, nil, "cannot query file: %v", err) {
-		return Header{}, err
+		return Header{}, 0, err
 	}
 
-	var header Header
 	err = json.Unmarshal(data, &header)
 	if core.IsErr(err, nil, "cannot unmarshal header: %v", err) {
-		return Header{}, err
+		return Header{}, 0, err
 	}
 	core.Info("header for %s/%s found, fileId %d", bucket, name, header.FileId)
-	return header, nil
+	return header, headerFile, nil
 }
 
 func copyFromCachedFile(header Header, w io.Writer) error {
@@ -221,17 +220,42 @@ func copyFromCachedFile(header Header, w io.Writer) error {
 	return err
 }
 
-func writeFile(store storage.Store, safeName, bucket string, options GetOptions, header Header, w io.Writer) error {
+func writeFile(s *Safe, bucket string, options GetOptions, headerFile uint64, header Header, w io.Writer) error {
 	var err error
 
 	dir := hashPath(bucket)
-	fullname := path.Join(safeName, DataFolder, dir, BodyFolder, fmt.Sprintf("%d", header.FileId))
+	fullname := path.Join(s.Name, DataFolder, dir, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
-	err = store.Read(fullname, options.Range, w, nil)
+	fastest := s.stores[0]
+	err = fastest.Read(fullname, options.Range, w, nil)
+	if err == nil {
+		core.Info("Read %s[%d] into %s from secondary store %s", header.Name, header.FileId, fullname, fastest.String())
+		return nil
+	}
+	notExist := os.IsNotExist(err)
+
+	err = s.primary.Read(fullname, options.Range, w, nil)
 	if core.IsErr(err, nil, "cannot read file: %v", err) {
 		return err
 	}
-	core.Info("Read %s[%d] into %s", header.Name, header.FileId, fullname)
+	core.Info("Read %s[%d] into %s from primary store %s", header.Name, header.FileId, fullname, s.primary.String())
+
+	if notExist {
+		r, ok := w.(io.ReadSeeker)
+		if ok {
+			core.Info("Cloning %s[%d] into secondary store %s", header.Name, header.FileId, fastest.String())
+			if f, ok := r.(*os.File); ok {
+				err = f.Sync()
+				core.IsErr(err, nil, "cannot sync file: %v", err)
+			}
+			r.Seek(0, 0)
+			_, err = writeToStore(s, fastest, bucket, r, headerFile, header, nil)
+			if !core.IsErr(err, nil, "cannot write to secondary store: %v", err) {
+				core.Info("Wrote %s[%d] into secondary store %s", header.Name, header.FileId, fastest.String())
+			}
+		}
+	}
+
 	return nil
 }
 

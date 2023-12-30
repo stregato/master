@@ -54,6 +54,7 @@ class _ContentStateAdd extends State<ContentAdd> {
                       'safe': _safe,
                       'selection': selection,
                       'folder': _folder,
+                      'room': _room,
                     });
                 if (mounted) {
                   Navigator.pop(context);

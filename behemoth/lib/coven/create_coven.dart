@@ -3,7 +3,8 @@ import 'dart:math';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/common/snackbar.dart';
-import 'package:behemoth/coven/add_storage.dart';
+import 'package:behemoth/coven/add_store.dart';
+import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,52 +26,20 @@ class _CreateCovenState extends State<CreateCoven> {
 
   String _name = "";
   String _description = "";
-  String _url = "";
+  StoreConfig _storeConfig = StoreConfig("", primary: true);
   String? _sameStorageAs;
-  double _sliderValue = 1;
   bool _wipe = false;
 
   bool _validConfig() {
-    return _name.isNotEmpty && _url.isNotEmpty;
-  }
-
-  int _mapSliderToValue(double sliderValue) {
-    if (sliderValue == 1) {
-      return 0;
-    }
-    // Map the slider's logarithmic value (0-1) to the desired byte range
-    const double minValue = 1e7; // 10 MB in bytes
-    const double maxValue = 1.1e11; // 100 GB in bytes
-    var value = minValue * pow(maxValue / minValue, sliderValue).truncate();
-    return value < 1e9
-        ? value.toInt()
-        : ((value / 1e9).truncate() * 1e9).toInt();
-  }
-
-  String _getDisplayValue(int value) {
-    if (value == 0) {
-      return 'Unlimited';
-    } else if (value >= 1e9) {
-      // Display in GB if greater than or equal to 1 GB
-      return '${(value / 1e9).toStringAsFixed(2)} GB';
-    } else {
-      // Display in MB if less than 1 GB
-      return '${(value / 1e6).toStringAsFixed(2)} MB';
-    }
+    return _name.isNotEmpty && _storeConfig.url.isNotEmpty;
   }
 
   void _createCoven(BuildContext context) async {
     await progressDialog(
         context,
         "opening portal, please wait",
-        Coven.create(
-            _name,
-            _url,
-            CreateOptions(
-                wipe: _wipe,
-                description: _description,
-                quota: _mapSliderToValue(_sliderValue),
-                quotaGroup: "$_name/")),
+        Coven.create(_name, _storeConfig,
+            CreateOptions(wipe: _wipe, description: _description)),
         successMessage: "Congrats! You successfully created $_name",
         errorMessage: "Creation failed");
     widget.onComplete?.call();
@@ -141,29 +110,32 @@ class _CreateCovenState extends State<CreateCoven> {
                 Row(
                   children: [
                     PlatformText(
-                      "Storage",
+                      "Store",
                       style: const TextStyle(color: Colors.grey, fontSize: 14),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const Spacer(),
-                    PlatformIconButton(
+                    PlatformElevatedButton(
                       onPressed: () {
                         Navigator.of(context)
                             .push(MaterialPageRoute(
-                                builder: (context) => const AddStorage()))
+                                builder: (context) => const AddStore()))
                             .then((value) {
-                          if (value is Storage) {
+                          if (value is StoreConfig) {
+                            value.primary = true;
                             setState(() {
-                              _url = value.url;
+                              _storeConfig = value;
                             });
                           }
                         });
                       },
-                      icon: const Icon(Icons.add),
-                    )
+                      child: PlatformText('Set'),
+                    ),
                   ],
                 ),
-                Text(_url),
+                Text(_storeConfig.name.isNotEmpty
+                    ? _storeConfig.name
+                    : "${_storeConfig.url.substring(0, min(32, _storeConfig.url.length))}..."),
                 const SizedBox(
                   height: 20,
                 ),
@@ -185,34 +157,12 @@ class _CreateCovenState extends State<CreateCoven> {
                         onChanged: (name) {
                           var c = profile.covens[name];
                           setState(() {
-                            _url = c?.url ?? "";
+                            _storeConfig = c?.storeConfig ??
+                                StoreConfig("", primary: true);
                             _sameStorageAs = name;
                           });
                         },
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                PlatformText(
-                  "Limit storage",
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Text(_getDisplayValue(_mapSliderToValue(_sliderValue))),
-                    Slider(
-                      min: 0.0,
-                      max: 1.0,
-                      value: _sliderValue,
-                      onChanged: (value) {
-                        setState(() {
-                          _sliderValue = value;
-                        });
-                      },
                     ),
                   ],
                 ),
