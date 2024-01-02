@@ -144,7 +144,7 @@ class _HomeState extends State<Home> {
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Image.asset("assets/images/cat.png"),
+            child: Image.asset("assets/images/icons8-behemoth.png"),
           ),
           const SizedBox(
             height: 16,

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/stregato/master/woland/core"
 )
@@ -57,6 +58,19 @@ func TestPut(t *testing.T) {
 	core.Assert(t, !h.Downloads[dest].IsZero(), "Expected download time to be set")
 	core.Assert(t, h.Cached != "", "Expected cached to be set")
 
+	ListFiles(s, "bucket", ListOptions{})
+	// Put header
+	file.Attributes.Meta = map[string]any{"key1": "value1"}
+	file, err = Patch(s, "bucket", file, PatchOptions{})
+	core.TestErr(t, err, "cannot put file: %v")
+	core.Assert(t, file.Attributes.Meta["key1"] == "value1", "Expected extra to be 'value1', got '%s'", file.Attributes.Meta["key1"])
+
+	hs, err := ListFiles(s, "bucket", ListOptions{OnlyChanges: true})
+	core.TestErr(t, err, "cannot list files: %v")
+	core.Assert(t, len(hs) == 1, "Expected 1 file, got %d", len(hs))
+	core.Assert(t, hs[0].Name == "file2", "Expected file name to be 'file3', got '%s'", hs[0].Name)
+	core.Assert(t, hs[0].Attributes.Meta["key1"] == "value1", "Expected extra to be 'value1', got '%s'", hs[0].Attributes.Meta["key1"])
+
 	// Put async
 	file, err = Put(s, "bucket", "file3", dest, PutOptions{
 		Async: true,
@@ -65,20 +79,13 @@ func TestPut(t *testing.T) {
 	core.Assert(t, file.Name == "file3", "Expected file name to be 'file3', got '%s'", file.Name)
 	core.Assert(t, file.Uploading, "Expected file to be uploading")
 
-	ListFiles(s, "bucket", ListOptions{})
-	// Put header
-	file, err = Put(s, "bucket", "file3", r, PutOptions{
-		OnlyHeader: true,
-		Meta:       map[string]any{"key1": "value1"},
-	}, nil)
-	core.TestErr(t, err, "cannot put file: %v")
-	core.Assert(t, file.Attributes.Meta["key1"] == "value1", "Expected extra to be 'value1', got '%s'", file.Attributes.Meta["key1"])
+	for file.Uploading {
+		time.Sleep(100 * time.Millisecond)
+		hs, err = ListFiles(s, "bucket", ListOptions{FileId: file.FileId})
+		core.TestErr(t, err, "cannot list files: %v")
+		file = hs[0]
+	}
 
-	hs, err := ListFiles(s, "bucket", ListOptions{OnlyChanges: false})
-	core.TestErr(t, err, "cannot list files: %v")
-	core.Assert(t, len(hs) == 1, "Expected 1 file, got %d", len(hs))
-	core.Assert(t, hs[0].Name == "file3", "Expected file name to be 'file3', got '%s'", hs[0].Name)
-	core.Assert(t, hs[0].Attributes.Meta["key1"] == "value1", "Expected extra to be 'value1', got '%s'", hs[0].Attributes.Meta["key1"])
 	Close(s)
 }
 

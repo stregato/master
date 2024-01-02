@@ -178,6 +178,14 @@ class Safe {
     });
   }
 
+  Header patch(String bucket, Header header, PatchOptions patchOptions) {
+    var fun = lib.lookupFunction<Args4TSSS<Int>, Args4TSSS<int>>("wlnd_patch");
+    var m = fun(hnd, bucket.toNativeUtf8(), jsonEncode(header).toNativeUtf8(),
+            jsonEncode(patchOptions).toNativeUtf8())
+        .unwrapMap();
+    return Header.fromJson(m);
+  }
+
   Future<Uint8List> getBytes(
       String bucket, String name, GetOptions getOptions) async {
     return Isolate.run(() {

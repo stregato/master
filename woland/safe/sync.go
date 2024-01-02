@@ -53,7 +53,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 		return 0, err
 	}
 
-	headerFiles, err := getHeadersIdsWithCount(store, safeName, bucket)
+	headerIds, err := getHeadersIdsWithCount(store, safeName, bucket)
 	if core.IsErr(err, nil, "cannot get headers ids: %v", err) {
 		return 0, err
 	}
@@ -61,7 +61,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 	count := 0
 	for _, l := range ls {
 		name := l.Name()
-		headerFile, err := strconv.ParseUint(path.Base(name), 10, 64)
+		headerId, err := strconv.ParseUint(path.Base(name), 10, 64)
 		if core.IsErr(err, nil, "cannot parse header id: %v", err) {
 			continue
 		}
@@ -70,7 +70,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 			count++
 		}
 
-		if _, found := headerFiles[headerFile]; found {
+		if _, found := headerIds[headerId]; found {
 			// header already in DB
 			continue
 		}
@@ -89,7 +89,7 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 
 			core.Info("saving header %s", header.Name)
 			newFiles++
-			err = insertHeaderOrIgnoreToDB(safeName, bucket, headerFile, header)
+			err = insertHeaderOrIgnoreToDB(safeName, bucket, headerId, header)
 			core.IsErr(err, nil, "cannot save header to DB: %v", err)
 		}
 	}

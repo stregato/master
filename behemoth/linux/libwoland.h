@@ -100,6 +100,7 @@ extern Result wlnd_listDirs(int hnd, char* bucket, char* listDirsOptions);
 extern Result wlnd_putData(int hnd, char* bucket, char* name, Reader* r, char* putOptions);
 extern Result wlnd_putCString(int hnd, char* bucket, char* name, char* data, char* putOptions);
 extern Result wlnd_putFile(int hnd, char* bucket, char* name, char* sourceFile, char* putOptions);
+extern Result wlnd_patch(int hnd, char* bucket, char* header, char* patchOptions);
 extern Result wlnd_getData(int hnd, char* bucket, char* name, Writer* w, char* getOptions);
 extern Result wlnd_getCString(int hnd, char* bucket, char* name, char* getOptions);
 extern Result wlnd_getFile(int hnd, char* bucket, char* name, char* destFile, char* getOptions);

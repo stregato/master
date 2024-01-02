@@ -113,13 +113,13 @@ func unmarshalHeadersFile(ciphertext []byte, keys map[uint64][]byte) (headersFil
 	stream := cipher.NewCFBDecrypter(block, iv)
 	stream.XORKeyStream(ciphertext[8+aes.BlockSize:], ciphertext[8+aes.BlockSize:])
 
-	var headerFile HeadersFile
+	var headerId HeadersFile
 	err = json.Unmarshal(ciphertext[8+aes.BlockSize:], &headersFile)
 	if err != nil {
-		return headerFile, err
+		return headerId, err
 	}
 
-	headerFile.KeyId = keyId
+	headerId.KeyId = keyId
 	return headersFile, nil
 }
 
@@ -152,7 +152,7 @@ func readHeadersFile(store storage.Store, safeName string, filePath string, keys
 	return headersFile, nil
 }
 
-func insertHeaderOrIgnoreToDB(safeName, bucket string, headerFile uint64, header Header) error {
+func insertHeaderOrIgnoreToDB(safeName, bucket string, headerId uint64, header Header) error {
 	data, err := json.Marshal(header)
 	if core.IsErr(err, nil, "cannot marshal header: %v", err) {
 		return err
@@ -167,7 +167,7 @@ func insertHeaderOrIgnoreToDB(safeName, bucket string, headerFile uint64, header
 		"name":         header.Name,
 		"size":         header.Size,
 		"fileId":       header.FileId,
-		"headerFile":   headerFile,
+		"headerId":     headerId,
 		"base":         path.Base(header.Name),
 		"dir":          getDir(header.Name),
 		"depth":        depth,
@@ -197,13 +197,13 @@ func insertHeaderOrIgnoreToDB(safeName, bucket string, headerFile uint64, header
 
 func updateHeaderInDB(safeName, bucket string, fileId uint64, update func(Header) Header) error {
 	// var data []byte
-	// var headerFile uint64
+	// var headerId uint64
 
 	// err := sql.QueryRow("GET_LAST_HEADER", sql.Args{
 	// 	"safe":   safeName,
 	// 	"bucket": bucket,
 	// 	"name":   "",
-	// 	"fileId": fileId}, &data, &headerFile)
+	// 	"fileId": fileId}, &data, &headerId)
 	// if core.IsErr(err, nil, "cannot get header: %v", err) {
 	// 	return err
 	// }
@@ -404,15 +404,15 @@ func mergeHeadersFiles(s *Safe, folder string, files []string, wg *sync.WaitGrou
 	var filesToDelete []string
 	for _, file := range files {
 		filepath := path.Join(folder, file)
-		headerFile, err := readHeadersFile(store, safeName, filepath, s.keystore.Keys)
+		headerId, err := readHeadersFile(store, safeName, filepath, s.keystore.Keys)
 		if core.IsErr(err, nil, "cannot read headers: %v", err) {
 			continue
 		}
-		bucket = headerFile.Bucket
+		bucket = headerId.Bucket
 		if bucket == "" {
 			continue
 		}
-		for _, header := range headerFile.Headers {
+		for _, header := range headerId.Headers {
 			h, found := headersMap[header.FileId]
 			if !found || h.ModTime.Before(header.ModTime) {
 				headersMap[header.FileId] = header
@@ -426,8 +426,8 @@ func mergeHeadersFiles(s *Safe, folder string, files []string, wg *sync.WaitGrou
 		return
 	}
 
-	headerFileId := snowflake.ID()
-	filepath := path.Join(folder, fmt.Sprintf("%d", headerFileId))
+	headerId := snowflake.ID()
+	filepath := path.Join(folder, fmt.Sprintf("%d", headerId))
 
 	var headers []Header
 	for _, header := range headersMap {
@@ -447,10 +447,10 @@ func mergeHeadersFiles(s *Safe, folder string, files []string, wg *sync.WaitGrou
 
 	for _, header := range headersMap {
 		res, err := sql.Exec("UPDATE_HEADER_FILE", sql.Args{
-			"safe":       safeName,
-			"bucket":     bucket,
-			"fileId":     header.FileId,
-			"headerFile": headerFileId,
+			"safe":     safeName,
+			"bucket":   bucket,
+			"fileId":   header.FileId,
+			"headerId": headerId,
 		})
 		if core.IsErr(err, nil, "cannot update header file: %v", err) {
 			return

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:behemoth/common/checkbox2.dart';
 import 'package:behemoth/common/image.dart';
@@ -269,26 +268,53 @@ class _ContentFeedState extends State<ContentFeed> {
       return;
     }
     var h = headers.first;
-    var extra = h.attributes.meta;
-    extra.putIfAbsent(symbol, () => []);
-    if (extra[symbol].contains(_safe.currentUser.id)) {
-      extra[symbol].remove(_safe.currentUser.id);
+    var meta = h.attributes.meta;
+    meta.putIfAbsent(symbol, () => []);
+    if (meta[symbol].contains(_safe.currentUser.id)) {
+      meta[symbol].remove(_safe.currentUser.id);
     } else {
-      extra[symbol].add(_safe.currentUser.id);
+      meta[symbol].add(_safe.currentUser.id);
     }
-    _safe.putBytes(
-        bucket,
-        name,
-        Uint8List(0),
-        PutOptions(
-            onlyHeader: true,
-            meta: extra,
-            tags: h.attributes.tags,
-            thumbnail: h.attributes.thumbnail,
-            contentType: h.attributes.contentType));
+    h.attributes.meta = meta;
+    _safe.patch(bucket, h, PatchOptions(async: true));
   }
 
-  void _comment(Header h) {}
+  void _comment(BuildContext context, Header h) async {
+    var textController = TextEditingController();
+
+    var comment = await showPlatformDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Add comment"),
+          content: PlatformTextField(
+            controller: textController,
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+            TextButton(
+              child: const Text('Add'),
+              onPressed: () async {
+                Navigator.pop(context, textController.text);
+              },
+            ),
+          ],
+        );
+      },
+    );
+    if (comment is String) {
+      var bucket = "rooms/$_room/content";
+      h.attributes.meta.putIfAbsent("💬", () => []);
+      h.attributes.meta["💬"].add(comment);
+      _safe.patch(bucket, h, PatchOptions(async: true));
+      setState(() {});
+    }
+  }
 
   void _check(Header h) {
     if (_checked.contains(h)) {
@@ -321,6 +347,7 @@ class _ContentFeedState extends State<ContentFeed> {
         var iHearts = hearts.contains(_safe.currentUser.id) ?? false;
         var likes = extra['👍'] ?? [];
         var iLike = likes.contains(_safe.currentUser.id) ?? false;
+        var comments = extra['💬'] ?? [];
 
         return Card(
           elevation: 3.0,
@@ -350,9 +377,28 @@ class _ContentFeedState extends State<ContentFeed> {
                     color: Colors.red,
                     onChanged: (_, __) => _writeFeedback(h.name, "❤️")),
                 IconButton(
-                    onPressed: () => _comment(h),
+                    onPressed: () => _comment(context, h),
                     icon: const Icon(Icons.comment)),
               ]),
+              ListView.builder(
+                shrinkWrap: true,
+                itemCount: comments.length,
+                itemBuilder: (context, index) {
+                  var comment = comments[index];
+                  return ListTile(
+                    title: Text(comment),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () async {
+                        comments.remove(comment);
+                        h.attributes.meta["💬"] = comments;
+                        _safe.patch("rooms/$_room/content", h, PatchOptions());
+                        setState(() {});
+                      },
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         );

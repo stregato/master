@@ -80,14 +80,23 @@ class _ContentActionsState extends State<ContentActions> {
             child: ListTile(
               title: Text("Edit ${path.basename(localPath)}"),
               leading: const Icon(Icons.edit),
-              onTap: () {
-                Navigator.pushNamed(
+              onTap: () async {
+                var content = File(localPath).readAsStringSync();
+                var changed = await Navigator.pushNamed<String>(
                   context,
                   "/content/editor",
                   arguments: {
-                    'filename': localPath,
+                    'title': path.basename(localPath),
+                    'content': content,
+                    'tabs': ['preview', 'edit'],
                   },
                 );
+                if (changed != null && changed != content && mounted) {
+                  File(localPath).writeAsStringSync(changed);
+                  showPlatformSnackbar(
+                      context, "${path.basename(localPath)} saved",
+                      backgroundColor: Colors.green);
+                }
               },
             ),
           ),

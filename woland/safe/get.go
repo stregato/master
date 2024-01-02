@@ -40,7 +40,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 		}
 	}
 
-	var header, headerFile, err = getLastHeader(s.Name, bucket, name, options.FileId)
+	var header, headerId, err = getLastHeader(s.Name, bucket, name, options.FileId)
 	if core.IsErr(err, nil, "cannot get header: %v", err) {
 		return Header{}, err
 	}
@@ -106,7 +106,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 			cachedFile = name
 		}
 
-		err = writeFile(s, bucket, options, headerFile, header, f)
+		err = writeFile(s, bucket, options, headerId, header, f)
 		if core.IsErr(err, nil, "cannot write file: %v", err) {
 			return Header{}, err
 		}
@@ -135,7 +135,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 			}
 		}
 	} else if w != nil {
-		err = writeFile(s, bucket, options, headerFile, header, w)
+		err = writeFile(s, bucket, options, headerId, header, w)
 		if core.IsErr(err, nil, "cannot write file: %v", err) {
 			return Header{}, err
 		}
@@ -172,14 +172,14 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 	return header, nil
 }
 
-func getLastHeader(safeName, bucket, name string, fileId uint64) (header Header, headerFile uint64, err error) {
+func getLastHeader(safeName, bucket, name string, fileId uint64) (header Header, headerId uint64, err error) {
 	var data []byte
 	err = sql.QueryRow("GET_LAST_HEADER", sql.Args{
 		"safe":   safeName,
 		"bucket": bucket,
 		"name":   name,
 		"fileId": fileId,
-	}, &data, &headerFile)
+	}, &data, &headerId)
 	if err == sql.ErrNoRows {
 		core.Info("file %s/%s does not exist", bucket, name)
 		return Header{}, 0, ErrFileNotExist
@@ -193,7 +193,7 @@ func getLastHeader(safeName, bucket, name string, fileId uint64) (header Header,
 		return Header{}, 0, err
 	}
 	core.Info("header for %s/%s found, fileId %d", bucket, name, header.FileId)
-	return header, headerFile, nil
+	return header, headerId, nil
 }
 
 func copyFromCachedFile(header Header, w io.Writer) error {
@@ -220,7 +220,7 @@ func copyFromCachedFile(header Header, w io.Writer) error {
 	return err
 }
 
-func writeFile(s *Safe, bucket string, options GetOptions, headerFile uint64, header Header, w io.Writer) error {
+func writeFile(s *Safe, bucket string, options GetOptions, headerId uint64, header Header, w io.Writer) error {
 	var err error
 
 	dir := hashPath(bucket)
@@ -249,7 +249,7 @@ func writeFile(s *Safe, bucket string, options GetOptions, headerFile uint64, he
 				core.IsErr(err, nil, "cannot sync file: %v", err)
 			}
 			r.Seek(0, 0)
-			_, err = writeToStore(s, fastest, bucket, r, headerFile, header, nil)
+			_, err = writeToStore(s, fastest, bucket, r, headerId, header, nil)
 			if !core.IsErr(err, nil, "cannot write to secondary store: %v", err) {
 				core.Info("Wrote %s[%d] into secondary store %s", header.Name, header.FileId, fastest.String())
 			}

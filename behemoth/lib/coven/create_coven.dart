@@ -37,7 +37,7 @@ class _CreateCovenState extends State<CreateCoven> {
   void _createCoven(BuildContext context) async {
     await progressDialog(
         context,
-        "opening portal, please wait",
+        "wipe and create, please wait",
         Coven.create(_name, _storeConfig,
             CreateOptions(wipe: _wipe, description: _description)),
         successMessage: "Congrats! You successfully created $_name",

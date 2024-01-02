@@ -194,7 +194,8 @@ class Header {
         'iv': base64Encode(iv),
         'at': attributes.toJson(),
         'de': deleted,
-        'do': downloads,
+        'do': Map.fromEntries(downloads.entries
+            .map((e) => MapEntry(e.key, e.value.toIso8601String()))),
         'ca': cached,
         'cac': cachedExpires.toIso8601String(),
       };
@@ -358,7 +359,6 @@ class PutOptions {
   bool replace;
   int replaceID;
   bool async;
-  bool onlyHeader;
   List<String> tags;
   List<int> thumbnail;
   int thumbnailWidth;
@@ -373,7 +373,6 @@ class PutOptions {
       {this.replace = false,
       this.replaceID = 0,
       this.async = false,
-      this.onlyHeader = false,
       this.tags = const [],
       this.thumbnail = const [],
       this.thumbnailWidth = 0,
@@ -388,7 +387,6 @@ class PutOptions {
         'replace': replace,
         'replaceID': replaceID,
         'async': async,
-        'onlyHeader': onlyHeader,
         'tags': tags,
         'thumbnail': thumbnail,
         'thumbnailWidth': thumbnailWidth,
@@ -399,6 +397,22 @@ class PutOptions {
         'source': source,
         'private': private,
       };
+}
+
+class PatchOptions {
+  bool byName;
+  bool async;
+
+  PatchOptions({this.byName = false, this.async = false});
+
+  Map<String, dynamic> toJson() => {
+        'byName': byName,
+        'async': async,
+      };
+
+  PatchOptions.fromJson(Map<String, dynamic> json)
+      : byName = json['byName'] ?? false,
+        async = json['async'] ?? false;
 }
 
 class GetOptions {

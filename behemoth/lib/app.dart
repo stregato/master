@@ -1,6 +1,8 @@
 import 'package:behemoth/content/content_add.dart';
 import 'package:behemoth/content/content_editor.dart';
 import 'package:behemoth/content/content_feed.dart';
+import 'package:behemoth/content/content_task.dart';
+import 'package:behemoth/content/content_task_list.dart';
 import 'package:behemoth/settings/import_profile.dart';
 import 'package:behemoth/settings/nolib.dart';
 import 'package:behemoth/settings/update_private_key.dart';
@@ -149,6 +151,8 @@ class _BehemothAppState extends State<BehemothApp> {
             "/content/upload": (context) => const ContentUpload(),
             "/content/editor": (context) => const ContentEditor(),
             "/content/feed": (context) => const ContentFeed(),
+            "/content/task": (context) => const ContentTask(),
+            "/content/tasklist": (context) => const ContentTaskList(),
 // //        "/apps/content/download": (context) => const DownloadFile(),
             "/content/actions": (context) => const ContentActions(),
 //         "/apps/invite/list": (context) => const InviteList(),

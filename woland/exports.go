@@ -461,6 +461,34 @@ func wlnd_putFile(hnd C.int, bucket, name *C.char, sourceFile *C.char, putOption
 	return cResult(header, nil)
 }
 
+//export wlnd_patch
+func wlnd_patch(hnd C.int, bucket, header *C.char, patchOptions *C.char) C.Result {
+	safesSync.Lock()
+	s, ok := safes[int(hnd)]
+	safesSync.Unlock()
+	if !ok {
+		return cResult(nil, fmt.Errorf("safe not opened yet"))
+	}
+
+	var h safe.Header
+	err := cUnmarshal(header, &h)
+	if core.IsErr(err, nil, "cannot unmarshal header: %v") {
+		return cResult(nil, err)
+	}
+
+	var options safe.PatchOptions
+	err = cUnmarshal(patchOptions, &options)
+	if core.IsErr(err, nil, "cannot unmarshal patchOptions: %v") {
+		return cResult(nil, err)
+	}
+
+	h, err = safe.Patch(s, C.GoString(bucket), h, options)
+	if core.IsErr(err, nil, "cannot patch file: %v") {
+		return cResult(nil, err)
+	}
+	return cResult(h, nil)
+}
+
 //export wlnd_getData
 func wlnd_getData(hnd C.int, bucket, name *C.char, w *C.Writer, getOptions *C.char) C.Result {
 	safesSync.Lock()

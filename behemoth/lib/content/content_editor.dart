@@ -1,10 +1,6 @@
-import 'dart:io';
-import 'package:behemoth/common/cat_progress_indicator.dart';
-import 'package:behemoth/common/snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
-import 'package:path/path.dart';
 
 class ContentEditor extends StatefulWidget {
   const ContentEditor({super.key});
@@ -14,48 +10,57 @@ class ContentEditor extends StatefulWidget {
 }
 
 class _ContentEditorState extends State<ContentEditor> {
-  late File _markdownFile;
   TextEditingController? _textEditingController;
-  bool _ready = false;
+  String _content = '';
   int _currentPanelIdx = 0;
-  bool _isDirty = false;
-
-  Future<bool> loadMarkdownContent() async {
-    if (_textEditingController != null) {
-      return true;
-    }
-    setState(() {
-      _textEditingController = TextEditingController(
-          text: _markdownFile.existsSync()
-              ? _markdownFile.readAsStringSync()
-              : '_Click on Edit_');
-      _textEditingController!.addListener(() {
-        _isDirty = true;
-      });
-      _ready = true;
-    });
-    return true;
-  }
-
-  Future<void> saveMarkdownContent(BuildContext context) async {
-    final String updatedContent = _textEditingController!.text;
-    await _markdownFile.writeAsString(updatedContent);
-    if (mounted) {
-      showPlatformSnackbar(context, 'Markdown file saved.',
-          backgroundColor: Colors.green);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    var filename = args['filename'] ?? '';
-    _markdownFile = File(filename);
+    _content = args['content'] ?? '';
+    var title = args['title'] ?? '';
+    var tabs = args['tabs'] ?? <String>[];
+    _textEditingController ??= TextEditingController(text: _content);
+
+    var stack = <Widget>[];
+    var navBar = <BottomNavigationBarItem>[];
+    for (var tab in tabs) {
+      if (tab == 'preview') {
+        stack.add(
+          Markdown(
+            data: _textEditingController?.text ?? '',
+            onTapText: () {
+              setState(() {
+                _currentPanelIdx = 1;
+              });
+            },
+          ),
+        );
+        navBar.add(
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.preview), label: "Preview"),
+        );
+      }
+      if (tab == 'edit') {
+        stack.add(
+          Expanded(
+            child: PlatformTextField(
+              controller: _textEditingController,
+              maxLines: null,
+              keyboardType: TextInputType.multiline,
+            ),
+          ),
+        );
+        navBar.add(
+          const BottomNavigationBarItem(icon: Icon(Icons.edit), label: "Edit"),
+        );
+      }
+    }
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
-        title: Text(basename(filename)),
+        title: Text(title),
       ),
       body: PopScope(
         canPop: false,
@@ -63,7 +68,7 @@ class _ContentEditorState extends State<ContentEditor> {
           if (didPop) {
             return;
           }
-          if (!_isDirty) {
+          if (_content == _textEditingController?.text) {
             Navigator.of(context).pop();
             return;
           }
@@ -86,45 +91,28 @@ class _ContentEditorState extends State<ContentEditor> {
             ),
           );
           if (result == 'save' && mounted) {
-            saveMarkdownContent(context);
+            Navigator.of(context).pop(_textEditingController?.text);
+            return;
           }
-          // If save or discard, pop the screen
           if (result != null && mounted) {
-            Navigator.of(context).pop();
+            Navigator.of(context).pop(_content);
           }
         },
         child: SafeArea(
-          child: FutureBuilder<bool>(
-            future: loadMarkdownContent(),
-            builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
-              return _ready
-                  ? IndexedStack(index: _currentPanelIdx, children: [
-                      Markdown(data: _textEditingController!.text),
-                      Expanded(
-                        child: PlatformTextField(
-                          controller: _textEditingController,
-                          maxLines: null,
-                          keyboardType: TextInputType.multiline,
-                        ),
-                      ),
-                    ])
-                  : const CatProgressIndicator('Loading file...');
-            },
-          ),
+          child: IndexedStack(index: _currentPanelIdx, children: stack),
         ),
       ),
-      bottomNavBar: PlatformNavBar(
-        currentIndex: _currentPanelIdx,
-        itemChanged: (idx) {
-          setState(() {
-            _currentPanelIdx = idx;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.preview), label: "Preview"),
-          BottomNavigationBarItem(icon: Icon(Icons.edit), label: "Edit"),
-        ],
-      ),
+      bottomNavBar: navBar.length >= 2
+          ? PlatformNavBar(
+              currentIndex: _currentPanelIdx,
+              itemChanged: (idx) {
+                setState(() {
+                  _currentPanelIdx = idx;
+                });
+              },
+              items: navBar,
+            )
+          : null,
     );
   }
 }

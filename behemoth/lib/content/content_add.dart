@@ -1,11 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/woland/safe.dart';
+import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:path/path.dart' as path;
 import 'package:behemoth/common/file_access.dart' as fa;
+import 'package:snowflake_dart/snowflake_dart.dart';
 
 class ContentAdd extends StatefulWidget {
   const ContentAdd({super.key}); // Constructor to receive the callback
@@ -70,10 +73,44 @@ class _ContentStateAdd extends State<ContentAdd> {
             },
           ),
           _CustomCard(
+            title: "Snippet",
+            icon: const Icon(Icons.text_snippet),
+            onTap: () async {
+              var content = await Navigator.pushNamed(
+                context,
+                "/content/editor",
+                arguments: {
+                  'title': "Snippet",
+                  'content': "Edit the snippet here",
+                  'tabs': ['edit', 'preview'],
+                },
+              );
+              if (content != null && content is String) {
+                var name = ".${Snowflake(nodeId: 0).generate()}.snippet";
+                var data = utf8.encode(content);
+                _safe.putBytes(
+                    "rooms/$_room/content", name, data, PutOptions());
+              }
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
+          ),
+          _CustomCard(
             title: "Feed",
             icon: const Icon(Icons.rss_feed),
             onTap: () async {
               await _newFolderDialog(context, "New Feed", ".feed");
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
+          ),
+          _CustomCard(
+            title: "Task List",
+            icon: const Icon(Icons.task_alt),
+            onTap: () async {
+              await _newFolderDialog(context, "New Task List", ".tasks");
               if (mounted) {
                 Navigator.pop(context);
               }
@@ -139,10 +176,19 @@ class _ContentStateAdd extends State<ContentAdd> {
             TextButton(
               child: const Text('Create'),
               onPressed: () async {
-                var d = path.join(documentsFolder, _safe.name, _room, _folder,
-                    "${textController.text}.md");
-                await Navigator.pushNamed(context, "/content/editor",
-                    arguments: {"filename": d});
+                var name = "${textController.text}.md";
+                var d = path.join(
+                    documentsFolder, _safe.name, _room, _folder, name);
+                var content = await Navigator.pushNamed(
+                    context, "/content/editor",
+                    arguments: {
+                      'title': name,
+                      'content': "_Edit the markdown here_",
+                      'tabs': ['edit', 'preview'],
+                    });
+                if (content != null && content is String) {
+                  File(d).writeAsStringSync(content);
+                }
                 if (mounted) {
                   Navigator.pop(context);
                   Navigator.pop(context);

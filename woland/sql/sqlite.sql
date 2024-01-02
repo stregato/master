@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS Header (
   name TEXT NOT NULL,
   size INTEGER NOT NULL,
   fileId INTEGER NOT NULL,
-  headerFile INTEGER NOT NULL,
+  headerId INTEGER NOT NULL,
   base TEXT NOT NULL,
   dir TEXT,
   depth INTEGER NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS Header (
   uploading INTEGER,
   cacheExpires INTEGER,
   head BLOB,
-  PRIMARY KEY (safe, bucket, name, fileId)
+  PRIMARY KEY (safe, bucket, fileId)
 );
 
 -- INIT
@@ -112,28 +112,28 @@ CREATE INDEX IF NOT EXISTS fileIdIndex ON Header (fileId);
 CREATE INDEX IF NOT EXISTS nameIndex ON Header (name);
 
 -- INSERT_HEADER
-INSERT INTO Header (safe, bucket, name, headerFile, fileId, size, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, uploading, cacheExpires, head)
-VALUES (:safe, :bucket, :name, :headerFile, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :uploading, :cacheExpires, :header)
-ON CONFLICT (safe, bucket, name, fileId) DO UPDATE SET headerFile = :headerFile, syncTime = :syncTime, tags = :tags, contentType = :contentType, creator = :creator, privateId = :privateId, deleted = :deleted, uploading = :uploading, cacheExpires = :cacheExpires, head = :header
-WHERE safe = :safe AND bucket = :bucket AND name = :name AND fileId = :fileId;
+INSERT INTO Header (safe, bucket, name, headerId, fileId, size, base, dir, depth, modTime, syncTime, tags, contentType, creator, privateId, deleted, uploading, cacheExpires, head)
+VALUES (:safe, :bucket, :name, :headerId, :fileId, :size, :base, :dir, :depth, :modTime, :syncTime, :tags, :contentType, :creator, :privateId, :deleted, :uploading, :cacheExpires, :header)
+ON CONFLICT (safe, bucket, fileId) DO UPDATE SET name = :name, headerId = :headerId, syncTime = :syncTime, tags = :tags, contentType = :contentType, creator = :creator, privateId = :privateId, deleted = :deleted, uploading = :uploading, cacheExpires = :cacheExpires, head = :header
+WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId;
 
 -- UPDATE_HEADER
 UPDATE Header SET head = :header, cacheExpires=:cacheExpires, uploading=:uploading WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
 
 -- UPDATE_HEADER_FILE
-UPDATE Header SET headerFile = :headerFile WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
+UPDATE Header SET headerId = :headerId WHERE safe = :safe AND bucket = :bucket AND fileId = :fileId
 
 -- DELETE_HEADER
-DELETE FROM Header WHERE safe = :safe AND bucket = :bucket AND headerFile = :headerFile
+DELETE FROM Header WHERE safe = :safe AND bucket = :bucket AND headerId = :headerId
 
 -- SET_DELETED_FILE
 UPDATE Header SET deleted = 1 WHERE safe = :safe AND fileId = :fileId
 
 -- GET_HEADERS_IDS
-SELECT headerFile, COUNT(*) as recordCount
+SELECT headerId, COUNT(*) as recordCount
 FROM Header
 WHERE safe = :safe AND bucket = :bucket
-GROUP BY headerFile;
+GROUP BY headerId;
 
 -- GET_HEADERS_LAST_SYNC
 SELECT head, bucket
@@ -234,7 +234,7 @@ WHERE safe= :safe
   AND (depth <= :toDepth)
 
 -- GET_LAST_HEADER
-SELECT head, headerFile
+SELECT head, headerId
 FROM Header
 WHERE safe = :safe
   AND bucket = :bucket
@@ -249,7 +249,7 @@ FROM Header
 WHERE safe = :safe
 
 -- GET_UPLOADS
-SELECT headerFile, bucket, head FROM Header
+SELECT headerId, bucket, head FROM Header
 WHERE safe = :safe AND uploading == 1
 ORDER BY modTime DESC;
 

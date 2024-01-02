@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/profile.dart';
+import 'package:behemoth/content/content_snippet.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -163,19 +164,32 @@ class _ContentState extends State<Content> {
 
   @override
   Widget build(BuildContext context) {
-    var items = _dirs.map(
+    var swaps = <int, int>{};
+    var headersMap = <int, Header?>{};
+    var items = _dirs.map<Widget>(
       (e) {
         var isFeed = e.endsWith(".feed");
-        var title = isFeed ? e.substring(0, e.length - 5) : e;
-        var icon =
-            isFeed ? const Icon(Icons.rss_feed) : const Icon(Icons.folder);
+        var isTaskList = e.endsWith(".tasks");
+        var title = isFeed || isTaskList ? basenameWithoutExtension(e) : e;
+        var icon = isFeed
+            ? const Icon(Icons.rss_feed)
+            : isTaskList
+                ? const Icon(Icons.task_alt)
+                : const Icon(Icons.folder);
         return Card(
+          key: ValueKey(e),
           child: ListTile(
               title: Text(title),
               leading: icon,
               onTap: () async {
                 if (isFeed) {
                   Navigator.pushNamed(context, "/content/feed", arguments: {
+                    'safe': _safe,
+                    'room': _room,
+                    'folder': _dir.isEmpty ? e : "$_dir/$e"
+                  });
+                } else if (isTaskList) {
+                  Navigator.pushNamed(context, "/content/tasklist", arguments: {
                     'safe': _safe,
                     'room': _room,
                     'folder': _dir.isEmpty ? e : "$_dir/$e"
@@ -194,7 +208,23 @@ class _ContentState extends State<Content> {
       var headers = entry.value;
       var state = _getState(name, headers);
       var uploading = state == "uploading";
+      var isSnippet = name.endsWith(".snippet");
+
+      var pos = headers.firstOrNull?.attributes.meta["pos"] as int?;
+      if (pos != null) {
+        swaps[items.length] = pos;
+      }
+      headersMap[items.length] = headers.firstOrNull;
+
+      if (isSnippet) {
+        items.add(Card(
+            key: ValueKey(name),
+            child: ContentSnippet(_safe, "rooms/$_room/content", name)));
+        continue;
+      }
+
       items.add(Card(
+        key: ValueKey(name),
         child: ListTile(
           title: Text(name.split("/").last,
               style: TextStyle(color: _colorForState(state))),
@@ -218,6 +248,14 @@ class _ContentState extends State<Content> {
               : null,
         ),
       ));
+    }
+
+    for (var entry in swaps.entries) {
+      var from = entry.key;
+      var to = entry.value;
+      var item = items.removeAt(from);
+      items.insert(to, item);
+      headersMap[to] = headersMap.remove(from)!;
     }
 
     var toolbar = Row(
@@ -257,9 +295,7 @@ class _ContentState extends State<Content> {
               'room': _room,
               'folder': _dir,
             });
-            Future.delayed(
-              Duration.zero,
-            );
+            Future.delayed(Duration.zero, _read);
           },
         ),
       ],
@@ -280,11 +316,29 @@ class _ContentState extends State<Content> {
       },
       child: Expanded(
         child: RefreshIndicator(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.all(8),
-            children: items,
-          ),
+          child: items.isNotEmpty
+              ? ReorderableListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(8),
+                  children: items,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      var h = headersMap[oldIndex];
+                      if (h == null) {
+                        return;
+                      }
+                      if (newIndex > oldIndex) {
+                        newIndex -= 1;
+                      }
+                      h.attributes.meta["pos"] = newIndex;
+                      _safe.patch(
+                          "rooms/$_room/content", h, PatchOptions(async: true));
+                    });
+                  },
+                )
+              : const Center(
+                  child: Text("Nothing here yet"),
+                ),
           onRefresh: () async {
             _read();
           },
