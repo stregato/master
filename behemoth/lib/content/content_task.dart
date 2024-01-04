@@ -192,9 +192,7 @@ class _ContentTaskState extends State<ContentTask> {
           );
           if (result == 'save' && mounted) {
             Navigator.of(context).pop(_task);
-          }
-          // If save or discard, pop the screen
-          if (result != null && mounted) {
+          } else if (result != null && mounted) {
             Navigator.of(context).pop();
           }
         },

@@ -44,12 +44,10 @@ class _ContentEditorState extends State<ContentEditor> {
       }
       if (tab == 'edit') {
         stack.add(
-          Expanded(
-            child: PlatformTextField(
-              controller: _textEditingController,
-              maxLines: null,
-              keyboardType: TextInputType.multiline,
-            ),
+          PlatformTextField(
+            controller: _textEditingController,
+            maxLines: null,
+            keyboardType: TextInputType.multiline,
           ),
         );
         navBar.add(

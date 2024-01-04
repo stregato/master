@@ -82,7 +82,7 @@ class _ContentActionsState extends State<ContentActions> {
               leading: const Icon(Icons.edit),
               onTap: () async {
                 var content = File(localPath).readAsStringSync();
-                var changed = await Navigator.pushNamed<String>(
+                var changed = await Navigator.pushNamed(
                   context,
                   "/content/editor",
                   arguments: {
@@ -91,11 +91,13 @@ class _ContentActionsState extends State<ContentActions> {
                     'tabs': ['preview', 'edit'],
                   },
                 );
-                if (changed != null && changed != content && mounted) {
+                if (changed is String && changed != content) {
                   File(localPath).writeAsStringSync(changed);
-                  showPlatformSnackbar(
-                      context, "${path.basename(localPath)} saved",
-                      backgroundColor: Colors.green);
+                  if (mounted) {
+                    showPlatformSnackbar(
+                        context, "${path.basename(localPath)} saved",
+                        backgroundColor: Colors.green);
+                  }
                 }
               },
             ),

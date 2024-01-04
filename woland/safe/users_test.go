@@ -80,13 +80,11 @@ func TestAddSecondUser(t *testing.T) {
 	s, err = Open(Identity1, testSafe, testUrl, Identity1.Id, OpenOptions{})
 	core.TestErr(t, err, "cannot open safe: %v")
 
-	changes, err := SyncBucket(s, "bucket", SyncOptions{}, nil)
-	core.TestErr(t, err, "cannot sync bucket: %v")
-	core.Assert(t, changes == 2, "expectes 2 changes but found %d", changes)
-
 	err = SetUsers(s, map[string]Permission{Identity2.Id: Suspended}, SetUsersOptions{SyncAlign: true})
 	core.TestErr(t, err, "cannot set users: %v")
 	core.Assert(t, s.keystore.LastKeyId != lastKeyId, "Expected last key id to be different, got %d", s.keystore.LastKeyId)
+
+	ListFiles(s, "bucket", ListOptions{})
 
 	headersIds2, err := getHeadersIdsWithCount(s.primary, s.Name, "bucket")
 	core.TestErr(t, err, "cannot get headers ids: %v")

@@ -341,7 +341,10 @@ func writeToStore(s *Safe, store storage.Store, bucket string, r io.ReadSeeker, 
 		header.Downloads = map[string]time.Time{header.SourceFile: core.Now()}
 	}
 
-	writeHeader(s, bucket, header, headerId)
+	_, err = writeHeader(s, bucket, header, headerId)
+	if core.IsErr(err, nil, "cannot write header: %v", err) {
+		return Header{}, err
+	}
 
 	err = updateHeaderInDB(s.Name, bucket, header.FileId, func(h Header) Header {
 		h.Uploading = false
@@ -382,9 +385,6 @@ func writeHeader(s *Safe, bucket string, header Header, headerId uint64) (Header
 		}
 		header.BodyKey = bodyKey
 		core.Info("Using diffie hellman key for %s", header.Name)
-	} else {
-		header.BodyKey = core.GenerateRandomBytes(KeySize)
-		core.Info("Using random key for %s", header.Name)
 	}
 
 	var header2 = header

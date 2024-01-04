@@ -26,14 +26,14 @@ type GetOptions struct {
 	NoCache     bool           `json:"noCache"`     // Do not cache the file
 	CacheExpire time.Duration  `json:"cacheExpire"` // Cache expiration time
 	Range       *storage.Range `json:"range"`       // Range of bytes to read
-	Sync        bool           `json:"sync"`        // Sync the headers before reading the file
+	NoSync      bool           `json:"noSync"`      // Do not sync the headers before getting the file
 }
 
 // Get reads a file from a bucket. The destination can be a filename (string) or an io.Writer. If the destination is nil, the file is not written but the header is returned.
 func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, error) {
 	core.Info("Getting %s/%s", bucket, name)
 
-	if options.Sync {
+	if !options.NoSync {
 		_, err := SyncBucket(s, bucket, SyncOptions{}, nil)
 		if core.IsErr(err, nil, "cannot sync headers: %v", err) {
 			return Header{}, err

@@ -1,6 +1,7 @@
 package safe
 
 import (
+	"os"
 	"path"
 	"time"
 
@@ -18,6 +19,9 @@ type Initiate struct {
 func GetInitiates(s *Safe) ([]Initiate, error) {
 	store := s.primary
 	ls, err := store.ReadDir(path.Join(s.Name, InitiateFolder), storage.Filter{})
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
 	if core.IsErr(err, nil, "cannot read initiates in %s: %v", s.Name) {
 		return nil, err
 	}

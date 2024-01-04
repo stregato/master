@@ -49,7 +49,14 @@ func synchorizeFiles(currentUser security.Identity, store storage.Store, safeNam
 	}
 
 	ls, err := store.ReadDir(path.Join(safeName, DataFolder, hashedBucket, HeaderFolder), storage.Filter{})
-	if os.IsNotExist(err) || core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedBucket, err) {
+	if os.IsNotExist(err) {
+		err = SetCached(safeName, store, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, "")
+		if core.IsErr(err, nil, "cannot check touch file: %v", err) {
+			return 0, err
+		}
+		return 0, nil
+	}
+	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, hashedBucket, err) {
 		return 0, err
 	}
 

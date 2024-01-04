@@ -18,7 +18,7 @@ class ContentTaskList extends StatefulWidget {
   State<ContentTaskList> createState() => _ContentTaskListState();
 }
 
-const itemsPerRead = 3;
+const itemsPerRead = 30;
 
 class _ContentTaskListState extends State<ContentTaskList> {
   int _offset = 0;
@@ -27,7 +27,6 @@ class _ContentTaskListState extends State<ContentTaskList> {
   late String _room;
   List<String> _users = [];
   String _dir = "";
-  final Map<int, Widget> _cache = {};
   final ScrollController _scrollController = ScrollController();
   final int _pending = 0;
   double _pos = 0.0;
@@ -79,7 +78,7 @@ class _ContentTaskListState extends State<ContentTaskList> {
     }
     headers.sort((a, b) => b.modTime.compareTo(a.modTime));
     for (var h in headers) {
-      var found = _headers.where((h2) => h2.fileId == h.fileId);
+      var found = _headers.where((h2) => h2.name == h.name);
       if (found.isNotEmpty) {
         continue;
       }
@@ -177,11 +176,18 @@ class _ContentTaskListState extends State<ContentTaskList> {
           trailing: IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () async {
-              await Navigator.pushNamed(context, "/content/task", arguments: {
-                "name": basenameWithoutExtension(h.name),
-                "task": task,
-                "users": _users,
-              });
+              var modified = await Navigator.pushNamed(context, "/content/task",
+                  arguments: {
+                    "name": basenameWithoutExtension(h.name),
+                    "task": task,
+                    "users": _users,
+                  });
+
+              if (modified is Task) {
+                File(localpath).writeAsStringSync(jsonEncode(modified));
+                await _safe.putFile(
+                    "rooms/$_room/content", h.name, localpath, PutOptions());
+              }
               _read();
             },
           ),
