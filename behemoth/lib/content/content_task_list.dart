@@ -9,6 +9,7 @@ import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 
 class ContentTaskList extends StatefulWidget {
@@ -100,7 +101,7 @@ class _ContentTaskListState extends State<ContentTaskList> {
   Future<void> _newTask(BuildContext context) async {
     var textController = TextEditingController();
 
-    return showPlatformDialog(
+    var action = await showPlatformDialog<String>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -118,22 +119,8 @@ class _ContentTaskListState extends State<ContentTaskList> {
             TextButton(
               child: const Text('Create'),
               onPressed: () async {
-                var name = "${textController.text}.task";
-                var content = await Navigator.pushNamed(
-                    context, "/content/task",
-                    arguments: {
-                      'name': textController.text,
-                      'task': Task(issuer: _safe.currentUser.id),
-                      'users': _users,
-                    });
-                if (content != null && content is Task) {
-                  var d = join(documentsFolder, _safe.name, _room, _dir, name);
-                  File(d).writeAsStringSync(jsonEncode(content));
-                  await _safe.putFile("rooms/$_room/content", join(_dir, name),
-                      d, PutOptions());
-                }
                 if (mounted) {
-                  Navigator.pop(context);
+                  Navigator.of(context).pop('create');
                 }
               },
             ),
@@ -141,6 +128,84 @@ class _ContentTaskListState extends State<ContentTaskList> {
         );
       },
     );
+    if (action == 'create' && mounted) {
+      var name = "${textController.text}.task";
+      var content =
+          await Navigator.pushNamed(context, "/content/task", arguments: {
+        'name': textController.text,
+        'task': Task(issuer: _safe.currentUser.id),
+        'users': _users,
+      });
+      if (content != null && content is Task) {
+        var d = join(documentsFolder, _safe.name, _room, _dir, name);
+        File(d).writeAsStringSync(jsonEncode(content));
+        var h = await _safe.putFile(
+            "rooms/$_room/content", join(_dir, name), d, PutOptions());
+        setState(() {
+          _headers.insert(0, h);
+        });
+      }
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Widget _getTaskWidget(BuildContext context, Header h) {
+    var title = basenameWithoutExtension(h.name);
+    var localpath =
+        join(documentsFolder, _safe.name, _room, _dir, basename(h.name));
+    try {
+      var data = File(localpath).readAsStringSync();
+      var task = Task.fromJson(jsonDecode(data));
+      var assignedTo = getCachedIdentity(task.assigned);
+      var dueDate = Text(DateFormat.MEd().format(task.dueDate),
+          style: TextStyle(
+              color:
+                  (task.dueDate.isAfter(DateTime.now()) && task.state != "done")
+                      ? Colors.red
+                      : Colors.white));
+      var trailing = Column(
+        children: [dueDate, Text(task.priority)],
+      );
+      return ListTile(
+        title: Text(title),
+        subtitle: Text("${assignedTo.nick} - ${task.state}"),
+        leading: assignedTo.avatar.isNotEmpty
+            ? CircleAvatar(
+                backgroundImage: MemoryImage(assignedTo.avatar),
+              )
+            : null,
+        trailing: trailing,
+        onTap: () async {
+          var modified =
+              await Navigator.pushNamed(context, "/content/task", arguments: {
+            "name": basenameWithoutExtension(h.name),
+            "task": task,
+            "users": _users,
+          });
+
+          if (modified is Task) {
+            File(localpath).writeAsStringSync(jsonEncode(modified));
+            await _safe.putFile(
+                "rooms/$_room/content", h.name, localpath, PutOptions());
+          }
+          _read();
+        },
+      );
+    } catch (e) {
+      return ListTile(
+          title: Text(title),
+          subtitle: const Text("Corrupted: click on the bin to delete"),
+          trailing: IconButton(
+              onPressed: () {
+                File(localpath).deleteSync();
+                h.deleted = true;
+                _safe.patch("rooms/$_room/content", h, PatchOptions());
+              },
+              icon: const Icon(Icons.delete)));
+    }
   }
 
   ListView _getListView() {
@@ -159,44 +224,11 @@ class _ContentTaskListState extends State<ContentTaskList> {
         }
 
         var h = _headers[index];
-        var localpath =
-            join(documentsFolder, _safe.name, _room, _dir, basename(h.name));
-        var data = File(localpath).readAsStringSync();
-        var task = Task.fromJson(jsonDecode(data));
-        var title = basenameWithoutExtension(h.name);
-        var assignedTo = getCachedIdentity(task.assigned);
-        var w = ListTile(
-          title: Text(title),
-          subtitle: Text("${assignedTo.nick} - ${task.state}"),
-          leading: assignedTo.avatar.isNotEmpty
-              ? CircleAvatar(
-                  backgroundImage: MemoryImage(assignedTo.avatar),
-                )
-              : null,
-          trailing: IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              var modified = await Navigator.pushNamed(context, "/content/task",
-                  arguments: {
-                    "name": basenameWithoutExtension(h.name),
-                    "task": task,
-                    "users": _users,
-                  });
-
-              if (modified is Task) {
-                File(localpath).writeAsStringSync(jsonEncode(modified));
-                await _safe.putFile(
-                    "rooms/$_room/content", h.name, localpath, PutOptions());
-              }
-              _read();
-            },
-          ),
-        );
 
         return Card(
           elevation: 3.0,
           margin: const EdgeInsets.all(8.0),
-          child: w,
+          child: _getTaskWidget(context, h),
         );
       },
     );
@@ -238,7 +270,15 @@ class _ContentTaskListState extends State<ContentTaskList> {
               children: [
                 const Spacer(),
                 PlatformIconButton(
-                    onPressed: _read, icon: const Icon(Icons.refresh)),
+                    onPressed: () {
+                      setState(() {
+                        _offset = 0;
+                        _headers.clear();
+                        _noMore = false;
+                        _read();
+                      });
+                    },
+                    icon: const Icon(Icons.refresh)),
                 const SizedBox(width: 10),
                 PlatformIconButton(
                   icon: const Icon(Icons.add),

@@ -16,6 +16,7 @@ class _ContentTaskState extends State<ContentTask> {
   late List<String> _users;
   final _priorities = ['low', 'medium', 'high'];
   String _newComment = '';
+  bool _isDirty = false;
 
   Widget _getBody(BuildContext context) {
     return Padding(
@@ -35,6 +36,7 @@ class _ContentTaskState extends State<ContentTask> {
               initialValue: _task.description,
               onChanged: (value) {
                 setState(() {
+                  _isDirty = true;
                   _task.description = value;
                 });
               },
@@ -51,6 +53,7 @@ class _ContentTaskState extends State<ContentTask> {
               ],
               onChanged: (String? newValue) {
                 setState(() {
+                  _isDirty = true;
                   _task.assigned = newValue!;
                 });
               },
@@ -64,7 +67,10 @@ class _ContentTaskState extends State<ContentTask> {
               alignment: MainAxisAlignment.start,
               children: <String>['todo', 'ongoing', 'done'].map((String state) {
                 return ElevatedButton(
-                  onPressed: () => setState(() => _task.state = state),
+                  onPressed: () => setState(() {
+                    _task.state = state;
+                    _isDirty = true;
+                  }),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         _task.state == state ? Colors.blue : Colors.grey,
@@ -84,6 +90,7 @@ class _ContentTaskState extends State<ContentTask> {
                   label: _task.complexity.round().toString(),
                   onChanged: (double value) {
                     setState(() {
+                      _isDirty = true;
                       _task.complexity = value.round();
                     });
                   },
@@ -99,6 +106,7 @@ class _ContentTaskState extends State<ContentTask> {
               onChanged: (String? newValue) {
                 setState(() {
                   _task.priority = newValue!;
+                  _isDirty = true;
                 });
               },
             ),
@@ -115,6 +123,7 @@ class _ContentTaskState extends State<ContentTask> {
                 if (pickedDate != null && pickedDate != _task.dueDate) {
                   setState(() {
                     _task.dueDate = pickedDate;
+                    _isDirty = true;
                   });
                 }
               },
@@ -137,6 +146,7 @@ class _ContentTaskState extends State<ContentTask> {
                       setState(() {
                         _task.comments.add(_newComment);
                         _newComment = '';
+                        _isDirty = true;
                       });
                     }
                   }
@@ -169,6 +179,11 @@ class _ContentTaskState extends State<ContentTask> {
         canPop: false,
         onPopInvoked: (didPop) async {
           if (didPop) {
+            return;
+          }
+
+          if (!_isDirty) {
+            Navigator.of(context).pop();
             return;
           }
 
