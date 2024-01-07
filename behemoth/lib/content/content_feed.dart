@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:behemoth/common/checkbox2.dart';
+import 'package:behemoth/common/common.dart';
 import 'package:behemoth/common/image.dart';
 import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/rate_me.dart';
+import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:behemoth/woland/types.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,6 +17,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ContentFeed extends StatefulWidget {
   const ContentFeed({super.key});
@@ -260,6 +264,26 @@ class _ContentFeedState extends State<ContentFeed> {
     );
   }
 
+  void _share(BuildContext context) async {
+    var headers = _checked.toList();
+    var files = headers
+        .map((h) => XFile(
+            join(documentsFolder, _safe.name, _room, _dir, basename(h.name))))
+        .toList();
+    if (isDesktop) {
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      for (var f in files) {
+        f.saveTo(join(selectedDirectory!, basename(f.path)));
+      }
+      if (mounted) {
+        showPlatformSnackbar(
+            context, "${files.length} files saved to $selectedDirectory");
+      }
+    } else {
+      Share.shareXFiles(files);
+    }
+  }
+
   void _writeFeedback(String name, String symbol) {
     var bucket = "rooms/$_room/content";
     var headers = _safe.listFiles(bucket, ListOptions(name: name));
@@ -316,12 +340,45 @@ class _ContentFeedState extends State<ContentFeed> {
     }
   }
 
-  void _check(Header h) {
-    if (_checked.contains(h)) {
-      _checked.remove(h);
-    } else {
-      _checked.add(h);
+  void _delete(BuildContext context) async {
+    final result = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Files?'),
+        content: Text('Do you want to delete ${_checked.length} files'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('cancel'),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('delete'),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (result == 'delete') {
+      Future.delayed(Duration.zero, () {
+        for (var h in _checked.toList()) {
+          h.deleted = true;
+          _safe.patch("rooms/$_room/content", h, PatchOptions());
+          _headers.remove(h);
+          _checked.remove(h);
+        }
+        setState(() {});
+      });
     }
+  }
+
+  void _check(Header h) {
+    setState(() {
+      if (_checked.contains(h)) {
+        _checked.remove(h);
+      } else {
+        _checked.add(h);
+      }
+    });
   }
 
   ListView _getListView() {
@@ -350,6 +407,7 @@ class _ContentFeedState extends State<ContentFeed> {
         var comments = extra['💬'] ?? [];
 
         return Card(
+          key: ValueKey(_checked.contains(h)),
           elevation: 3.0,
           margin: const EdgeInsets.all(8.0),
           child: Column(
@@ -442,6 +500,28 @@ class _ContentFeedState extends State<ContentFeed> {
               Row(
                 children: [
                   const Spacer(),
+                  PlatformIconButton(
+                      onPressed: _checked.isNotEmpty
+                          ? () {
+                              setState(() {
+                                _checked.clear();
+                              });
+                            }
+                          : null,
+                      icon: const Icon(Icons.clear_all)),
+                  PlatformIconButton(
+                      onPressed: _checked.isNotEmpty
+                          ? () {
+                              _share(context);
+                            }
+                          : null,
+                      icon: isDesktop
+                          ? const Icon(Icons.download)
+                          : const Icon(Icons.share)),
+                  PlatformIconButton(
+                      onPressed:
+                          _checked.isNotEmpty ? () => _delete(context) : null,
+                      icon: const Icon(Icons.delete)),
                   PlatformIconButton(
                       onPressed: _read, icon: const Icon(Icons.refresh)),
                   const SizedBox(width: 10),

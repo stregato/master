@@ -52,7 +52,7 @@ class _ContentStateAdd extends State<ContentAdd> {
             onTap: () async {
               var selection = await fa.getFile(context);
               if (selection.valid && mounted) {
-                await Navigator.pushNamed(context, "/content/upload",
+                var h = await Navigator.pushNamed(context, "/content/upload",
                     arguments: {
                       'safe': _safe,
                       'selection': selection,
@@ -60,7 +60,7 @@ class _ContentStateAdd extends State<ContentAdd> {
                       'room': _room,
                     });
                 if (mounted) {
-                  Navigator.pop(context);
+                  Navigator.pop(context, h);
                 }
               }
             },
@@ -85,14 +85,15 @@ class _ContentStateAdd extends State<ContentAdd> {
                   'tabs': ['edit', 'preview'],
                 },
               );
+              Header? h;
               if (content != null && content is String) {
                 var name = ".${Snowflake(nodeId: 0).generate()}.snippet";
                 var data = utf8.encode(content);
-                _safe.putBytes(
+                h = await _safe.putBytes(
                     "rooms/$_room/content", name, data, PutOptions());
               }
               if (mounted) {
-                Navigator.pop(context);
+                Navigator.pop(context, h);
               }
             },
           ),
@@ -110,9 +111,10 @@ class _ContentStateAdd extends State<ContentAdd> {
             title: "Task List",
             icon: const Icon(Icons.task_alt),
             onTap: () async {
-              await _newFolderDialog(context, "New Task List", ".tasks");
+              var name =
+                  await _newFolderDialog(context, "New Task List", ".tasks");
               if (mounted) {
-                Navigator.pop(context);
+                Navigator.pop(context, name);
               }
             },
           ),
@@ -121,11 +123,11 @@ class _ContentStateAdd extends State<ContentAdd> {
     );
   }
 
-  Future<void> _newFolderDialog(
+  Future<String?> _newFolderDialog(
       BuildContext context, String msg, String suffix) async {
     var textController = TextEditingController();
 
-    return showPlatformDialog(
+    return showPlatformDialog<String>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -143,10 +145,11 @@ class _ContentStateAdd extends State<ContentAdd> {
             TextButton(
               child: const Text('Create'),
               onPressed: () {
-                var d = path.join(documentsFolder, _safe.name, _room, _folder,
-                    "${textController.text}$suffix");
+                var name = "${textController.text}$suffix";
+                var d = path.join(
+                    documentsFolder, _safe.name, _room, _folder, name);
                 Directory(d).createSync(recursive: true);
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop(name); // Close the dialog
               },
             ),
           ],

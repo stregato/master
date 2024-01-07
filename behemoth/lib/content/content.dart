@@ -290,11 +290,19 @@ class _ContentState extends State<Content> {
         PlatformIconButton(
           icon: const Icon(Icons.add),
           onPressed: () async {
-            await Navigator.pushNamed(context, "/content/add", arguments: {
+            var h =
+                await Navigator.pushNamed(context, "/content/add", arguments: {
               'safe': _safe,
               'room': _room,
               'folder': _dir,
             });
+            if (h is Header) {
+              _files[h.name] = [h];
+            } else if (h is String) {
+              _dirs.add(h);
+            }
+            _read();
+
             Future.delayed(Duration.zero, _read);
           },
         ),

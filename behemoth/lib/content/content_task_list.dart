@@ -135,6 +135,7 @@ class _ContentTaskListState extends State<ContentTaskList> {
         'name': textController.text,
         'task': Task(issuer: _safe.currentUser.id),
         'users': _users,
+        'create': true,
       });
       if (content != null && content is Task) {
         var d = join(documentsFolder, _safe.name, _room, _dir, name);
@@ -145,10 +146,6 @@ class _ContentTaskListState extends State<ContentTaskList> {
           _headers.insert(0, h);
         });
       }
-    }
-
-    if (mounted) {
-      Navigator.pop(context);
     }
   }
 

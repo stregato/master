@@ -53,13 +53,14 @@ class _ContentUploadState extends State<ContentUpload> {
             File(_selection.path).copySync(localPath);
             options.source = localPath;
           }
-          _uploadFile(join(_folder, _targetName), _selection, options);
+          var h = await _uploadFile(
+              join(_folder, _targetName), _selection, options);
           if (!mounted) return;
 
           showPlatformSnackbar(
               context, "File $_targetName is uploading in background",
               backgroundColor: Colors.green);
-          Navigator.pop(context);
+          Navigator.pop(context, h);
         } catch (e) {
           showPlatformSnackbar(context, "Cannot upload $_targetName: $e",
               backgroundColor: Colors.green);

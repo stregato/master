@@ -165,6 +165,7 @@ class _ContentTaskState extends State<ContentTask> {
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     var title = args['name'] as String;
+    _isDirty = args['create'] as bool;
     if (_task.issuer.isEmpty) {
       _task = args['task'] as Task;
       _users = args['users'] as List<String>;
