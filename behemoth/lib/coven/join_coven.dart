@@ -9,12 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
-class Join extends StatefulWidget {
+class JoinCoven extends StatefulWidget {
   final void Function()? onComplete;
-  const Join({this.onComplete, super.key});
+  const JoinCoven({this.onComplete, super.key});
 
   @override
-  State<Join> createState() => _JoinState();
+  State<JoinCoven> createState() => _JoinCovenState();
 
   static List<String>? parseInvite(String link) {
     var url = Uri.tryParse(link);
@@ -36,7 +36,7 @@ class Join extends StatefulWidget {
   }
 }
 
-class _JoinState extends State<Join> {
+class _JoinCovenState extends State<JoinCoven> {
   String? _errorText;
   String _name = "";
   String _creatorId = "";
@@ -45,7 +45,7 @@ class _JoinState extends State<Join> {
   final TextEditingController _secretController = TextEditingController();
   final TextEditingController _linkController = TextEditingController();
 
-  _JoinState() {
+  _JoinCovenState() {
     var initialSecret = Random().nextInt(1000).toString().padLeft(4, '0');
     _secretController.text = initialSecret;
 
@@ -56,7 +56,7 @@ class _JoinState extends State<Join> {
 
   void parseLink(String link) {
     _url = "";
-    var parts = Join.parseInvite(link);
+    var parts = JoinCoven.parseInvite(link);
     if (parts == null) {
       setState(() {
         _errorText = "invalid access link";

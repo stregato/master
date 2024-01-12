@@ -173,7 +173,12 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		s.uploadFile <- UploadTask{Bucket: bucket, Header: header, HeaderFile: headerId}
 		return header, nil
 	} else {
-		return writeToStore(s, s.primary, bucket, r, headerId, header, onComplete)
+		header, err = writeToStore(s, s.primary, bucket, r, headerId, header, onComplete)
+		if core.IsErr(err, nil, "cannot put %s into store %s: %v", name, s.Name) {
+			return header, err
+		}
+		core.Info("put %s into store %s", name, s.Name)
+		return header, err
 	}
 }
 

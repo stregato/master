@@ -32,6 +32,7 @@ class _ContentTaskListState extends State<ContentTaskList> {
   final int _pending = 0;
   double _pos = 0.0;
   bool _noMore = false;
+  final List<Header> _downloads = [];
 
   @override
   void initState() {
@@ -88,8 +89,7 @@ class _ContentTaskListState extends State<ContentTaskList> {
             join(documentsFolder, _safe.name, _room, _dir, basename(h.name));
         var localfile = File(localpath);
         if (!localfile.existsSync()) {
-          await _safe.getFile(
-              "rooms/$_room/content", h.name, localpath, GetOptions());
+          _downloads.add(h);
         }
         _headers.add(h);
       } catch (e) {
@@ -221,6 +221,23 @@ class _ContentTaskListState extends State<ContentTaskList> {
         }
 
         var h = _headers[index];
+        var localpath =
+            join(documentsFolder, _safe.name, _room, _dir, basename(h.name));
+        var stat = File(localpath).statSync();
+        if (stat.type == FileSystemEntityType.notFound || stat.size != h.size) {
+          return Card(
+              elevation: 3.0,
+              margin: const EdgeInsets.all(8.0),
+              child: ListTile(
+                title: Row(
+                  children: [
+                    Text(basenameWithoutExtension(h.name)),
+                    const Spacer(),
+                    const CircularProgressIndicator(),
+                  ],
+                ),
+              ));
+        }
 
         return Card(
           elevation: 3.0,
@@ -248,6 +265,18 @@ class _ContentTaskListState extends State<ContentTaskList> {
       _users = _safe.getUsersSync().keys.toList();
       setState(() {
         _read();
+      });
+    }
+
+    if (_downloads.isNotEmpty) {
+      Future.delayed(Duration.zero, () async {
+        for (var h in _downloads) {
+          var localpath =
+              join(documentsFolder, _safe.name, _room, _dir, basename(h.name));
+          await _safe.getFile(
+              "rooms/$_room/content", h.name, localpath, GetOptions());
+          setState(() {});
+        }
       });
     }
 

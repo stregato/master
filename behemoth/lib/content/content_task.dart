@@ -110,23 +110,34 @@ class _ContentTaskState extends State<ContentTask> {
                 });
               },
             ),
-            ListTile(
-              title: Text("Due Date: ${_task.dueDate.toLocal()}".split(' ')[0]),
-              trailing: const Icon(Icons.calendar_today),
-              onTap: () async {
-                DateTime? pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: _task.dueDate,
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime(2101),
-                );
-                if (pickedDate != null && pickedDate != _task.dueDate) {
-                  setState(() {
-                    _task.dueDate = pickedDate;
-                    _isDirty = true;
-                  });
-                }
-              },
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    decoration: const InputDecoration(labelText: 'Due Date'),
+                    initialValue:
+                        _task.dueDate.toLocal().toString().split(' ')[0],
+                    readOnly: true,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    DateTime? pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: _task.dueDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2101),
+                    );
+                    if (pickedDate != null && pickedDate != _task.dueDate) {
+                      setState(() {
+                        _task.dueDate = pickedDate;
+                        _isDirty = true;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_today),
+                ),
+              ],
             ),
             ..._task.comments.map((comment) => ListTile(title: Text(comment))),
             Row(children: [
@@ -165,7 +176,7 @@ class _ContentTaskState extends State<ContentTask> {
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     var title = args['name'] as String;
-    _isDirty = args['create'] as bool;
+    _isDirty = args['create'] ?? false;
     if (_task.issuer.isEmpty) {
       _task = args['task'] as Task;
       _users = args['users'] as List<String>;

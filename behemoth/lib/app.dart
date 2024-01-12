@@ -15,7 +15,7 @@ import 'package:behemoth/coven/unilink.dart';
 import 'package:behemoth/common/io.dart';
 
 import 'package:behemoth/common/profile.dart';
-import 'package:behemoth/coven/join.dart';
+import 'package:behemoth/coven/join_coven.dart';
 import 'package:behemoth/coven/create_coven.dart';
 import 'package:behemoth/coven/home.dart';
 import 'package:behemoth/content/content_actions.dart';
@@ -138,7 +138,7 @@ class _BehemothAppState extends State<BehemothApp> {
             "/unilink/accept": (context) => const UnilinkAccept(),
             //"/": (context) => const AddCommunity(),
             "/create": (context) => const CreateCoven(),
-            "/join": (context) => const Join(),
+            "/join": (context) => const JoinCoven(),
             "/settings": (context) => const Settings(),
             "/settings/update_key": (context) => const UpdatePrivateKey(),
             "/settings/import_profile": (context) => const ImportProfile(),

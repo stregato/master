@@ -1,5 +1,5 @@
 import 'package:behemoth/common/progress.dart';
-import 'package:behemoth/coven/join.dart';
+import 'package:behemoth/coven/join_coven.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
@@ -20,7 +20,7 @@ class _UnilinkAcceptState extends State<UnilinkAccept> {
     String title;
     Widget body;
 
-    var parts = Join.parseInvite(link);
+    var parts = JoinCoven.parseInvite(link);
     if (parts == null) {
       title = "Invalid access link";
       body =

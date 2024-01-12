@@ -322,7 +322,6 @@ class _SettingsState extends State<Settings> {
             ],
           ),
         ),
-        // bottomNavigationBar: const NewsNavigationBar(null),
       ),
     );
   }

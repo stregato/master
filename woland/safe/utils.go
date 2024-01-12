@@ -1,11 +1,10 @@
 package safe
 
 import (
-	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"path"
 	"regexp"
-	"strings"
 
 	"golang.org/x/crypto/blake2b"
 )
@@ -34,7 +33,7 @@ func getDir(name string) string {
 
 func hashPath(dir string) string {
 	h := blake2b.Sum256([]byte(dir))
-	return strings.ReplaceAll(base64.StdEncoding.EncodeToString(h[:]), "/", "_")
+	return hex.EncodeToString(h[:])
 }
 
 func isAlphanumeric(s string) bool {

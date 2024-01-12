@@ -5,7 +5,7 @@ import 'package:behemoth/common/io.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/snackbar.dart';
 import 'package:behemoth/coven/create_coven.dart';
-import 'package:behemoth/coven/join.dart';
+import 'package:behemoth/coven/join_coven.dart';
 import 'package:behemoth/settings/reset.dart';
 import 'package:behemoth/settings/setup.dart';
 import 'package:behemoth/woland/woland.dart';
@@ -29,8 +29,6 @@ class _HomeState extends State<Home> {
   bool _connecting = false;
   bool _hasProfile = false;
   int _selectedIndex = 0;
-
-  // ignore: unused_field
 
   @override
   void initState() {
@@ -177,7 +175,6 @@ class _HomeState extends State<Home> {
 
   Widget getMyCovens() {
     var profile = Profile.current;
-//    var widgets = getNotificationsWidgets();
     var widgets = <Card>[];
     widgets.addAll(profile.covens.values.map(
       (coven) {
@@ -190,7 +187,6 @@ class _HomeState extends State<Home> {
                     ? const CircularProgressIndicator()
                     : const Icon(Icons.lock),
             onTap: () async {
-//              NewsIcon.onChange = null;
               Navigator.of(context).popUntil((route) => route.isFirst);
               await Navigator.pushNamed(context, "/coven/room", arguments: {
                 "coven": coven,
@@ -202,7 +198,6 @@ class _HomeState extends State<Home> {
                 }
               });
             },
-//
           ),
         );
       },
@@ -251,7 +246,7 @@ class _HomeState extends State<Home> {
       case 0:
         body = getMyCovens();
       case 1:
-        body = Join(onComplete: _backToList);
+        body = JoinCoven(onComplete: _backToList);
       case 2:
         body = CreateCoven(onComplete: _backToList);
       default:
@@ -263,23 +258,24 @@ class _HomeState extends State<Home> {
     return PlatformScaffold(
       appBar: PlatformAppBar(
         title: // Your content here
-            Row(children: [
-          const SizedBox(width: 8), // Add some spacing between icon and text
-          Text(
-            "Hi ${profile.identity.nick}",
-            overflow: TextOverflow.ellipsis,
-          ),
-        ]),
-        // trailingActions: [
-        // PlatformIconButton(
-        //     onPressed: () async {
-        //       NewsIcon.onChange = null;
-        //       Navigator.of(context).popUntil((route) => route.isFirst);
-        //       await Navigator.pushNamed(context, "/settings");
-        //       setState(() {});
-        //     },
-        //     icon: const Icon(Icons.settings)),
-        // ],
+            Row(
+          children: [
+            const SizedBox(width: 8), // Add some spacing between icon and text
+            Text(
+              "Hi ${profile.identity.nick}",
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        trailingActions: [
+          PlatformIconButton(
+              onPressed: () async {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+                await Navigator.pushNamed(context, "/settings");
+                setState(() {});
+              },
+              icon: const Icon(Icons.settings)),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -299,7 +295,7 @@ class _HomeState extends State<Home> {
             label: 'My Covens',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add),
+            icon: Icon(Icons.join_full),
             label: 'Join',
           ),
           BottomNavigationBarItem(

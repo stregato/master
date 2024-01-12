@@ -56,9 +56,12 @@ func Create(currentUser security.Identity, name string, storeConfig StoreConfig,
 	if options.Wipe {
 		core.Info("wiping safe: name %s", name)
 		origin.Delete(name)
-		resetSafeInDB(name)
 	} else {
 		return nil, fmt.Errorf("safe already exist: name %s", name)
+	}
+	err = resetSafeInDB(name)
+	if core.IsErr(err, nil, "cannot reset safe information in db: %v") {
+		return nil, err
 	}
 
 	if options.ChangeLogWatch == 0 {
@@ -163,7 +166,7 @@ func validName(name string) (string, error) {
 }
 
 func resetSafeInDB(name string) error {
-	_, err := sql.Exec("DEL_STORES", sql.Args{"name": name})
+	_, err := sql.Exec("DELETE_STORES", sql.Args{"name": name})
 	if core.IsErr(err, nil, "cannot delete stores of safe %s from DB: %v", name) {
 		return err
 	}
@@ -183,5 +186,6 @@ func resetSafeInDB(name string) error {
 		return err
 	}
 
+	core.Info("successfully reset DB info for safe %s", name)
 	return nil
 }

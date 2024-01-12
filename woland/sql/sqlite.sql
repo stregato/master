@@ -56,7 +56,7 @@ INSERT INTO Stores(safe,url,store) VALUES(:safe,:url,:store)
 ON CONFLICT(safe,url) DO UPDATE SET store=:store
 WHERE safe=:safe AND url=:url
 
---- DEL_STORES
+--- DELETE_STORES
 DELETE FROM Stores WHERE safe=:safe
 
 -- INIT

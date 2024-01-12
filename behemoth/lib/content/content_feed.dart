@@ -51,7 +51,8 @@ class _ContentFeedState extends State<ContentFeed> {
   final Set<Header> _checked = {};
   final List<Player> _players = [];
   final ScrollController _scrollController = ScrollController();
-  int _pending = 0;
+  int _pendingUploads = 0;
+  final List<Header> _pendingDownloads = [];
   double _pos = 0.0;
   bool _noMore = false;
 
@@ -168,11 +169,13 @@ class _ContentFeedState extends State<ContentFeed> {
         var localpath =
             join(documentsFolder, _safe.name, _room, _dir, basename(h.name));
         var localfile = File(localpath);
-        if (!localfile.existsSync()) {
-          await _safe.getFile(
-              "rooms/$_room/content", h.name, localpath, GetOptions());
-        }
         _headers.add(h);
+        var stat = localfile.statSync();
+        if (stat.type == FileSystemEntityType.notFound || stat.size != h.size) {
+          _pendingDownloads.add(h);
+        } else {
+          _cache.putIfAbsent(h.fileId, () => _getWidget(h));
+        }
       } catch (e) {
         continue;
       }
@@ -192,6 +195,9 @@ class _ContentFeedState extends State<ContentFeed> {
         return;
     }
 
+    setState(() {
+      _pendingUploads += xfiles.length;
+    });
     for (var xfile in xfiles) {
       var name = "$_dir/${basename(xfile.name)}";
       var localpath =
@@ -201,14 +207,13 @@ class _ContentFeedState extends State<ContentFeed> {
           tags: ['media'],
           contentType: lookupMimeType(xfile.path) ?? '',
           source: localpath);
-      _safe.putFile("rooms/$_room/content", name, localpath, options).then((h) {
-        setState(() {
-          _pending--;
-          _headers = [h, ..._headers];
-        });
-      });
+      var h =
+          await _safe.putFile("rooms/$_room/content", name, localpath, options);
+      var w = _getWidget(h);
       setState(() {
-        _pending++;
+        _cache.putIfAbsent(h.fileId, () => w);
+        _pendingUploads--;
+        _headers = [h, ..._headers];
       });
     }
   }
@@ -397,7 +402,18 @@ class _ContentFeedState extends State<ContentFeed> {
         }
 
         var h = _headers[index];
-        var w = _cache.putIfAbsent(h.fileId, () => _getWidget(h));
+        var w = _cache[h.fileId];
+        if (w == null) {
+          return Card(
+            elevation: 3.0,
+            margin: const EdgeInsets.all(8.0),
+            child: Row(children: [
+              Text("Loading ${basename(h.name)}"),
+              const Spacer(),
+              const CircularProgressIndicator()
+            ]),
+          );
+        }
 
         var extra = h.attributes.meta;
         var hearts = extra['❤️'] ?? [];
@@ -467,6 +483,22 @@ class _ContentFeedState extends State<ContentFeed> {
         _scrollController.jumpTo(_pos);
       }
     });
+    if (_pendingDownloads.isNotEmpty) {
+      Future.delayed(Duration.zero, () async {
+        for (var h in _pendingDownloads) {
+          await _safe.getFile(
+              "rooms/$_room/content",
+              h.name,
+              join(documentsFolder, _safe.name, _room, _dir, basename(h.name)),
+              GetOptions());
+          var w = _getWidget(h);
+          _cache.putIfAbsent(h.fileId, () => w);
+          setState(() {});
+        }
+        _pendingDownloads.clear();
+      });
+    }
+
     return listView;
   }
 
@@ -531,11 +563,11 @@ class _ContentFeedState extends State<ContentFeed> {
                   ),
                 ],
               ),
-              if (_pending > 0)
+              if (_pendingUploads > 0)
                 Container(
                   margin: const EdgeInsets.all(32),
                   child: Text(
-                    "Loading $_pending...",
+                    "Loading $_pendingUploads...",
                     style: const TextStyle(fontSize: 20),
                   ),
                 ),

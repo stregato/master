@@ -54,12 +54,14 @@ class _RoomState extends State<Room> {
     }
 
     var invite = PlatformIconButton(
-        onPressed: () async {
-          await Navigator.pushNamed(context, "/invite", arguments: {
-            "coven": _coven,
-            "room": _room,
-          });
-        },
+        onPressed: _coven.isOpen
+            ? () async {
+                await Navigator.pushNamed(context, "/invite", arguments: {
+                  "coven": _coven,
+                  "room": _room,
+                });
+              }
+            : null,
         icon: const Icon(Icons.person_add));
 
     var items = [
@@ -84,10 +86,8 @@ class _RoomState extends State<Room> {
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
-//        leading: const NewsIcon(),
         title: Text(_title, style: const TextStyle(fontSize: 18)),
         trailingActions: [
-          // const NewsIcon(),
           invite,
         ],
       ),

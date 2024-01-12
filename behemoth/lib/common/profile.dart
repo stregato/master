@@ -37,6 +37,10 @@ class Coven {
   static Map<String, Coven> opened = {};
   static Map<String, DateTime> safesAccessed = {};
 
+  bool get isOpen {
+    return _safe != null;
+  }
+
   static Future<Coven> join(
       String name, String url, String creatorId, String secret) async {
     var p = Profile.current;
