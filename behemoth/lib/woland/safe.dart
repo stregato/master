@@ -62,6 +62,8 @@ class Safe {
   String name = "";
   String description = "";
   List<StoreConfig> storeConfigs = [];
+  bool connected = false;
+  Users users = {};
 
   static Map<String, Safe> instances = {};
 
@@ -101,6 +103,12 @@ class Safe {
 
   Safe._(Identity identity) : currentUser = identity;
 
+  void update() {
+    var fun = lib.lookupFunction<Args1T<Int>, Args1T<int>>("wlnd_getSafe");
+    var json = fun(hnd).unwrapMap();
+    fromJson(json);
+  }
+
   fromJson(Map<String, dynamic> json) {
     hnd = json['hnd'];
     name = json['name'];
@@ -112,6 +120,9 @@ class Safe {
     storeConfigs = dynamicToList<Map<String, dynamic>>(json['storeConfigs'])
         .map((e) => StoreConfig.fromJson(e))
         .toList();
+    connected = json['connected'];
+    users = json['users'].map<String, Permission>(
+        (key, value) => MapEntry(key as String, value as Permission));
   }
 
   void close() {
@@ -127,13 +138,6 @@ class Safe {
     var fun = lib.lookupFunction<Args2TS<Int32>, Args2TS<int>>("wlnd_addStore");
     fun(hnd, jsonEncode(config).toNativeUtf8()).unwrapVoid();
   }
-
-  // Future<int> syncBucket(String bucket, SyncOptions options) async {
-  //   var fun =
-  //       lib.lookupFunction<Args3TSS<Int32>, Args3TSS<int>>("wlnd_syncBucket");
-  //   return fun(hnd, bucket.toNativeUtf8(), jsonEncode(options).toNativeUtf8())
-  //       .unwrapInt();
-  // }
 
   Future<int> syncUsers() async {
     var fun = lib.lookupFunction<Args1T<Int32>, Args1T<int>>("wlnd_syncUsers");

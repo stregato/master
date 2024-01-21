@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:behemoth/common/io.dart';
@@ -41,12 +42,15 @@ class _ContentState extends State<Content> {
   late Timer _timer;
   late String _room;
   late Safe _safe;
+  String _bucket = "";
+  Map<String, int> _layout = {};
 
   @override
   void initState() {
     super.initState();
     _room = widget.room;
     _safe = widget.coven.safe;
+    _bucket = "rooms/$_room/content";
     _timer = Timer.periodic(const Duration(minutes: 10), (timer) async {
       _read();
     });
@@ -54,6 +58,7 @@ class _ContentState extends State<Content> {
       _read();
     });
     _read();
+    _readLayout();
   }
 
   @override
@@ -116,12 +121,25 @@ class _ContentState extends State<Content> {
 
   Future<List<Header>> _libraryList(String dir) async {
     var options = ListOptions(dir: dir);
-    return _safe.listFiles("rooms/$_room/content", options);
+    return _safe.listFiles(_bucket, options);
   }
 
   Future<List<String>> _libraryDirs(String folder) async {
     var options = ListDirsOptions(dir: folder);
-    return _safe.listDirs("rooms/$_room/content", options);
+    return _safe.listDirs(_bucket, options);
+  }
+
+  _readLayout() async {
+    try {
+      var name = join(_dir, ".layout.json");
+      var data = await _safe.getBytes(_bucket, name, GetOptions());
+      var json = String.fromCharCodes(data);
+      var layout = jsonDecode(json);
+      _layout = Map<String, int>.from(layout);
+      setState(() {});
+    } catch (e) {
+      // ignore
+    }
   }
 
   _read() async {
@@ -129,6 +147,7 @@ class _ContentState extends State<Content> {
     var dirs = await _libraryDirs(_dir);
     var files = SplayTreeMap<String, List<Header>>();
     for (var header in headers) {
+      if (header.name == ".layout.json") continue;
       var versions = files.putIfAbsent(basename(header.name), () => []);
       versions.add(header);
     }
@@ -158,6 +177,11 @@ class _ContentState extends State<Content> {
     });
   }
 
+  _refresh() {
+    _read();
+    _readLayout();
+  }
+
   SplayTreeMap<String, List<Header>> _files =
       SplayTreeMap<String, List<Header>>();
   List<String> _dirs = [];
@@ -165,44 +189,51 @@ class _ContentState extends State<Content> {
   @override
   Widget build(BuildContext context) {
     var swaps = <int, int>{};
-    var headersMap = <int, Header?>{};
-    var items = _dirs.map<Widget>(
-      (e) {
-        var isFeed = e.endsWith(".feed");
-        var isTaskList = e.endsWith(".tasks");
-        var title = isFeed || isTaskList ? basenameWithoutExtension(e) : e;
-        var icon = isFeed
-            ? const Icon(Icons.rss_feed)
-            : isTaskList
-                ? const Icon(Icons.task_alt)
-                : const Icon(Icons.folder);
-        return Card(
-          key: ValueKey(e),
-          child: ListTile(
-              title: Text(title),
-              leading: icon,
-              onTap: () async {
-                if (isFeed) {
-                  Navigator.pushNamed(context, "/content/feed", arguments: {
-                    'safe': _safe,
-                    'room': _room,
-                    'folder': _dir.isEmpty ? e : "$_dir/$e"
-                  });
-                } else if (isTaskList) {
-                  Navigator.pushNamed(context, "/content/tasklist", arguments: {
-                    'safe': _safe,
-                    'room': _room,
-                    'folder': _dir.isEmpty ? e : "$_dir/$e"
-                  });
-                } else {
-                  _dir = _dir.isEmpty ? e : "$_dir/$e";
-                  _read();
-                }
-              }),
-        );
-      },
-    ).toList();
+    var headersMap = <int, String>{};
 
+    var items = <Widget>[];
+
+    for (var name in _dirs) {
+      var isFeed = name.endsWith(".feed");
+      var isTaskList = name.endsWith(".tasks");
+      var title = isFeed || isTaskList ? basenameWithoutExtension(name) : name;
+      var icon = isFeed
+          ? const Icon(Icons.rss_feed)
+          : isTaskList
+              ? const Icon(Icons.task_alt)
+              : const Icon(Icons.folder);
+
+      var pos = _layout[name];
+      if (pos != null) {
+        swaps[items.length] = pos;
+      }
+      headersMap[items.length] = name;
+
+      items.add(Card(
+        key: ValueKey(name),
+        child: ListTile(
+            title: Text(title),
+            leading: icon,
+            onTap: () async {
+              if (isFeed) {
+                Navigator.pushNamed(context, "/content/feed", arguments: {
+                  'safe': _safe,
+                  'room': _room,
+                  'folder': _dir.isEmpty ? name : "$_dir/$name"
+                });
+              } else if (isTaskList) {
+                Navigator.pushNamed(context, "/content/tasklist", arguments: {
+                  'safe': _safe,
+                  'room': _room,
+                  'folder': _dir.isEmpty ? name : "$_dir/$name"
+                });
+              } else {
+                _dir = _dir.isEmpty ? name : "$_dir/$name";
+                _read();
+              }
+            }),
+      ));
+    }
     for (var entry in _files.entries) {
       var name = entry.key;
       var headers = entry.value;
@@ -210,11 +241,11 @@ class _ContentState extends State<Content> {
       var uploading = state == "uploading";
       var isSnippet = name.endsWith(".snippet");
 
-      var pos = headers.firstOrNull?.attributes.meta["pos"] as int?;
+      var pos = _layout[name];
       if (pos != null) {
         swaps[items.length] = pos;
       }
-      headersMap[items.length] = headers.firstOrNull;
+      headersMap[items.length] = name;
 
       if (isSnippet) {
         items.add(Card(
@@ -285,7 +316,8 @@ class _ContentState extends State<Content> {
           ),
         ),
         const Spacer(),
-        PlatformIconButton(onPressed: _read, icon: const Icon(Icons.refresh)),
+        PlatformIconButton(
+            onPressed: _refresh, icon: const Icon(Icons.refresh)),
         const SizedBox(width: 10),
         PlatformIconButton(
           icon: const Icon(Icons.add),
@@ -331,16 +363,18 @@ class _ContentState extends State<Content> {
                   children: items,
                   onReorder: (oldIndex, newIndex) {
                     setState(() {
-                      var h = headersMap[oldIndex];
-                      if (h == null) {
+                      var name = headersMap[oldIndex];
+                      if (name == null) {
                         return;
                       }
                       if (newIndex > oldIndex) {
                         newIndex -= 1;
                       }
-                      h.attributes.meta["pos"] = newIndex;
-                      _safe.patch(
-                          "rooms/$_room/content", h, PatchOptions(async: true));
+                      _layout[name] = newIndex;
+                      var layoutName = join(_dir, ".layout.json");
+                      var data = utf8.encode(jsonEncode(_layout));
+                      _safe.putBytes(
+                          _bucket, layoutName, data, PutOptions(async: true));
                     });
                   },
                 )

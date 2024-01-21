@@ -24,13 +24,13 @@ func TestAddSecondUser(t *testing.T) {
 	_, err = Put(s, "bucket", "a2", r, PutOptions{Private: Identity2.Id}, nil)
 	core.TestErr(t, err, "cannot put file: %v")
 
-	lastKeyId := s.keystore.LastKeyId
-	headersIds1, err := getHeadersIdsWithCount(s.primary, s.Name, "bucket")
+	lastKeyId := s.Keystore.LastKeyId
+	headersIds1, err := getHeadersIdsWithCount(s.PrimaryStore, s.Name, "bucket")
 	core.TestErr(t, err, "cannot get headers ids: %v")
 
 	err = SetUsers(s, map[string]Permission{Identity2.Id: Reader}, SetUsersOptions{})
 	core.TestErr(t, err, "cannot set users: %v")
-	core.Assert(t, s.keystore.LastKeyId == lastKeyId, "Expected last key id to be %d, got %d", lastKeyId, s.keystore.LastKeyId)
+	core.Assert(t, s.Keystore.LastKeyId == lastKeyId, "Expected last key id to be %d, got %d", lastKeyId, s.Keystore.LastKeyId)
 
 	users, err := GetUsers(s)
 	core.TestErr(t, err, "cannot get users: %v")
@@ -45,7 +45,7 @@ func TestAddSecondUser(t *testing.T) {
 
 	s, err = Open(Identity2, testSafe, testUrl, Identity1.Id, OpenOptions{})
 	core.TestErr(t, err, "cannot open safe: %v")
-	core.Assert(t, s.keystore.LastKeyId == lastKeyId, "Expected last key id to be %d, got %d", lastKeyId, s.keystore.LastKeyId)
+	core.Assert(t, s.Keystore.LastKeyId == lastKeyId, "Expected last key id to be %d, got %d", lastKeyId, s.Keystore.LastKeyId)
 
 	users, err = GetUsers(s)
 	core.TestErr(t, err, "cannot get users: %v")
@@ -82,11 +82,11 @@ func TestAddSecondUser(t *testing.T) {
 
 	err = SetUsers(s, map[string]Permission{Identity2.Id: Suspended}, SetUsersOptions{SyncAlign: true})
 	core.TestErr(t, err, "cannot set users: %v")
-	core.Assert(t, s.keystore.LastKeyId != lastKeyId, "Expected last key id to be different, got %d", s.keystore.LastKeyId)
+	core.Assert(t, s.Keystore.LastKeyId != lastKeyId, "Expected last key id to be different, got %d", s.Keystore.LastKeyId)
 
 	ListFiles(s, "bucket", ListOptions{})
 
-	headersIds2, err := getHeadersIdsWithCount(s.primary, s.Name, "bucket")
+	headersIds2, err := getHeadersIdsWithCount(s.PrimaryStore, s.Name, "bucket")
 	core.TestErr(t, err, "cannot get headers ids: %v")
 	core.Assert(t, len(headersIds2) == 1, "Expected 1 headers id, got %d", len(headersIds2))
 	for id := range headersIds1 {

@@ -30,14 +30,14 @@ const (
 // Create creates a new safe with the given name and store. The current user is the creator of the safe and it is
 // automatically added to the list of users with creator permissions. Other users are optional.
 func Create(currentUser security.Identity, name string, storeConfig StoreConfig, users Users, options CreateOptions) (*Safe, error) {
+	now := core.Now()
 	name, err := validName(name)
 	if core.IsErr(err, nil, "invalid name %s: %v", name) {
 		return nil, err
 	}
-	storeConfig.CreatorId = currentUser.Id
 	storeConfig.Primary = true
 
-	origin, err := storage.Open(storeConfig.Url)
+	primary, err := storage.Open(storeConfig.Url)
 	if core.IsErr(err, nil, "cannot open store %s: %v", storeConfig.Url) {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func Create(currentUser security.Identity, name string, storeConfig StoreConfig,
 
 	if options.Wipe {
 		core.Info("wiping safe: name %s", name)
-		origin.Delete(name)
+		primary.Delete(name)
 	} else {
 		return nil, fmt.Errorf("safe already exist: name %s", name)
 	}
@@ -71,73 +71,71 @@ func Create(currentUser security.Identity, name string, storeConfig StoreConfig,
 		options.ReplicaWatch = DefaultReplicaWatch
 	}
 
-	err = writeManifestFile(name, origin, currentUser, manifestFile{
-		CreatorId:       creatorId,
-		Description:     options.Description,
-		ChangeLogWatch:  options.ChangeLogWatch,
-		ReplicaWatch:    options.ReplicaWatch,
-		MinimalSyncTime: options.MinimalSyncTime,
+	err = writeManifest(name, primary, currentUser, Manifest{
+		CreatorId:   creatorId,
+		Description: options.Description,
 	})
 	if core.IsErr(err, nil, "cannot write manifest file in %s: %v", name) {
 		return nil, err
 	}
 
-	err = writePermissionChange(origin, name, currentUser, users)
+	err = writePermissionChange(primary, name, currentUser, users)
 	if core.IsErr(err, nil, "cannot write permission change in %s: %v", name) {
 		return nil, err
 	}
-	setUserInDB(name, currentUser.Id, Reader|Standard|Admin|Creator)
-
-	err = writeKeyStoreToDB(name, keystore)
-	if core.IsErr(err, nil, "cannot write keystore in DB for %s: %v", name) {
-		return nil, err
-	}
-	err = writeKeyStoreFile(origin, name, currentUser, keystore, users)
+	err = writeKeyStoreFile(primary, name, currentUser, keystore, users)
 	if core.IsErr(err, nil, "cannot write keystore in %s: %v", name) {
 		return nil, err
 	}
 
-	_, err = syncIdentities(origin, name, currentUser)
+	_, err = syncIdentities(primary, name, currentUser)
 	if core.IsErr(err, nil, "cannot sync identities in %s: %v", name) {
 		return nil, err
 	}
 
-	err = SetCached(name, origin, "config/.access.touch", nil, currentUser.Id)
-	if core.IsErr(err, nil, "cannot create touch file in %s: %v", name) {
+	config := safeConfig{
+		Description: options.Description,
+		Keystore:    keystore,
+		Users:       users,
+	}
+	err = setSafeConfigToDB(name, config)
+	if core.IsErr(err, nil, "cannot write config of safe %s to DB: %v", name) {
 		return nil, err
 	}
 
-	core.Info("safe created: name %s, creator %s, description %s", name, currentUser.Id,
-		options.Description)
+	err = SetCached(name, primary, "config/.access.touch", nil, currentUser.Id)
+	if core.IsErr(err, nil, "cannot create touch file in %s: %v", name) {
+		return nil, err
+	}
 
 	safesCounterLock.Lock()
 	safesCounter++
 
 	s := &Safe{
-		Hnd:             safesCounter,
-		CurrentUser:     currentUser,
-		CreatorId:       creatorId,
-		Permission:      users[currentUser.Id],
-		Name:            name,
-		Description:     options.Description,
-		Size:            0,
-		MinimalSyncTime: options.MinimalSyncTime,
-
-		primary:        origin,
-		stores:         []storage.Store{origin},
-		keystore:       keystore,
-		users:          users,
+		Hnd:            safesCounter,
+		CurrentUser:    currentUser,
+		CreatorId:      creatorId,
+		Connected:      true,
+		Permission:     users[currentUser.Id],
+		Name:           name,
+		Description:    options.Description,
+		Keystore:       keystore,
+		Users:          users,
+		PrimaryStore:   primary,
+		SecondaryStore: primary,
+		storeUrl:       storeConfig.Url,
 		usersLock:      sync.Mutex{},
 		background:     time.NewTicker(time.Minute),
 		syncUsers:      make(chan bool),
 		uploadFile:     make(chan UploadTask),
 		enforceQuota:   make(chan bool),
+		connect:        make(chan bool),
 		compactHeaders: make(chan CompactHeader),
+		storeSizes:     map[string]int64{},
 		quit:           make(chan bool),
 		wg:             sync.WaitGroup{},
 		lastBucketSync: map[string]time.Time{},
-		storeSizes:     map[string]int64{},
-		storeSizesLock: sync.Mutex{},
+		storeLock:      sync.Mutex{},
 	}
 	safesCounterLock.Unlock()
 
@@ -147,6 +145,10 @@ func Create(currentUser security.Identity, name string, storeConfig StoreConfig,
 	}
 
 	go backgroundJob(s)
+
+	core.Info("safe  %s created in %s: creator %s, description %s", name, core.Since(now), currentUser.Id,
+		options.Description)
+
 	return s, nil
 }
 
@@ -166,25 +168,33 @@ func validName(name string) (string, error) {
 }
 
 func resetSafeInDB(name string) error {
-	_, err := sql.Exec("DELETE_STORES", sql.Args{"name": name})
+	res, err := sql.Exec("DELETE_STORES", sql.Args{"safe": name})
 	if core.IsErr(err, nil, "cannot delete stores of safe %s from DB: %v", name) {
 		return err
 	}
+	n, _ := res.RowsAffected()
+	core.Info("deleted %d stores of safe %s from DB", n, name)
 
 	_, err = sql.Exec("DELETE_SAFE_HEADERS", sql.Args{"safe": name})
 	if core.IsErr(err, nil, "cannot wipe DB headers for safe %s: %v", name, err) {
 		return err
 	}
+	n, _ = res.RowsAffected()
+	core.Info("deleted %d headers of safe %s from DB", n, name)
 
 	_, err = sql.Exec("DELETE_SAFE_USERS", sql.Args{"safe": name})
 	if core.IsErr(err, nil, "cannot wipe DB users for safe %s: %v", name, err) {
 		return err
 	}
+	n, _ = res.RowsAffected()
+	core.Info("deleted %d users of safe %s from DB", n, name)
 
 	_, err = sql.Exec("DELETE_SAFE_CONFIGS", sql.Args{"safe": name})
 	if core.IsErr(err, nil, "cannot wipe DB configs for safe %s: %v", name, err) {
 		return err
 	}
+	n, _ = res.RowsAffected()
+	core.Info("deleted %d configs of safe %s from DB", n, name)
 
 	core.Info("successfully reset DB info for safe %s", name)
 	return nil

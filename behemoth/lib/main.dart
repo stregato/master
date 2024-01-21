@@ -43,6 +43,10 @@ void main() {
 
   startBackgroundService();
 
+  // speechToText.initialize().then((value) {
+  //   speechAvailable = value;
+  // });
+
   initFolders().then((_) {
     Connectivity().checkConnectivity().then((c) {
       availableBandwidth =

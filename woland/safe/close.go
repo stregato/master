@@ -8,7 +8,10 @@ func Close(s *Safe) {
 	close(s.compactHeaders)
 
 	s.wg.Wait()
-	for _, store := range s.stores {
-		store.Close()
+	if s.PrimaryStore != nil {
+		s.PrimaryStore.Close()
+	}
+	if s.SecondaryStore != nil {
+		s.SecondaryStore.Close()
 	}
 }

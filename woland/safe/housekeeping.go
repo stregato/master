@@ -21,15 +21,23 @@ type cleanupCandidates struct {
 }
 
 func enforceQuota(s *Safe) {
-	for _, store := range s.stores {
+	var stores []storage.Store
+	if s.PrimaryStore != nil {
+		stores = append(stores, s.PrimaryStore)
+	}
+	if s.SecondaryStore != nil && s.SecondaryStore != s.PrimaryStore {
+		stores = append(stores, s.SecondaryStore)
+	}
+
+	for _, store := range stores {
 		for _, sc := range s.StoreConfigs {
 			if sc.Url == store.Url() {
 				limit := sc.Quota * 9 / 10
 				size, err := enforceQuotaOnStore(s.Name, store, sc.Primary, limit)
 				if !core.IsErr(err, nil, "cannot enforce quota on store %s: %v", store, err) {
-					s.storeSizesLock.Lock()
+					s.storeLock.Lock()
 					s.storeSizes[store.Url()] = size
-					s.storeSizesLock.Unlock()
+					s.storeLock.Unlock()
 				}
 				break
 			}

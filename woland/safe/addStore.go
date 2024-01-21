@@ -6,24 +6,21 @@ import (
 	"strings"
 
 	"github.com/stregato/master/woland/core"
-	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 	"golang.org/x/crypto/blake2b"
 )
 
 func AddStore(s *Safe, storeConfig StoreConfig) error {
-	storeConfig.CreatorId = s.CurrentUser.Id
-	data, err := security.Marshal(s.CurrentUser, storeConfig, security.SignatureField)
+	data, err := json.Marshal(storeConfig)
 	if core.IsErr(err, nil, "cannot marshal store %s/%s: %v", s.Name, storeConfig.Url) {
 		return err
 	}
-	storeConfig.CreatorId = s.CurrentUser.Id
 
 	h := blake2b.Sum384([]byte(storeConfig.Url))
 	n := strings.ReplaceAll(sql.EncodeBase64(h[:]), "/", "_")
 
-	err = storage.WriteFile(s.primary, path.Join(s.Name, ConfigFolder, n+".store"), data)
+	err = storage.WriteFile(s.PrimaryStore, path.Join(s.Name, ConfigFolder, n+".store"), data)
 	if core.IsErr(err, nil, "cannot write store %s/%s: %v", s.Name, storeConfig.Url) {
 		return err
 	}
@@ -38,7 +35,9 @@ func AddStore(s *Safe, storeConfig StoreConfig) error {
 }
 
 func syncStores(s *Safe) error {
-	store := s.primary
+	now := core.Now()
+
+	store := s.PrimaryStore
 	name := path.Join(s.Name, ConfigFolder)
 	ls, err := store.ReadDir(name, storage.Filter{Suffix: ".store"})
 	if core.IsErr(err, nil, "cannot read stores in %s: %v", name, err) {
@@ -46,24 +45,14 @@ func syncStores(s *Safe) error {
 	}
 
 	for _, f := range ls {
-		data, err := storage.ReadFile(s.primary, path.Join(name, f.Name()))
+		data, err := storage.ReadFile(s.PrimaryStore, path.Join(name, f.Name()))
 		if core.IsErr(err, nil, "cannot read store %s: %v", f.Name(), err) {
 			continue
 		}
 
 		var st StoreConfig
-		userId, err := security.Unmarshal(data, &st, security.SignatureField)
+		err = json.Unmarshal(data, &st)
 		if core.IsErr(err, nil, "cannot unmarshal store %s: %v", f.Name(), err) {
-			continue
-		}
-
-		if st.CreatorId != userId {
-			core.Info("store %s belongs to %s but is signed by %s", f.Name(), st.CreatorId, userId)
-			continue
-		}
-
-		if st.Primary && userId != s.CreatorId {
-			core.Info("store %s is not secondary but belongs to %s", f.Name(), userId)
 			continue
 		}
 
@@ -73,6 +62,8 @@ func syncStores(s *Safe) error {
 		}
 		core.Info("added store %s primary %t to safe %s", st.Url, st.Primary, s.Name)
 	}
+	core.Info("synchorized stores of %s in %v", name, core.Since(now))
+
 	return nil
 }
 

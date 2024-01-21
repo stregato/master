@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:behemoth/common/cat_progress_indicator.dart';
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/coven/cockpit.dart';
+import 'package:behemoth/room/status.dart';
 import 'package:behemoth/woland/safe.dart';
 import 'package:flutter/material.dart';
 import 'package:behemoth/chat/chat.dart';
@@ -26,6 +29,32 @@ class _RoomState extends State<Room> {
   late Coven _coven;
   late String _room;
   int _unread = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 5), _updateSafe);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _updateSafe(Timer _) {
+    if (_coven.isOpen) {
+      var safe = _coven.safe;
+      var connected = safe.connected;
+      var permission = safe.permission;
+
+      safe.update();
+      if (connected != safe.connected || permission != safe.permission) {
+        setState(() {});
+      }
+    }
+  }
 
   void updateUnread(int unread) {
     if (unread != _unread) {
@@ -35,12 +64,46 @@ class _RoomState extends State<Room> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    var args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    _room = args['room'] as String;
-    _coven = args['coven'] as Coven;
+  Widget _errorBuilder(BuildContext context, Object? error) {
+    var message = "Technical Error: $error";
+    return PlatformScaffold(
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const Spacer(),
+            const Icon(Icons.lock, size: 40),
+            const SizedBox(height: 20),
+            PlatformText(message),
+            const SizedBox(height: 40),
+            PlatformElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+              },
+              child: PlatformText('Back to Home'),
+            ),
+            const SizedBox(height: 20),
+            PlatformElevatedButton(
+              onPressed: () {
+                var p = Profile.current;
+                p.covens.remove(_coven.name);
+                p.save();
+                Navigator.pop(context);
+              },
+              color: Colors.red,
+              child: PlatformText('Remove the coven ${_coven.name}'),
+            ),
+            const Spacer(),
+            PlatformText(
+                "tecnical details may be available in the logs (app settings)",
+                style: const TextStyle(fontSize: 8)),
+            const SizedBox(height: 4)
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _roomBuilder(BuildContext context) {
     if (_title.isEmpty) {
       _title = "$_room@${_coven.name}";
       _currentItem = currentPanelIdx[_title] ?? 0;
@@ -53,18 +116,12 @@ class _RoomState extends State<Room> {
       });
     }
 
-    var invite = PlatformIconButton(
-        onPressed: _coven.isOpen
-            ? () async {
-                await Navigator.pushNamed(context, "/invite", arguments: {
-                  "coven": _coven,
-                  "room": _room,
-                });
-              }
-            : null,
-        icon: const Icon(Icons.person_add));
+    if (!_coven.rooms.contains(_room)) {
+      _coven.addRoom(_room);
+      Profile.current.update(_coven);
+    }
 
-    var items = [
+    var barItems = [
       const BottomNavigationBarItem(
         icon: Icon(Icons.dataset),
         label: 'Content',
@@ -84,95 +141,90 @@ class _RoomState extends State<Room> {
       ),
     ];
 
+    var invite = PlatformIconButton(
+        onPressed: _coven.isOpen
+            ? () async {
+                await Navigator.pushNamed(context, "/invite", arguments: {
+                  "coven": _coven,
+                  "room": _room,
+                });
+              }
+            : null,
+        icon: const Icon(Icons.person_add));
+
+    var connected = IconButton(
+        onPressed: () {
+          Navigator.push(
+              context, MaterialPageRoute(builder: (context) => Status(_coven)));
+        },
+        icon: _coven.safe.connected
+            ? _coven.safe.permission == 0
+                ? const Icon(Icons.block, color: Colors.red)
+                : const Icon(
+                    Icons.link,
+                    color: Colors.green,
+                  )
+            : const Icon(Icons.link_off));
+
+    Widget? body;
+    switch (_currentItem) {
+      case 0:
+        _content ??= Content(_coven, _room);
+        body = _content;
+      case 1:
+        _chat ??= Chat(_coven, _room, "");
+        body = _chat;
+      case 2:
+        body = _cockpit;
+      default:
+        body = const Text("Unknown screen");
+    }
+
     return PlatformScaffold(
       appBar: PlatformAppBar(
         title: Text(_title, style: const TextStyle(fontSize: 18)),
         trailingActions: [
+          connected,
           invite,
         ],
       ),
-      body: FutureBuilder<Safe>(
-          future: _coven.open(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              var message = snapshot.error.toString();
-              if (message == "access pending") {
-                message = "Admin didn't provide access yet. Retry later.";
-              } else if (message == "access denied") {
-                message = "Admin removed your access.";
-              } else {
-                message = "Technical Error: $message";
-              }
-
-              return Center(
-                  child: Column(
-                children: [
-                  const Spacer(),
-                  const Icon(Icons.lock, size: 40),
-                  const SizedBox(height: 20),
-                  PlatformText(message),
-                  const SizedBox(height: 40),
-                  PlatformElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                    },
-                    child: PlatformText('Back to Home'),
-                  ),
-                  const SizedBox(height: 20),
-                  PlatformElevatedButton(
-                    onPressed: () {
-                      var p = Profile.current;
-                      p.covens.remove(_coven.name);
-                      p.save();
-                      Navigator.pop(context);
-                    },
-                    color: Colors.red,
-                    child: PlatformText('Remove the coven ${_coven.name}'),
-                  ),
-                  const Spacer(),
-                  PlatformText(
-                      "tecnical details may be available in the logs (app settings)",
-                      style: const TextStyle(fontSize: 8)),
-                  const SizedBox(height: 4)
-                ],
-              ));
-            }
-            if (snapshot.hasData) {
-              if (!_coven.rooms.contains(_room)) {
-                _coven.addRoom(_room);
-                Profile.current.update(_coven);
-              }
-
-              switch (_currentItem) {
-                case 0:
-                  _content ??= Content(_coven, _room);
-                  return _content!;
-                case 1:
-                  _chat ??= Chat(_coven, _room, "");
-                  return _chat!;
-                case 2:
-                  return _cockpit;
-                // _people ??= People(_safe!, _coven.getLoungeSync()!);
-                // return _people!;
-                default:
-                  return const Text("Unknown screen");
-              }
-            } else {
-              return CatProgressIndicator("opening $_title");
-            }
-          }),
+      body: body,
       bottomNavBar: PlatformNavBar(
+        items: barItems,
         currentIndex: _currentItem,
-        itemChanged: (int index) {
+        itemChanged: (newItem) {
           setState(() {
-            _currentItem = index;
+            _currentItem = newItem;
           });
-          if (index != 2) {
-            currentPanelIdx[_title] = index;
-          }
         },
-        items: items,
       ),
+    );
+  }
+
+  Widget _builder(BuildContext context, AsyncSnapshot<Safe> snapshot) {
+    if (snapshot.hasError) {
+      return _errorBuilder(context, snapshot.error);
+    }
+    if (snapshot.hasData) {
+      return _roomBuilder(context);
+    }
+
+    return PlatformScaffold(
+      appBar: PlatformAppBar(title: Text("Opening ${_coven.name}")),
+      body: const CatProgressIndicator("opening the room"),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    _room = args['room'] as String;
+    _coven = args['coven'] as Coven;
+
+    return FutureBuilder<Safe>(
+      future: _coven.open(),
+      builder: _builder,
     );
   }
 }

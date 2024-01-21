@@ -52,6 +52,8 @@ class _ContentActionsState extends State<ContentActions> {
     _headers = args["headers"] as List<Header>;
     _headers.sort((a, b) => b.modTime.compareTo(a.modTime));
 
+    var connected = _safe.connected;
+
     var libraryFolder = path.join(documentsFolder, _safe.name, _room);
     var localPath =
         path.join(documentsFolder, _safe.name, _room, _folder, _name);
@@ -134,7 +136,7 @@ class _ContentActionsState extends State<ContentActions> {
               }),
         ),
       );
-      if (_headers.isEmpty || syncFileId == 0) {
+      if (_headers.isEmpty || syncFileId == 0 && connected) {
         var action = _headers.isEmpty ? "Add" : "Upload";
         items.add(
           Card(
@@ -193,7 +195,7 @@ class _ContentActionsState extends State<ContentActions> {
     for (var h in _headers) {
       var action = "";
       // local is sync and version is last
-      if (h.fileId == syncFileId && version == _headers.length) {
+      if (h.fileId == syncFileId && version == _headers.length || !connected) {
         continue;
       }
       // local is sync but not last version: update

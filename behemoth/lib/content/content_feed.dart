@@ -486,13 +486,18 @@ class _ContentFeedState extends State<ContentFeed> {
     if (_pendingDownloads.isNotEmpty) {
       Future.delayed(Duration.zero, () async {
         for (var h in _pendingDownloads) {
-          await _safe.getFile(
-              "rooms/$_room/content",
-              h.name,
-              join(documentsFolder, _safe.name, _room, _dir, basename(h.name)),
-              GetOptions());
-          var w = _getWidget(h);
-          _cache.putIfAbsent(h.fileId, () => w);
+          try {
+            await _safe.getFile(
+                "rooms/$_room/content",
+                h.name,
+                join(
+                    documentsFolder, _safe.name, _room, _dir, basename(h.name)),
+                GetOptions());
+            var w = _getWidget(h);
+            _cache.putIfAbsent(h.fileId, () => w);
+          } catch (e) {
+            _headers.remove(h);
+          }
           setState(() {});
         }
         _pendingDownloads.clear();

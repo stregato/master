@@ -93,7 +93,7 @@ extern Result wlnd_createSafe(char* creator, char* name, char* storeConfig, char
 extern Result wlnd_addStore(int hnd, char* storeConfig);
 extern Result wlnd_openSafe(char* identity, char* name, char* storeUrl, char* creatorId, char* openOptions);
 extern Result wlnd_closeSafe(int hnd);
-extern Result wlnd_syncBucket(int hnd, char* bucket, char* syncOptions);
+extern Result wlnd_getSafe(int hnd);
 extern Result wlnd_syncUsers(int hnd);
 extern Result wlnd_listFiles(int hnd, char* dir, char* listOptions);
 extern Result wlnd_listDirs(int hnd, char* bucket, char* listDirsOptions);

@@ -3,23 +3,39 @@ package safe
 import (
 	"fmt"
 	"path"
-	"time"
 
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
 	"github.com/stregato/master/woland/storage"
 )
 
-type manifestFile struct {
-	CreatorId       string        `json:"creatorId"`       // CreatorId is the id of the creator of the safe
-	Description     string        `json:"description"`     // Description of the safe
-	ChangeLogWatch  time.Duration `json:"changeLogWatch"`  // ChangeLogWatch is the period for watching changes in the change log
-	ReplicaWatch    time.Duration `json:"replicaWatch"`    // ReplicaWatch is the period for synchronizing replicas
-	MinimalSyncTime time.Duration `json:"minimalSyncTime"` // MinimalSyncTime is the minimal time between syncs
+type Manifest struct {
+	CreatorId   string `json:"creatorId"`   // CreatorId is the id of the creator of the safe
+	Description string `json:"description"` // Description of the safe
 }
 
-func readManifestFile(safeName string, s storage.Store, creatorId string) (manifestFile, error) {
-	var manifest manifestFile
+func syncManifest(s *Safe) error {
+	synced, _ := GetCached(s.Name, s.PrimaryStore, "config/.manifest.touch", nil, "")
+	if !synced {
+		manifest, err := readManifest(s.Name, s.PrimaryStore, s.CreatorId)
+		if core.IsErr(err, nil, "cannot read manifest from store %s: %v", err) {
+			return err
+		}
+		s.Description = manifest.Description
+		err = setSafeConfigToDB(s.Name, safeConfig{
+			Description: manifest.Description,
+			Keystore:    s.Keystore,
+			Users:       s.Users,
+		})
+		if core.IsErr(err, nil, "cannot set safe config to DB: %v") {
+			return err
+		}
+	}
+	return nil
+}
+
+func readManifest(safeName string, s storage.Store, creatorId string) (Manifest, error) {
+	var manifest Manifest
 
 	synced, err := GetCached(safeName, s, "config/.manifest.touch", &manifest, "")
 	if core.IsErr(err, nil, "cannot check manifest file: %v") {
@@ -54,7 +70,7 @@ func readManifestFile(safeName string, s storage.Store, creatorId string) (manif
 	return manifest, nil
 }
 
-func writeManifestFile(safeName string, s storage.Store, currentUser security.Identity, manifest manifestFile) error {
+func writeManifest(safeName string, s storage.Store, currentUser security.Identity, manifest Manifest) error {
 	data, err := security.Marshal(currentUser, manifest, "signature")
 	if core.IsErr(err, nil, "cannot marshal manifest file: %v", err) {
 		return err

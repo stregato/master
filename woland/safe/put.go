@@ -56,6 +56,10 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 	var r io.ReadSeeker
 	var err error
 
+	if !s.Connected && !options.Async {
+		return Header{}, fmt.Errorf("not connected")
+	}
+
 	if strings.HasPrefix(name, "/") {
 		return Header{}, fmt.Errorf(ErrInvalidName, name)
 	}
@@ -151,7 +155,6 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 	}
 	core.Info("Inserted header for %s[%d]", header.Name, header.FileId)
 
-	s.Size += header.Size
 	//	applyQuota(0.95, s.QuotaGroup, store, s.Size, s.Quota, false)
 
 	if options.Async {
@@ -170,10 +173,12 @@ func Put(s *Safe, bucket, name string, src any, options PutOptions, onComplete f
 		}
 
 		core.Info("Async put for %s[%d]", header.Name, header.FileId)
-		s.uploadFile <- UploadTask{Bucket: bucket, Header: header, HeaderFile: headerId}
+		if s.Connected {
+			s.uploadFile <- UploadTask{Bucket: bucket, Header: header, HeaderFile: headerId}
+		}
 		return header, nil
 	} else {
-		header, err = writeToStore(s, s.primary, bucket, r, headerId, header, onComplete)
+		header, err = writeToStore(s, s.PrimaryStore, bucket, r, headerId, header, onComplete)
 		if core.IsErr(err, nil, "cannot put %s into store %s: %v", name, s.Name) {
 			return header, err
 		}
@@ -263,13 +268,13 @@ func uploadFileInBackground(s *Safe, uploadTask UploadTask) error {
 	defer f.Close()
 	core.Info("Uploading %s[%d] in %s/%s", header.Name, header.FileId, s.Name, uploadTask.Bucket)
 
-	_, err = writeToStore(s, s.primary, uploadTask.Bucket, f, uploadTask.HeaderFile, header, nil)
+	_, err = writeToStore(s, s.PrimaryStore, uploadTask.Bucket, f, uploadTask.HeaderFile, header, nil)
 	if core.IsErr(err, nil, "cannot write to store: %v", err) {
 		return err
 	}
-	if s.stores[0] != s.primary {
+	if s.SecondaryStore != s.PrimaryStore {
 		f.Seek(0, io.SeekStart)
-		_, err = writeToStore(s, s.stores[0], uploadTask.Bucket, f, uploadTask.HeaderFile, header, nil)
+		_, err = writeToStore(s, s.SecondaryStore, uploadTask.Bucket, f, uploadTask.HeaderFile, header, nil)
 		core.IsErr(err, nil, "cannot write to secondary store: %v", err)
 	}
 
@@ -367,13 +372,13 @@ func writeToStore(s *Safe, store storage.Store, bucket string, r io.ReadSeeker, 
 	for _, sc := range s.StoreConfigs {
 		if sc.Url == store.Url() {
 			limit := sc.Quota * 9 / 10
-			s.storeSizesLock.Lock()
+			s.storeLock.Lock()
 			s.storeSizes[store.Url()] = s.storeSizes[store.Url()] + header.Size
 			if s.storeSizes[store.Url()] > limit {
 				core.Info("Enforcing quota on %s in %s because likely exceeding", store.Url(), s.Name)
 				s.enforceQuota <- true
 			}
-			s.storeSizesLock.Unlock()
+			s.storeLock.Unlock()
 		}
 	}
 
@@ -406,19 +411,19 @@ func writeHeader(s *Safe, bucket string, header Header, headerId uint64) (Header
 
 	hashedBucket := hashPath(bucket)
 	filePath := path.Join(s.Name, DataFolder, hashedBucket, HeaderFolder, fmt.Sprintf("%d", headerId))
-	keyId := s.keystore.LastKeyId
-	keyValue := s.keystore.Keys[keyId]
+	keyId := s.Keystore.LastKeyId
+	keyValue := s.Keystore.Keys[keyId]
 	headersFile := HeadersFile{
 		KeyId:   keyId,
 		Bucket:  bucket,
 		Headers: []Header{header2},
 	}
-	err = writeHeadersFile(s.primary, s.Name, filePath, keyValue, headersFile)
+	err = writeHeadersFile(s.PrimaryStore, s.Name, filePath, keyValue, headersFile)
 	if core.IsErr(err, nil, "cannot write header: %v", err) {
 		return Header{}, err
 	}
 	core.Info("Wrote header for %s[%d]", header2.Name, header2.FileId)
-	err = SetCached(s.Name, s.primary, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, s.CurrentUser.Id)
+	err = SetCached(s.Name, s.PrimaryStore, fmt.Sprintf("data/%s/.touch", hashedBucket), nil, s.CurrentUser.Id)
 	if core.IsErr(err, nil, "cannot set touch file: %v", err) {
 		return Header{}, err
 	}

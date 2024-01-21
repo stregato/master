@@ -1,7 +1,6 @@
 package safe
 
 import (
-	"encoding/json"
 	"fmt"
 	"path"
 
@@ -9,7 +8,6 @@ import (
 
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
-	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
 
@@ -55,7 +53,6 @@ func syncKeystore(s storage.Store, safeName string, currentUser security.Identit
 	}
 	keystore.LastKeyId = lastKeyId
 	keystore.Keys = keys
-	writeKeyStoreToDB(safeName, keystore)
 
 	core.Info("keystores read: name %s, keyId %d, withKeys %v", safeName, keystore.LastKeyId, withKeys)
 	return keystore, withKeys, nil
@@ -128,34 +125,34 @@ func writeKeyStoreFile(s storage.Store, safeName string, currentUser security.Id
 	return nil
 }
 
-func writeKeyStoreToDB(safeName string, keystore Keystore) error {
-	data, err := json.Marshal(keystore)
-	if core.IsErr(err, nil, "cannot marshal keystore: %v", err) {
-		return err
-	}
+// func writeKeyStoreToDB(safeName string, keystore Keystore) error {
+// 	data, err := json.Marshal(keystore)
+// 	if core.IsErr(err, nil, "cannot marshal keystore: %v", err) {
+// 		return err
+// 	}
 
-	err = sql.SetConfig(safeName, "keystore", "", 0, data)
-	if core.IsErr(err, nil, "cannot write keystore to db: %v", err) {
-		return err
-	}
+// 	err = sql.SetConfig(safeName, "keystore", "", 0, data)
+// 	if core.IsErr(err, nil, "cannot write keystore to db: %v", err) {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func readKeystoreFromDB(safeName string) Keystore {
-	keystore := Keystore{
-		Keys: make(map[uint64][]byte),
-	}
+// func readKeystoreFromDB(safeName string) Keystore {
+// 	keystore := Keystore{
+// 		Keys: make(map[uint64][]byte),
+// 	}
 
-	_, _, data, ok := sql.GetConfig(safeName, "keystore")
-	if !ok {
-		return keystore
-	}
+// 	_, _, data, ok := sql.GetConfig(safeName, "keystore")
+// 	if !ok {
+// 		return keystore
+// 	}
 
-	err := json.Unmarshal(data, &keystore)
-	if core.IsErr(err, nil, "cannot unmarshal keystore: %v", err) {
-		return keystore
-	}
+// 	err := json.Unmarshal(data, &keystore)
+// 	if core.IsErr(err, nil, "cannot unmarshal keystore: %v", err) {
+// 		return keystore
+// 	}
 
-	return keystore
-}
+// 	return keystore
+// }

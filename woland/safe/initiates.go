@@ -17,7 +17,7 @@ type Initiate struct {
 }
 
 func GetInitiates(s *Safe) ([]Initiate, error) {
-	store := s.primary
+	store := s.PrimaryStore
 	ls, err := store.ReadDir(path.Join(s.Name, InitiateFolder), storage.Filter{})
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -66,8 +66,8 @@ func GetInitiates(s *Safe) ([]Initiate, error) {
 	return initiates, nil
 }
 
-func createInitiateFile(safeName string, store storage.Store, currentUser security.Identity, initiateSecret string) error {
-	err := storage.WriteFile(store, path.Join(safeName, InitiateFolder, currentUser.Id), []byte(initiateSecret))
+func createInitiateFile(safeName string, store storage.Store, currentUser security.Identity) error {
+	err := storage.WriteFile(store, path.Join(safeName, InitiateFolder, currentUser.Id), []byte{})
 	if core.IsErr(err, nil, "cannot write touch file in %s: %v", safeName) {
 		return err
 	}

@@ -326,8 +326,8 @@ type CompactHeader struct {
 }
 
 func compactHeaders(s *Safe, newKey bool) error {
-	ls, err := s.primary.ReadDir(path.Join(s.Name, DataFolder), storage.Filter{})
-	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", s.primary, s.Name, err) {
+	ls, err := s.PrimaryStore.ReadDir(path.Join(s.Name, DataFolder), storage.Filter{})
+	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", s.PrimaryStore, s.Name, err) {
 		return err
 	}
 
@@ -349,7 +349,7 @@ func compactHeadersInBucket(s *Safe, buckerDir string, newKey bool) {
 	defer s.compactHeadersWg.Done()
 
 	folder := path.Join(s.Name, DataFolder, buckerDir, HeaderFolder)
-	store := s.primary
+	store := s.PrimaryStore
 	ls, err := store.ReadDir(folder, storage.Filter{})
 	if core.IsErr(err, nil, "cannot read dir %s/%s: %v", store, folder, err) {
 		return
@@ -397,14 +397,14 @@ func compactHeadersInBucket(s *Safe, buckerDir string, newKey bool) {
 
 func mergeHeadersFiles(s *Safe, folder string, files []string, wg *sync.WaitGroup) {
 	headersMap := map[uint64]Header{}
-	store := s.primary
+	store := s.PrimaryStore
 	safeName := s.Name
 
 	var bucket string
 	var filesToDelete []string
 	for _, file := range files {
 		filepath := path.Join(folder, file)
-		headerId, err := readHeadersFile(store, safeName, filepath, s.keystore.Keys)
+		headerId, err := readHeadersFile(store, safeName, filepath, s.Keystore.Keys)
 		if core.IsErr(err, nil, "cannot read headers: %v", err) {
 			continue
 		}
@@ -435,11 +435,11 @@ func mergeHeadersFiles(s *Safe, folder string, files []string, wg *sync.WaitGrou
 	}
 
 	headersFile := HeadersFile{
-		KeyId:   s.keystore.LastKeyId,
+		KeyId:   s.Keystore.LastKeyId,
 		Bucket:  bucket,
 		Headers: headers,
 	}
-	err := writeHeadersFile(store, safeName, filepath, s.keystore.Keys[s.keystore.LastKeyId], headersFile)
+	err := writeHeadersFile(store, safeName, filepath, s.Keystore.Keys[s.Keystore.LastKeyId], headersFile)
 	if core.IsErr(err, nil, "cannot write headers: %v", err) {
 		return
 	}

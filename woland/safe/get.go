@@ -33,6 +33,10 @@ type GetOptions struct {
 func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, error) {
 	core.Info("Getting %s/%s", bucket, name)
 
+	if !s.Connected {
+		return Header{}, fmt.Errorf("not connected")
+	}
+
 	if !options.NoSync {
 		_, err := SyncBucket(s, bucket, SyncOptions{}, nil)
 		if core.IsErr(err, nil, "cannot sync headers: %v", err) {
@@ -106,7 +110,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 			cachedFile = name
 		}
 
-		err = writeFile(s, bucket, options, headerId, header, f)
+		err = writeFile(s, bucket, options, headerId, header, destFile, f)
 		if core.IsErr(err, nil, "cannot write file: %v", err) {
 			return Header{}, err
 		}
@@ -135,7 +139,7 @@ func Get(s *Safe, bucket, name string, dest any, options GetOptions) (Header, er
 			}
 		}
 	} else if w != nil {
-		err = writeFile(s, bucket, options, headerId, header, w)
+		err = writeFile(s, bucket, options, headerId, header, destFile, w)
 		if core.IsErr(err, nil, "cannot write file: %v", err) {
 			return Header{}, err
 		}
@@ -220,38 +224,54 @@ func copyFromCachedFile(header Header, w io.Writer) error {
 	return err
 }
 
-func writeFile(s *Safe, bucket string, options GetOptions, headerId uint64, header Header, w io.Writer) error {
+func writeFile(s *Safe, bucket string, options GetOptions, headerId uint64, header Header, destFile string, w io.Writer) error {
 	var err error
 
 	dir := hashPath(bucket)
 	fullname := path.Join(s.Name, DataFolder, dir, BodyFolder, fmt.Sprintf("%d", header.FileId))
 
-	fastest := s.stores[0]
-	err = fastest.Read(fullname, options.Range, w, nil)
+	secondary := s.SecondaryStore
+	err = secondary.Read(fullname, options.Range, w, nil)
 	if err == nil {
-		core.Info("Read %s[%d] into %s from secondary store %s", header.Name, header.FileId, fullname, fastest.String())
+		if destFile != "" {
+			w.(*os.File).Close()
+		}
+		core.Info("Read %s[%d] into %s from secondary store %s", header.Name, header.FileId, fullname, secondary.String())
 		return nil
 	}
 	notExist := os.IsNotExist(err)
 
-	err = s.primary.Read(fullname, options.Range, w, nil)
+	err = s.PrimaryStore.Read(fullname, options.Range, w, nil)
+	if destFile != "" {
+		w.(*os.File).Close()
+	}
 	if core.IsErr(err, nil, "cannot read file: %v", err) {
+		if os.IsNotExist(err) {
+			_, err := sql.Exec("SET_DELETED_FILE", sql.Args{"safe": s.Name, "fileId": header.FileId})
+			if !core.IsErr(err, nil, "cannot set deleted file: %v", err) {
+				core.Info("set header for %d deleted for %s", header.FileId, s.Name)
+			}
+		}
+		if destFile != "" {
+			core.Info("delete target %s cannot write file %s from safe %s", destFile, fullname, s.Name)
+			os.Remove(destFile)
+		}
 		return err
 	}
-	core.Info("Read %s[%d] into %s from primary store %s", header.Name, header.FileId, fullname, s.primary.String())
+	core.Info("Read %s[%d] into %s from primary store %s", header.Name, header.FileId, fullname, s.PrimaryStore.String())
 
 	if notExist {
 		r, ok := w.(io.ReadSeeker)
 		if ok {
-			core.Info("Cloning %s[%d] into secondary store %s", header.Name, header.FileId, fastest.String())
+			core.Info("Cloning %s[%d] into secondary store %s", header.Name, header.FileId, secondary.String())
 			if f, ok := r.(*os.File); ok {
 				err = f.Sync()
 				core.IsErr(err, nil, "cannot sync file: %v", err)
 			}
 			r.Seek(0, 0)
-			_, err = writeToStore(s, fastest, bucket, r, headerId, header, nil)
+			_, err = writeToStore(s, secondary, bucket, r, headerId, header, nil)
 			if !core.IsErr(err, nil, "cannot write to secondary store: %v", err) {
-				core.Info("Wrote %s[%d] into secondary store %s", header.Name, header.FileId, fastest.String())
+				core.Info("Wrote %s[%d] into secondary store %s", header.Name, header.FileId, secondary.String())
 			}
 		}
 	}

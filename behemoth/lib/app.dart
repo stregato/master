@@ -122,6 +122,7 @@ class _BehemothAppState extends State<BehemothApp> {
             DefaultCupertinoLocalizations.delegate,
           ],
           title: 'Behemoth',
+          debugShowCheckedModeBanner: false,
           // theme: ThemeData(
           //   primarySwatch: Colors.blue,
           // ),

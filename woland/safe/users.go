@@ -9,7 +9,6 @@ import (
 
 	"github.com/stregato/master/woland/core"
 	"github.com/stregato/master/woland/security"
-	"github.com/stregato/master/woland/sql"
 	"github.com/stregato/master/woland/storage"
 )
 
@@ -38,7 +37,7 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 	var includesRevoke bool          // includesRevoke is true if the new users include a revoke of a permission
 
 	for userId, permission := range users {
-		if p, ok := s.users[userId]; !ok || p != permission {
+		if p, ok := s.Users[userId]; !ok || p != permission {
 			if s.Permission < p || s.Permission < permission {
 				return fmt.Errorf(ErrUnauthorized, currentUserId, userId, p, permission, s.Name)
 			}
@@ -48,14 +47,14 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		}
 	}
 
-	for userId, permission := range delta {
-		err = setUserInDB(s.Name, userId, permission)
-		if core.IsErr(err, nil, "cannot set user in %s: %v", s.Name) {
-			return err
-		}
-	}
+	// for userId, permission := range delta {
+	// 	err = setUserInDB(s.Name, userId, permission)
+	// 	if core.IsErr(err, nil, "cannot set user in %s: %v", s.Name) {
+	// 		return err
+	// 	}
+	// }
 
-	store := s.primary
+	store := s.PrimaryStore
 	err = writePermissionChange(store, s.Name, s.CurrentUser, delta)
 	if core.IsErr(err, nil, "cannot write permission change in %s: %v", s.Name) {
 		return err
@@ -71,12 +70,12 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
 		}
-		s.keystore.LastKeyId = keystore.LastKeyId
-		s.keystore.Keys[keystore.LastKeyId] = keystore.Keys[keystore.LastKeyId]
-		err = writeKeyStoreToDB(s.Name, s.keystore)
-		if core.IsErr(err, nil, "cannot write keystore in DB for %s: %v", s.Name) {
-			return err
-		}
+		s.Keystore.LastKeyId = keystore.LastKeyId
+		s.Keystore.Keys[keystore.LastKeyId] = keystore.Keys[keystore.LastKeyId]
+		// err = writeKeyStoreToDB(s.Name, s.Keystore)
+		// if core.IsErr(err, nil, "cannot write keystore in DB for %s: %v", s.Name) {
+		// 	return err
+		// }
 
 		err = compactHeaders(s, options.SyncAlign)
 		if core.IsErr(err, nil, "cannot compact headers in %s: %v", s.Name) {
@@ -84,7 +83,7 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 		}
 
 	} else {
-		err = writeKeyStoreFile(store, s.Name, s.CurrentUser, s.keystore, delta)
+		err = writeKeyStoreFile(store, s.Name, s.CurrentUser, s.Keystore, delta)
 		if core.IsErr(err, nil, "cannot write keystore in %s: %v", s.Name) {
 			return err
 		}
@@ -96,23 +95,33 @@ func SetUsers(s *Safe, users Users, options SetUsersOptions) error {
 	}
 
 	for userId, permission := range delta {
-		s.users[userId] = permission
+		s.Users[userId] = permission
 		deleteInitiateFile(s.Name, store, userId)
+	}
+
+	err = setSafeConfigToDB(s.Name, safeConfig{
+		Description: s.Description,
+		Keystore:    s.Keystore,
+		Users:       s.Users,
+	})
+	if core.IsErr(err, nil, "cannot save config of %s to DB: %v", s.Name) {
+		return err
 	}
 
 	return nil
 }
 
 func GetUsers(s *Safe) (Users, error) {
-	return s.users, nil
+	return s.Users, nil
 }
 
 func SyncUsers(s *Safe) (int, error) {
+	now := core.Now()
 	core.Info("synchronizing users in %s", s.Name)
 	s.usersLock.Lock()
 	defer s.usersLock.Unlock()
 
-	store := s.primary
+	store := s.PrimaryStore
 	synced, err := GetCached(s.Name, store, "config/.access.touch", nil, "")
 	if core.IsErr(err, nil, "cannot sync touch file in %s: %v", s.Name) {
 		return 0, err
@@ -128,7 +137,7 @@ func SyncUsers(s *Safe) (int, error) {
 	}
 	core.Info("found %d new identities in safe %s", len(identities), s.Name)
 
-	users, count, err := syncUsers(s.Name, store, s.CurrentUser, s.CreatorId, s.users)
+	users, count, err := syncUsers(s.Name, store, s.CurrentUser, s.CreatorId, s.Users)
 	if core.IsErr(err, nil, "cannot sync users in %s: %v", s.Name) {
 		return 0, err
 	}
@@ -139,43 +148,58 @@ func SyncUsers(s *Safe) (int, error) {
 		return 0, err
 	}
 
-	s.users = users
-	s.keystore = keystore
 	s.Permission = users[s.CurrentUser.Id]
+	s.Users = users
+	s.Keystore = keystore
+	err = setSafeConfigToDB(s.Name, safeConfig{
+		Description: s.Description,
+		Keystore:    s.Keystore,
+		Users:       s.Users,
+	})
+	if core.IsErr(err, nil, "cannot save config of %s to DB: %v", s.Name) {
+		return 0, err
+	}
+	if s.Permission == 0 {
+		core.Info("creating initiate file for %s", s.CurrentUser.Id)
+		createInitiateFile(s.Name, s.PrimaryStore, s.CurrentUser)
+		return 0, fmt.Errorf("access pending")
+	}
+
+	core.Info("syncronized users in safe safe %s in %v", s.Name, core.Since(now))
 	return count, nil
 }
 
-func setUserInDB(safeName string, userId string, permission Permission) error {
-	_, err := sql.Exec("SET_USER", sql.Args{
-		"safe":       safeName,
-		"id":         userId,
-		"permission": permission,
-	})
-	if core.IsErr(err, nil, "cannot set user in %s: %v", safeName) {
-		return err
-	}
-	return nil
-}
+// func setUserInDB(safeName string, userId string, permission Permission) error {
+// 	_, err := sql.Exec("SET_USER", sql.Args{
+// 		"safe":       safeName,
+// 		"id":         userId,
+// 		"permission": permission,
+// 	})
+// 	if core.IsErr(err, nil, "cannot set user in %s: %v", safeName) {
+// 		return err
+// 	}
+// 	return nil
+// }
 
-func getUsersFromDB(safeName string) (Users, error) {
-	rows, err := sql.Query("GET_USERS", sql.Args{"safe": safeName})
-	if core.IsErr(err, nil, "cannot query users: %v", err) {
-		return nil, err
-	}
+// func getUsersFromDB(safeName string) (Users, error) {
+// 	rows, err := sql.Query("GET_USERS", sql.Args{"safe": safeName})
+// 	if core.IsErr(err, nil, "cannot query users: %v", err) {
+// 		return nil, err
+// 	}
 
-	users := make(Users)
-	for rows.Next() {
-		var userId string
-		var permission int
-		if core.IsErr(rows.Scan(&userId, &permission), nil, "cannot scan user: %v", err) {
-			continue
-		}
-		users[userId] = Permission(permission)
-	}
-	rows.Close()
-	core.Info("read %d users in %s", len(users), safeName)
-	return users, nil
-}
+// 	users := make(Users)
+// 	for rows.Next() {
+// 		var userId string
+// 		var permission int
+// 		if core.IsErr(rows.Scan(&userId, &permission), nil, "cannot scan user: %v", err) {
+// 			continue
+// 		}
+// 		users[userId] = Permission(permission)
+// 	}
+// 	rows.Close()
+// 	core.Info("read %d users in %s", len(users), safeName)
+// 	return users, nil
+// }
 
 func syncUsers(safeName string, store storage.Store, currentUser security.Identity, creatorId string, users_ Users) (users Users, diff int, err error) {
 	var count int
@@ -206,10 +230,10 @@ func syncUsers(safeName string, store storage.Store, currentUser security.Identi
 
 	for userId, permission := range users {
 		if p, ok := users_[userId]; !ok || p != permission {
-			err = setUserInDB(safeName, userId, permission)
-			if core.IsErr(err, nil, "cannot set user in %s: %v", safeName) {
-				return Users{}, 0, err
-			}
+			// err = setUserInDB(safeName, userId, permission)
+			// if core.IsErr(err, nil, "cannot set user in %s: %v", safeName) {
+			// 	return Users{}, 0, err
+			// }
 			count++
 			core.Info("update user '%s' with permission %d", userId, permission)
 		}

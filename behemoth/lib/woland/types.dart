@@ -223,22 +223,19 @@ class CreateOptions {
 }
 
 class OpenOptions {
-  String initiateSecret;
-  bool forceCreate;
-  bool adaptiveSync;
-  Duration syncPeriod;
+  bool resetDB;
+  bool asyncConn;
+  Duration minimalSyncTime;
 
   OpenOptions(
-      {this.initiateSecret = '',
-      this.forceCreate = false,
-      this.adaptiveSync = false,
-      this.syncPeriod = Duration.zero});
+      {this.resetDB = false,
+      this.asyncConn = false,
+      this.minimalSyncTime = Duration.zero});
 
   Map<String, dynamic> toJson() => {
-        'initiateSecret': initiateSecret,
-        'forceCreate': forceCreate,
-        'adaptiveSync': adaptiveSync,
-        'syncPeriod': syncPeriod.inMicroseconds * 1000,
+        'resetDB': resetDB,
+        'asyncConn': asyncConn,
+        'minimalSyncTime': minimalSyncTime.inMicroseconds * 1000,
       };
 }
 

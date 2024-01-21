@@ -42,7 +42,7 @@ func ListFiles(s *Safe, bucket string, listOptions ListOptions) ([]Header, error
 
 	now := core.Now()
 	lastSync := s.lastBucketSync[bucket]
-	if !listOptions.NoSync || (s.MinimalSyncTime > 0 && s.MinimalSyncTime < now.Sub(lastSync)) {
+	if s.Connected && !listOptions.NoSync && (s.MinimalSyncTime == 0 || s.MinimalSyncTime < now.Sub(lastSync)) {
 		_, err := SyncBucket(s, bucket, SyncOptions{}, nil)
 		if core.IsErr(err, nil, "cannot sync files: %v", err) {
 			return nil, err

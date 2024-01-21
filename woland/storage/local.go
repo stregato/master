@@ -94,7 +94,10 @@ func (l *Local) Write(name string, source io.ReadSeeker, progress chan int64) er
 	defer f.Close()
 
 	_, err = io.Copy(f, source)
-	core.IsErr(err, nil, "cannot copy file on %v:%v", l)
+	if core.IsErr(err, nil, "cannot copy file on %v:%v", l) {
+		os.Remove(n)
+	}
+
 	return err
 }
 

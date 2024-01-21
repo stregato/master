@@ -30,7 +30,7 @@ class Coven {
   String name;
   StoreConfig storeConfig = StoreConfig("");
   String creatorId = "";
-  String secret = "";
+
   Set<String> rooms;
   Set<String> federated = {};
   Safe? _safe;
@@ -41,19 +41,18 @@ class Coven {
     return _safe != null;
   }
 
-  static Future<Coven> join(
-      String name, String url, String creatorId, String secret) async {
+  static Future<Coven> join(String name, String url, String creatorId) async {
     var p = Profile.current;
 
     try {
-      await Safe.open(p.identity, name, url, creatorId,
-          OpenOptions(initiateSecret: secret));
+      await Safe.open(
+          p.identity, name, url, creatorId, OpenOptions(asyncConn: true));
     } catch (e) {
       // ignore
     }
     var storeConfig = StoreConfig(url, creatorid: creatorId);
-    var coven = p.covens.putIfAbsent(name,
-        () => Coven(p.identity, name, storeConfig, creatorId, secret, {}));
+    var coven = p.covens.putIfAbsent(
+        name, () => Coven(p.identity, name, storeConfig, creatorId, {}));
     p.save();
     return coven;
   }
@@ -66,13 +65,11 @@ class Coven {
     await safe.putBytes("rooms/.list", "lounge", Uint8List(0), PutOptions());
     safe.close();
 
-    var coven =
-        Coven(p.identity, name, storeConfig, p.identity.id, "0000", {"lounge"});
+    var coven = Coven(p.identity, name, storeConfig, p.identity.id, {"lounge"});
     p.update(coven);
   }
 
-  Coven(this.identity, this.name, this.storeConfig, this.creatorId, this.secret,
-      this.rooms);
+  Coven(this.identity, this.name, this.storeConfig, this.creatorId, this.rooms);
   Coven.fromJson(this.identity, Map<String, dynamic> json)
       : name = json['name'],
         storeConfig = StoreConfig.fromJson(json['storeConfig']),
@@ -91,7 +88,7 @@ class Coven {
       return _safe!;
     }
     _safe = await Safe.open(identity, name, storeConfig.url, creatorId,
-        OpenOptions(initiateSecret: secret));
+        OpenOptions(asyncConn: true));
     opened[name] = this;
     safesAccessed[name] = DateTime.now();
     Cockpit.openCoven(this);

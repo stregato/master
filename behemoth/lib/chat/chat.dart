@@ -56,6 +56,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   late String _picsFolder;
   DateTime _lastAction = DateTime(0);
   int _refreshCount = 0;
+  bool _listening = false;
 
   @override
   void initState() {
@@ -96,10 +97,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   void _touch() async {
     _lastAction = DateTime.now();
   }
-
-  // Future<bool> _sync() async {
-  //   return await _safe.syncBucket(_bucket, SyncOptions()) > 0;
-  // }
 
   void _refresh() async {
     if (!mounted) return;
@@ -160,10 +157,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       if (h.attributes.thumbnail.isNotEmpty) {
         file.writeAsBytesSync(h.attributes.thumbnail);
       }
-
-      // _safe
-      //     .getFile(_bucket, h.name, file.path, GetOptions(fileId: h.fileId))
-      //     .then((_) => setState(() {}));
     }
 
     return types.ImageMessage(
@@ -325,7 +318,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                   PlatformElevatedButton(
                     onPressed: () async {
                       await progressDialog(context, "Joining $name",
-                          Coven.join(name, url, creatorId, ""),
+                          Coven.join(name, url, creatorId),
                           successMessage: "Joined $name",
                           errorMessage: "Failed to join $name");
                     },
@@ -493,11 +486,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   Future<void> _addImage(XFile xfile) async {
-    //final bytes = await xfile.readAsBytes();
-    //final image = await decodeImageFromList(bytes);
-
     var name = ph.basename(xfile.path);
-//    var stat = File(xfile.path).statSync();
 
     var options = PutOptions(
       async: true,
@@ -507,34 +496,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       contentType: lookupMimeType(xfile.path) ?? '',
     );
     await _safe.putFile(_bucket, name, xfile.path, options);
-
-    // var message = types.ImageMessage(
-    //   author: _currentUser,
-    //   createdAt: DateTime.now().millisecondsSinceEpoch,
-    //   //height: image.height.toDouble(),
-    //   id: "${header.fileId}",
-    //   name: xfile.name,
-    //   size: stat.size,
-    //   //size: bytes.length,
-    //   uri: xfile.path,
-    //   //width: image.width.toDouble(),
-    //   updatedAt: header.modTime.millisecondsSinceEpoch,
-    // );
-    // setState(() {
-    //   _messages = [..._messages, message];
-    // });
   }
-
-  // void _handleCameraSelection(BuildContext context) async {
-  //   List<types.Message> messages = [];
-  //   for (var xfile in await pickImage(ImageSource.camera)) {
-  //     messages.add(await _addImage(xfile));
-  //   }
-  //   setState(() {
-  //     _messages = [..._messages, ...messages];
-  //   });
-  //   Cockpit.visitRoom(widget.coven, _room, privateId: widget.privateId);
-  // }
 
   void _handleImageSelection(
       BuildContext context, ImageSource imageSource) async {
@@ -684,16 +646,69 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     });
   }
 
-  // void _addMessage(types.Message message) {
+  // void _onSpeechResult(SpeechRecognitionResult result) {
   //   setState(() {
-  //     _loaded.add(message.id);
-  //     _messages.insert(0, message);
+  //     _inputController.value = TextEditingValue(text: result.recognizedWords);
   //   });
   // }
+
+  final TextEditingController _inputController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     _loadMoreMessages();
+
+    var whisperButton = GestureDetector(
+      onTapDown: (TapDownDetails details) async {
+//        await speechToText.listen(onResult: _onSpeechResult);
+        setState(() {
+          _listening = true;
+        });
+      },
+      onTapUp: (TapUpDetails details) async {
+//        await speechToText.stop();
+        setState(() {
+          _listening = false;
+        });
+      },
+      onTapCancel: () async {
+//        await speechToText.stop();
+        setState(() {
+          _listening = false;
+        });
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: IconButton(
+          onPressed: () {},
+          icon: _listening
+              ? const Icon(
+                  Icons.hearing,
+                )
+              : const Icon(
+                  Icons.mic,
+                ),
+        ),
+      ),
+    );
+
+    Widget input = chat.Input(
+      onSendPressed: _handleSendPressed,
+      onAttachmentPressed: () {
+        _handleAttachmentPressed(context);
+      },
+      isAttachmentUploading: false,
+      options: chat.InputOptions(textEditingController: _inputController),
+    );
+    if (speechAvailable) {
+      input = Row(
+        children: [
+          Expanded(child: input),
+          whisperButton,
+        ],
+      );
+    }
+
     var chatWidget = Focus(
       focusNode: _focusNode,
       child: DropTarget(
@@ -721,10 +736,17 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           showUserNames: true,
           user: _currentUser,
           customMessageBuilder: _customMessageBuilder,
+          customBottomWidget: input,
         ),
       ),
     );
 
-    return chatWidget;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(fit: FlexFit.loose, child: chatWidget),
+        //  whisperButton,
+      ],
+    );
   }
 }

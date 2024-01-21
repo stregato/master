@@ -41,6 +41,21 @@ INSERT INTO configs(node,k,s,i,b) VALUES(:node,:key,:s,:i,:b)
 DELETE FROM configs WHERE node=:node
 
 -- INIT
+CREATE TABLE IF NOT EXISTS SafeConfigs (
+    safe TEXT NOT NULL,
+    config BLOB NOT NULL,
+    PRIMARY KEY (safe)
+);
+
+-- GET_SAFE_CONFIG
+select config from SafeConfigs WHERE safe=:safe
+
+-- SET_SAFE_CONFIG
+INSERT INTO SafeConfigs(safe,config) VALUES(:safe,:config) 
+ON CONFLICT(safe) DO UPDATE SET config=:config
+WHERE safe=:safe
+
+-- INIT
 CREATE TABLE IF NOT EXISTS Stores (
     safe TEXT NOT NULL,
     url TEXT NOT NULL,

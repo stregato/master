@@ -25,7 +25,7 @@ func TestHousekeeping(t *testing.T) {
 	s.enforceQuota <- true
 	time.Sleep(5 * time.Second)
 	s.lastQuotaEnforcement = time.Time{}
-	core.Assert(t, s.storeSizes[s.primary.Url()] < testStoreConfig.Quota, "Expected primary store size to be less than quota")
+	core.Assert(t, s.storeSizes[s.PrimaryStore.Url()] < testStoreConfig.Quota, "Expected primary store size to be less than quota")
 
 	Close(s)
 }

@@ -114,6 +114,7 @@ class _ContentTaskState extends State<ContentTask> {
               children: [
                 Expanded(
                   child: TextFormField(
+                    key: ValueKey(_task.dueDate),
                     decoration: const InputDecoration(labelText: 'Due Date'),
                     initialValue:
                         _task.dueDate.toLocal().toString().split(' ')[0],
@@ -176,7 +177,7 @@ class _ContentTaskState extends State<ContentTask> {
     final Map<String, dynamic> args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     var title = args['name'] as String;
-    _isDirty = args['create'] ?? false;
+    _isDirty = _isDirty || (args['create'] ?? false);
     if (_task.issuer.isEmpty) {
       _task = args['task'] as Task;
       _users = args['users'] as List<String>;

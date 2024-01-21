@@ -149,41 +149,6 @@ type Access struct {
 	Url       string `json:"url"`
 }
 
-// //export wlnd_encodeAccess
-// func wlnd_encodeAccess(userId *C.char, access *C.char) C.Result {
-// 	var a Access
-// 	err := cUnmarshal(access, &a)
-// 	if core.IsErr(err, nil, "cannot unmarshal token: %v") {
-// 		return cResult(nil, err)
-// 	}
-
-// 	token, err := safe.EncodeAccess(C.GoString(userId), a.Name, a.Id, a.CreatorId, a.Url)
-// 	if core.IsErr(err, nil, "cannot create token: %v") {
-// 		return cResult(nil, err)
-// 	}
-// 	return cResult(token, nil)
-// }
-
-// //export wlnd_decodeAccess
-// func wlnd_decodeAccess(identity *C.char, access *C.char) C.Result {
-// 	var i security.Identity
-// 	err := cUnmarshal(identity, &i)
-// 	if core.IsErr(err, nil, "cannot unmarshal identity: %v") {
-// 		return cResult(nil, err)
-// 	}
-
-// 	safeName, id, creatorId, url, err := safe.DecodeAccess(i, C.GoString(access))
-// 	if core.IsErr(err, nil, "cannot transfer token: %v") {
-// 		return cResult(nil, err)
-// 	}
-// 	return cResult(Access{
-// 		Name:      safeName,
-// 		Id:        id,
-// 		CreatorId: creatorId,
-// 		Url:       url,
-// 	}, nil)
-// }
-
 //export wlnd_createSafe
 func wlnd_createSafe(creator, name, storeConfig *C.char, users *C.char, createOptions *C.char) C.Result {
 	var sc safe.StoreConfig
@@ -281,25 +246,15 @@ func wlnd_closeSafe(hnd C.int) C.Result {
 	return cResult(nil, nil)
 }
 
-//export wlnd_syncBucket
-func wlnd_syncBucket(hnd C.int, bucket, syncOptions *C.char) C.Result {
+//export wlnd_getSafe
+func wlnd_getSafe(hnd C.int) C.Result {
 	safesSync.Lock()
+	defer safesSync.Unlock()
 	s, ok := safes[int(hnd)]
-	safesSync.Unlock()
 	if !ok {
 		return cResult(nil, ErrSafeNotFound)
 	}
-	var options safe.SyncOptions
-	err := cUnmarshal(syncOptions, &options)
-	if core.IsErr(err, nil, "cannot unmarshal syncOptions: %v") {
-		return cResult(nil, err)
-	}
-
-	changes, err := safe.SyncBucket(s, C.GoString(bucket), options, nil)
-	if core.IsErr(err, nil, "cannot sync safe: %v") {
-		return cResult(nil, err)
-	}
-	return cResult(changes, nil)
+	return cResult(s, nil)
 }
 
 //export wlnd_syncUsers

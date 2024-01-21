@@ -284,10 +284,6 @@ class _ContentTaskListState extends State<ContentTaskList> {
       appBar: PlatformAppBar(
         title: Text(basenameWithoutExtension(_dir),
             style: const TextStyle(fontSize: 18)),
-        trailingActions: [
-          PlatformIconButton(
-              onPressed: () {}, icon: const Icon(Icons.exit_to_app)),
-        ],
       ),
       body: SafeArea(
         child: Column(

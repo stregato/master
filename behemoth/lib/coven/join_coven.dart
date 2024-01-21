@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:behemoth/common/profile.dart';
 import 'package:behemoth/common/progress.dart';
 import 'package:behemoth/common/qrcode_scan_button.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 
 class JoinCoven extends StatefulWidget {
@@ -42,13 +39,9 @@ class _JoinCovenState extends State<JoinCoven> {
   String _creatorId = "";
   String _url = "";
   List<String> accessPrefixes = ['https://behemoth.rocks/a/', 'mg://a/'];
-  final TextEditingController _secretController = TextEditingController();
   final TextEditingController _linkController = TextEditingController();
 
   _JoinCovenState() {
-    var initialSecret = Random().nextInt(1000).toString().padLeft(4, '0');
-    _secretController.text = initialSecret;
-
     _linkController.addListener(() async {
       parseLink(_linkController.text.trim());
     });
@@ -86,31 +79,6 @@ class _JoinCovenState extends State<JoinCoven> {
                 "In order to join an existing coven, an admin must provide you with a link. "
                 "Contact the admin to get a link."),
             const SizedBox(height: 20),
-            PlatformTextField(
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              material: (context, platform) => MaterialTextFieldData(
-                decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  labelText: 'Secret',
-                  helperText:
-                      "This is a number that helps the admin recognize you.",
-                  errorText: _errorText,
-                ),
-              ),
-              cupertino: (context, platform) => CupertinoTextFieldData(
-                decoration: const BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      width: 0,
-                      color: CupertinoColors.inactiveGray,
-                    ),
-                  ),
-                ),
-              ),
-              controller: _secretController,
-            ),
-            const SizedBox(height: 20),
           ],
         ),
       Row(children: [
@@ -141,7 +109,10 @@ class _JoinCovenState extends State<JoinCoven> {
               child: PlatformElevatedButton(
                 onPressed: () async {
                   var task = Coven.join(
-                      _name, _url, _creatorId, _secretController.text);
+                    _name,
+                    _url,
+                    _creatorId,
+                  );
                   await progressDialog(context, "Joining $_name", task,
                       successMessage: "Added $_name");
                   widget.onComplete?.call();
