@@ -2,7 +2,7 @@ name: behemoth
 version: 0.1.0
 summary: Linux UI for Woland
 description: App to access and use woland portals
-icon: snap/gui/behemoth.png
+icon: ./snap/gui/behemoth.png
 confinement: strict
 base: core22
 grade: stable
@@ -47,6 +47,8 @@ parts:
       - libavutil-dev
       - libavformat-dev
       - libswscale-dev
+      - libmpv1
+      - libblas3
 
   behemoth:
     after: [woland]

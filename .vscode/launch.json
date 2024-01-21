@@ -5,6 +5,19 @@
     "version": "0.2.0",
     "configurations": [
     {
+        "name": "Test Local Storage",
+        "type": "go",
+        "request": "launch",
+        "mode": "test",
+        "program": "${workspaceFolder}/woland",
+        "args": [
+            "test",
+            "-run",
+            "^TestLocal$",
+            "github.com/stregato/master/woland/safe"
+        ]
+    },
+    {
         "name": "Test S3 Storage",
         "type": "go",
         "request": "launch",
@@ -17,7 +30,7 @@
     },
     {
         "name": "Poland",
-        "type": "python",
+        "type": "go",
         "request": "launch",
         "program": "${workspaceFolder}/poland/poland.py",
         "console": "integratedTerminal",
